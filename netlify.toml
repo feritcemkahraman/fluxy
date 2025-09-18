@@ -1,7 +1,7 @@
 [build]
   publish = "frontend/build"
   functions = "netlify/functions"
-  command = "npm install --legacy-peer-deps && cd frontend && npm install --legacy-peer-deps && (npx craco build || npm run build:fallback)"
+  command = "npm install --legacy-peer-deps && cd frontend && npm install --legacy-peer-deps && npx craco build"
 
 # Plugin to install dependencies for Netlify Functions
 [[plugins]]
