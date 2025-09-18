@@ -59,10 +59,11 @@
     "zod": "^3.24.4"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' craco build",
-    "test": "craco test",
-    "build:prod": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' craco build"
+    "start": "npx craco start",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' npx craco build",
+    "build:fallback": "NODE_OPTIONS='--max-old-space-size=4096' react-scripts build",
+    "test": "npx craco test",
+    "build:prod": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' npx craco build"
   },
   "browserslist": {
     "production": [

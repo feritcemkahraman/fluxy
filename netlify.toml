@@ -1,7 +1,7 @@
 [build]
   publish = "frontend/build"
   functions = "netlify/functions"
-  command = "rm -f package-lock.json && npm install --legacy-peer-deps && cd frontend && rm -f package-lock.json && npm install --legacy-peer-deps && npm run build"
+  command = "npm install --legacy-peer-deps && cd frontend && npm install --legacy-peer-deps && (npx craco build || npm run build:fallback)"
 
 # Plugin to install dependencies for Netlify Functions
 [[plugins]]
@@ -10,7 +10,8 @@
 [build.environment]
   NODE_VERSION = "20"
   NODE_OPTIONS = "--max-old-space-size=4096"
-  NPM_FLAGS = "--legacy-peer-deps --prefer-offline"
+  NPM_FLAGS = "--legacy-peer-deps"
+  CI = "false"
 
 [[redirects]]
   from = "/api/*"
