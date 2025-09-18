@@ -144,14 +144,14 @@ const connectToDatabase = async () => {
   connectionAttempts++;
   
   try {
-    // Optimized settings for serverless
+    // Optimized settings for serverless - using only supported options
     const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 10000, // Increased for serverless cold starts
-      socketTimeoutMS: 60000, // Increased timeout
-      connectTimeoutMS: 20000, // Connection timeout
-      maxPoolSize: 5, // Smaller pool for serverless
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 60000,
+      connectTimeoutMS: 20000,
+      maxPoolSize: 5,
       minPoolSize: 1,
       maxIdleTimeMS: 30000,
       waitQueueTimeoutMS: 15000,
@@ -159,10 +159,7 @@ const connectToDatabase = async () => {
       retryReads: true,
       readPreference: 'primary',
       bufferCommands: false,
-      bufferMaxEntries: 0,
-      // Additional serverless optimizations
-      heartbeatFrequencyMS: 30000,
-      serverSelectionRetryMS: 5000
+      heartbeatFrequencyMS: 30000
     };
 
     console.log('Attempting MongoDB connection...');
