@@ -10,8 +10,16 @@ export function useSocket() {
     socketService.leaveServer(serverId);
   }, []);
 
-  const sendMessage = useCallback((messageData) => {
-    socketService.sendMessage(messageData);
+  const sendMessage = useCallback((channelId, content, serverId) => {
+    return socketService.sendMessage(channelId, content, serverId);
+  }, []);
+
+  const joinChannel = useCallback((channelId) => {
+    return socketService.joinChannel(channelId);
+  }, []);
+
+  const leaveChannel = useCallback((channelId) => {
+    return socketService.leaveChannel(channelId);
   }, []);
 
   const joinVoiceChannel = useCallback((channelId) => {
@@ -22,12 +30,12 @@ export function useSocket() {
     socketService.leaveVoiceChannel();
   }, []);
 
-  const sendTyping = useCallback((channelId, serverId, isTyping) => {
-    socketService.sendTyping(channelId, serverId, isTyping);
+  const sendTyping = useCallback((channelId, isTyping) => {
+    return socketService.sendTyping(channelId, isTyping);
   }, []);
 
-  const addReaction = useCallback((messageId, emoji) => {
-    socketService.addReaction(messageId, emoji);
+  const addReaction = useCallback((messageId, emoji, channelId) => {
+    return socketService.addReaction(messageId, emoji, channelId);
   }, []);
 
   const updateUserStatus = useCallback((status) => {
@@ -40,10 +48,12 @@ export function useSocket() {
   }, []);
 
   return {
-    isConnected: socketService.isConnected(),
+    isConnected: socketService.isConnected,
     joinServer,
     leaveServer,
     sendMessage,
+    joinChannel,
+    leaveChannel,
     joinVoiceChannel,
     leaveVoiceChannel,
     sendTyping,

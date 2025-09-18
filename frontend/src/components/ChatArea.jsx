@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
-  const { sendMessage, addReaction, sendTyping, on } = useSocket();
+  const { sendMessage, addReaction, sendTyping, on, joinChannel, leaveChannel } = useSocket();
   
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -54,6 +54,11 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
   // Socket event listeners
   useEffect(() => {
+    // Join channel for real-time updates
+    if (channel?._id && joinChannel) {
+      joinChannel(channel._id);
+    }
+
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
       // Only add message if it belongs to the current channel
       if (newMessage.channel === channel?._id) {
@@ -94,12 +99,16 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       }
     });
 
+    // Cleanup: leave channel when component unmounts or channel changes
     return () => {
+      if (channel?._id && leaveChannel) {
+        leaveChannel(channel._id);
+      }
       unsubscribeNewMessage();
       unsubscribeTyping();
       unsubscribeReaction();
     };
-  }, [channel, user, on]);
+  }, [channel, user, on, joinChannel, leaveChannel]);
 
   const loadMessages = async () => {
     if (!channel?._id) return;
@@ -176,12 +185,11 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           return prev;
         });
 
-        // Send via API (this will trigger socket broadcast to other users)
-        await messageAPI.sendMessage(currentChannelId, messageToSend);
+        // Send via WebSocket (this will trigger socket broadcast to other users)
+        sendMessage(currentChannelId, messageToSend, server?._id);
 
-        // Note: We don't send via socket here to avoid duplicates
-        // The API will save to DB and broadcast via socket to all users including us
-        // But our optimistic message will be replaced by the real one from socket
+        // Note: We don't send via API here to avoid duplicates
+        // The WebSocket will save to DB and broadcast to all users including us
       } else {
         // Fallback for mock data
         const newMessage = {
@@ -217,9 +225,9 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const handleTyping = (value) => {
     setMessage(value);
     
-    if (channel?._id && server?._id) {
-      // Send typing indicator
-      sendTyping(channel._id, server._id, true);
+    if (channel?._id) {
+      // Send typing indicator via WebSocket
+      sendTyping(channel._id, true);
       
       // Clear previous timeout
       if (typingTimeoutRef.current) {
@@ -228,7 +236,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       
       // Stop typing after 3 seconds of inactivity
       typingTimeoutRef.current = setTimeout(() => {
-        sendTyping(channel._id, server._id, false);
+        sendTyping(channel._id, false);
       }, 3000);
     }
   };
@@ -237,7 +245,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     try {
       if (channel._id) {
         await messageAPI.addReaction(messageId, emoji);
-        addReaction(messageId, emoji);
+        addReaction(messageId, emoji, channel._id);
       }
     } catch (error) {
       toast.error('Tepki eklenemedi');
