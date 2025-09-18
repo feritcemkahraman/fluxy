@@ -1,0 +1,47 @@
+{
+  "name": "fluxy-app",
+  "version": "1.0.0",
+  "description": "Fluxy - Modern Discord-like chat application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd frontend && npm run start",
+    "build": "cd frontend && npm run build",
+    "install-all": "cd frontend && npm install && cd ../netlify/functions && npm install",
+    "start": "cd frontend && npm run start"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "serverless-http": "^3.2.0",
+    "mongoose": "^8.5.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.4.0",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0",
+    "uuid": "^10.0.0",
+    "express-validator": "^7.0.1"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "chat",
+    "discord",
+    "react",
+    "nodejs",
+    "mongodb",
+    "websocket",
+    "netlify"
+  ],
+  "author": "Fluxy Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/feritcemkahraman/yerli-milli-projem"
+  }
+}
