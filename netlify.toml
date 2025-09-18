@@ -2,6 +2,7 @@
   publish = "frontend/build"
   functions = "netlify/functions"
   command = "cd frontend && npm install --legacy-peer-deps && npm run build"
+  ignore = "git diff --quiet HEAD^ HEAD backend/ netlify/"
 
 # Plugin to install dependencies for Netlify Functions
 [[plugins]]

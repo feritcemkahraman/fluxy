@@ -7,17 +7,17 @@ const serverless = require('serverless-http');
 require('dotenv').config();
 
 // Import routes
-const authRoutes = require('../routes/auth');
-const serverRoutes = require('../routes/servers');
-const channelRoutes = require('../routes/channels');
-const messageRoutes = require('../routes/messages');
-const dmRoutes = require('../routes/dm');
-const uploadRoutes = require('../routes/upload');
-const roleRoutes = require('../routes/roles');
-const userSettingsRoutes = require('../routes/userSettings');
-const profileRoutes = require('../routes/profile');
-const friendRoutes = require('../routes/friends');
-const templateRoutes = require('../routes/templates');
+const authRoutes = require('./routes/auth');
+const serverRoutes = require('./routes/servers');
+const channelRoutes = require('./routes/channels');
+const messageRoutes = require('./routes/messages');
+const dmRoutes = require('./routes/dm');
+const uploadRoutes = require('./routes/upload');
+const roleRoutes = require('./routes/roles');
+const userSettingsRoutes = require('./routes/userSettings');
+const profileRoutes = require('./routes/profile');
+const friendRoutes = require('./routes/friends');
+const templateRoutes = require('./routes/templates');
 
 const app = express();
 

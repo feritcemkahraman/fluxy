@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   content: {
     type: String,
-    required: true,
-    maxlength: 2000
+    required: [true, 'Message content is required'],
+    maxlength: [2000, 'Message cannot exceed 2000 characters'],
+    trim: true
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,
@@ -19,20 +20,19 @@ const messageSchema = new mongoose.Schema({
   server: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Server',
-    required: function() {
-      return this.type !== 'dm';
-    }
+    required: true
   },
   type: {
     type: String,
-    enum: ['text', 'file', 'image', 'dm'],
+    enum: ['text', 'image', 'file', 'system'],
     default: 'text'
   },
   attachments: [{
     filename: String,
-    url: String,
+    originalName: String,
+    mimetype: String,
     size: Number,
-    mimetype: String
+    url: String
   }],
   reactions: [{
     emoji: {
@@ -56,14 +56,14 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
   },
-  edited: {
+  isEdited: {
     type: Boolean,
     default: false
   },
   editedAt: {
     type: Date
   },
-  deleted: {
+  isDeleted: {
     type: Boolean,
     default: false
   },
@@ -74,14 +74,16 @@ const messageSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient queries
+// Index for faster queries
 messageSchema.index({ channel: 1, createdAt: -1 });
 messageSchema.index({ server: 1, createdAt: -1 });
 messageSchema.index({ author: 1, createdAt: -1 });
 
-// Populate author info by default
-messageSchema.pre(/^find/, function(next) {
-  this.populate('author', 'username displayName avatar discriminator');
+// Update reaction count when reactions change
+messageSchema.pre('save', function(next) {
+  this.reactions.forEach(reaction => {
+    reaction.count = reaction.users.length;
+  });
   next();
 });
 

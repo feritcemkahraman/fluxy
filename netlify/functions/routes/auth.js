@@ -32,7 +32,7 @@ router.post('/register', [
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         message: 'Doğrulama başarısız',
         errors: errors.array()
       });
@@ -78,6 +78,7 @@ router.post('/register', [
     });
 
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ message: 'Kayıt sırasında sunucu hatası' });
   }
 });
@@ -93,7 +94,7 @@ router.post('/login', [
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         message: 'Doğrulama başarısız',
         errors: errors.array()
       });
@@ -138,6 +139,7 @@ router.post('/login', [
     });
 
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Giriş sırasında sunucu hatası' });
   }
 });
@@ -165,6 +167,7 @@ router.get('/me', auth, async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Get user error:', error);
     res.status(500).json({ message: 'Sunucu hatası' });
   }
 });
@@ -181,6 +184,7 @@ router.post('/logout', auth, async (req, res) => {
 
     res.json({ message: 'Başarıyla çıkış yapıldı' });
   } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({ message: 'Çıkış sırasında sunucu hatası' });
   }
 });
@@ -195,14 +199,14 @@ router.put('/status', auth, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         message: 'Doğrulama başarısız',
         errors: errors.array()
       });
     }
 
     const { status, customStatus } = req.body;
-
+    
     const user = await User.findById(req.user._id);
     user.status = status;
     if (customStatus !== undefined) {
@@ -219,6 +223,7 @@ router.put('/status', auth, [
       }
     });
   } catch (error) {
+    console.error('Status update error:', error);
     res.status(500).json({ message: 'Sunucu hatası' });
   }
 });
