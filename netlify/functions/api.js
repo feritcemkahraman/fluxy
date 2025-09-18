@@ -21,6 +21,9 @@ const templateRoutes = require('./routes/templates');
 
 const app = express();
 
+// Configure Express for serverless environment
+app.set('trust proxy', true); // Enable trust proxy for Netlify
+
 // CORS configuration for Netlify
 const allowedOrigins = [
   'http://localhost:3000',
@@ -47,13 +50,22 @@ app.use(helmet({
   }
 }));
 
-// Rate limiting with different tiers
+// Rate limiting with serverless-friendly configuration
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // limit each IP to 5 login attempts per windowMs
   message: 'Çok fazla giriş denemesi, 15 dakika sonra tekrar deneyin.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Custom key generator for serverless
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+  },
+  // Skip rate limiting if IP can't be determined
+  skip: (req) => {
+    const ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+    return !ip || ip === 'unknown';
+  }
 });
 
 const generalLimiter = rateLimit({
@@ -62,6 +74,15 @@ const generalLimiter = rateLimit({
   message: 'Bu IP adresinden çok fazla istek, lütfen daha sonra tekrar deneyin.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Custom key generator for serverless
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+  },
+  // Skip rate limiting if IP can't be determined
+  skip: (req) => {
+    const ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+    return !ip || ip === 'unknown';
+  }
 });
 
 // Apply rate limiting - Netlify Functions paths
@@ -144,10 +165,8 @@ const connectToDatabase = async () => {
   connectionAttempts++;
   
   try {
-    // Optimized settings for serverless - using only supported options
+    // Optimized settings for serverless - only modern options
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 60000,
       connectTimeoutMS: 20000,
@@ -237,9 +256,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Request logging middleware
+// Request logging middleware with detailed debugging
 app.use((req, res, next) => {
   const start = Date.now();
+  
+  // Debug: Log incoming request details
+  console.log(`[${req.requestId}] Incoming request:`, {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    baseUrl: req.baseUrl,
+    headers: {
+      host: req.headers.host,
+      'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
+    }
+  });
+  
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(`[${req.requestId}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
