@@ -1,14 +1,14 @@
 [build]
   publish = "frontend/build"
   functions = "netlify/functions"
-  command = "npm ci --legacy-peer-deps --prefer-offline && cd frontend && npm ci --legacy-peer-deps --prefer-offline && npm run build"
+  command = "rm -f package-lock.json && npm install --legacy-peer-deps && cd frontend && rm -f package-lock.json && npm install --legacy-peer-deps && npm run build"
 
 # Plugin to install dependencies for Netlify Functions
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NODE_OPTIONS = "--max-old-space-size=4096"
   NPM_FLAGS = "--legacy-peer-deps --prefer-offline"
 
