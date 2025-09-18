@@ -85,10 +85,10 @@ const generalLimiter = rateLimit({
   }
 });
 
-// Apply rate limiting - Back to /api paths
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/', generalLimiter);
+// Apply rate limiting - Direct paths after transformation
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
+app.use('/', generalLimiter);
 
 // CORS middleware with strict production settings
 app.use(cors({
@@ -280,21 +280,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// API routes - Back to /api prefix for Netlify Functions
-app.use('/api/auth', authRoutes);
-app.use('/api/servers', serverRoutes);
-app.use('/api/channels', channelRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/dm', dmRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/roles', roleRoutes);
-app.use('/api/user-settings', userSettingsRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/friends', friendRoutes);
-app.use('/api/templates', templateRoutes);
+// API routes - Direct paths after transformation
+app.use('/auth', authRoutes);
+app.use('/servers', serverRoutes);
+app.use('/channels', channelRoutes);
+app.use('/messages', messageRoutes);
+app.use('/dm', dmRoutes);
+app.use('/upload', uploadRoutes);
+app.use('/roles', roleRoutes);
+app.use('/user-settings', userSettingsRoutes);
+app.use('/profile', profileRoutes);
+app.use('/friends', friendRoutes);
+app.use('/templates', templateRoutes);
 
 // Test route to debug path issues
-app.get('/api/test', (req, res) => {
+app.get('/test', (req, res) => {
   res.json({ 
     message: 'API test endpoint working',
     path: req.path,
@@ -304,7 +304,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-app.post('/api/auth/test', (req, res) => {
+app.post('/auth/test', (req, res) => {
   res.json({ 
     message: 'Auth test endpoint working',
     path: req.path,
@@ -423,8 +423,14 @@ const handler = async (event, context) => {
     console.log('Database connection successful');
     
     // Process the request with serverless wrapper
+    // Transform Netlify function path to Express path
+    const modifiedEvent = { ...event };
+    if (event.path && event.path.startsWith('/.netlify/functions/api')) {
+      modifiedEvent.path = event.path.replace('/.netlify/functions/api', '') || '/';
+    }
+    
     const serverlessHandler = serverless(app);
-    return await serverlessHandler(event, context);
+    return await serverlessHandler(modifiedEvent, context);
     
   } catch (error) {
     console.error('Handler error details:', {
