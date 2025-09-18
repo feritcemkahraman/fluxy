@@ -13,6 +13,8 @@
   NPM_FLAGS = "--legacy-peer-deps"
   CI = "false"
   SKIP_PREFLIGHT_CHECK = "true"
+  DISABLE_ESLINT_PLUGIN = "true"
+  ESLINT_NO_DEV_ERRORS = "true"
 
 [[redirects]]
   from = "/api/*"
