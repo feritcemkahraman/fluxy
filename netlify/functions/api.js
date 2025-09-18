@@ -85,10 +85,10 @@ const generalLimiter = rateLimit({
   }
 });
 
-// Apply rate limiting - Netlify Functions paths
-app.use('/auth/login', authLimiter);
-app.use('/auth/register', authLimiter);
-app.use('/', generalLimiter);
+// Apply rate limiting - Back to /api paths
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/', generalLimiter);
 
 // CORS middleware with strict production settings
 app.use(cors({
@@ -280,18 +280,39 @@ app.use((req, res, next) => {
   next();
 });
 
-// API routes - Netlify Functions base path already includes /.netlify/functions/api
-app.use('/auth', authRoutes);
-app.use('/servers', serverRoutes);
-app.use('/channels', channelRoutes);
-app.use('/messages', messageRoutes);
-app.use('/dm', dmRoutes);
-app.use('/upload', uploadRoutes);
-app.use('/roles', roleRoutes);
-app.use('/user-settings', userSettingsRoutes);
-app.use('/profile', profileRoutes);
-app.use('/friends', friendRoutes);
-app.use('/templates', templateRoutes);
+// API routes - Back to /api prefix for Netlify Functions
+app.use('/api/auth', authRoutes);
+app.use('/api/servers', serverRoutes);
+app.use('/api/channels', channelRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/dm', dmRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/user-settings', userSettingsRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/templates', templateRoutes);
+
+// Test route to debug path issues
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'API test endpoint working',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/api/auth/test', (req, res) => {
+  res.json({ 
+    message: 'Auth test endpoint working',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Enhanced error handling middleware
 app.use((err, req, res, next) => {
