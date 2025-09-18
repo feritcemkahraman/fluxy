@@ -29,9 +29,17 @@ router.post('/register', [
     .withMessage('Şifre en az 6 karakter uzunluğunda olmalıdır')
 ], async (req, res) => {
   try {
+    console.log('Registration attempt started');
+    console.log('Request body:', { 
+      username: req.body.username, 
+      email: req.body.email, 
+      hasPassword: !!req.body.password 
+    });
+
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ 
         message: 'Doğrulama başarısız',
         errors: errors.array()
@@ -40,17 +48,20 @@ router.post('/register', [
 
     const { username, email, password } = req.body;
 
+    console.log('Checking for existing user...');
     // Check if user already exists
     const existingUser = await User.findOne({
       $or: [{ email }, { username }]
     });
 
     if (existingUser) {
+      console.log('User already exists:', { email: existingUser.email, username: existingUser.username });
       return res.status(400).json({
         message: existingUser.email === email ? 'E-posta zaten kayıtlı' : 'Kullanıcı adı zaten alınmış'
       });
     }
 
+    console.log('Creating new user...');
     // Create new user
     const user = new User({
       username,
@@ -58,10 +69,13 @@ router.post('/register', [
       password
     });
 
+    console.log('Saving user to database...');
     await user.save();
+    console.log('User saved successfully:', user._id);
 
     // Generate token
     const token = generateToken(user._id);
+    console.log('Token generated successfully');
 
     res.status(201).json({
       message: 'Kullanıcı başarıyla kaydedildi',
@@ -78,8 +92,13 @@ router.post('/register', [
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Kayıt sırasında sunucu hatası' });
+    console.error('Registration error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ message: 'Kayıt sırasında sunucu hatası', error: error.message });
   }
 });
 

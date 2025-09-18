@@ -311,6 +311,53 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'API endpoint bulunamadı' });
 });
 
+// Custom handler to ensure MongoDB connection
+const handler = async (event, context) => {
+  try {
+    // Debug environment variables
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT_SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT_SET',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'NOT_SET'
+    });
+    
+    // Check required environment variables
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not set');
+    }
+    
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not set');
+    }
+    
+    // Ensure database connection before processing request
+    await connectToDatabase();
+    
+    // Process the request with serverless wrapper
+    const serverlessHandler = serverless(app);
+    return await serverlessHandler(event, context);
+  } catch (error) {
+    console.error('Handler error:', error);
+    
+    return {
+      statusCode: 502,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+      },
+      body: JSON.stringify({
+        success: false,
+        message: 'Sunucu hatası',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+        timestamp: new Date().toISOString()
+      })
+    };
+  }
+};
+
 // Export for Netlify
 module.exports = app;
-module.exports.handler = serverless(app);
+module.exports.handler = handler;
