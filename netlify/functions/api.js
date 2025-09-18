@@ -144,22 +144,28 @@ const connectToDatabase = async () => {
   connectionAttempts++;
   
   try {
+    // Optimized settings for serverless
     const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 2,
+      serverSelectionTimeoutMS: 10000, // Increased for serverless cold starts
+      socketTimeoutMS: 60000, // Increased timeout
+      connectTimeoutMS: 20000, // Connection timeout
+      maxPoolSize: 5, // Smaller pool for serverless
+      minPoolSize: 1,
       maxIdleTimeMS: 30000,
-      waitQueueTimeoutMS: 10000,
+      waitQueueTimeoutMS: 15000,
       retryWrites: true,
       retryReads: true,
       readPreference: 'primary',
       bufferCommands: false,
-      bufferMaxEntries: 0
+      bufferMaxEntries: 0,
+      // Additional serverless optimizations
+      heartbeatFrequencyMS: 30000,
+      serverSelectionRetryMS: 5000
     };
 
+    console.log('Attempting MongoDB connection...');
     await mongoose.connect(process.env.MONGODB_URI, options);
     
     isConnected = true;
@@ -313,32 +319,69 @@ app.use('*', (req, res) => {
 
 // Custom handler to ensure MongoDB connection
 const handler = async (event, context) => {
+  // Set a timeout for the entire function
+  context.callbackWaitsForEmptyEventLoop = false;
+  
   try {
+    console.log(`Function invoked: ${event.httpMethod} ${event.path}`);
+    
     // Debug environment variables
     console.log('Environment check:', {
       NODE_ENV: process.env.NODE_ENV,
-      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT_SET',
-      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT_SET',
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET (length: ' + process.env.MONGODB_URI.length + ')' : 'NOT_SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET (length: ' + process.env.JWT_SECRET.length + ')' : 'NOT_SET',
       FRONTEND_URL: process.env.FRONTEND_URL || 'NOT_SET'
     });
     
     // Check required environment variables
     if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not set');
+      console.error('MONGODB_URI environment variable is not set');
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          success: false,
+          message: 'Server configuration error: MONGODB_URI not set',
+          timestamp: new Date().toISOString()
+        })
+      };
     }
     
     if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET environment variable is not set');
+      console.error('JWT_SECRET environment variable is not set');
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          success: false,
+          message: 'Server configuration error: JWT_SECRET not set',
+          timestamp: new Date().toISOString()
+        })
+      };
     }
     
     // Ensure database connection before processing request
+    console.log('Connecting to database...');
     await connectToDatabase();
+    console.log('Database connection successful');
     
     // Process the request with serverless wrapper
     const serverlessHandler = serverless(app);
     return await serverlessHandler(event, context);
+    
   } catch (error) {
-    console.error('Handler error:', error);
+    console.error('Handler error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     
     return {
       statusCode: 502,
@@ -352,6 +395,7 @@ const handler = async (event, context) => {
         success: false,
         message: 'Sunucu hatası',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+        errorName: error.name,
         timestamp: new Date().toISOString()
       })
     };
