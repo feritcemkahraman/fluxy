@@ -11,7 +11,31 @@ module.exports = {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
-    configure: (webpackConfig) => {
+    configure: (webpackConfig, { env }) => {
+      
+      // Production optimizations
+      if (env === 'production') {
+        // Optimize chunk splitting
+        webpackConfig.optimization = {
+          ...webpackConfig.optimization,
+          splitChunks: {
+            chunks: 'all',
+            maxSize: 250000,
+            cacheGroups: {
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: 'vendors',
+                chunks: 'all',
+                maxSize: 250000,
+              },
+            },
+          },
+        };
+        
+        // Memory optimization
+        webpackConfig.optimization.usedExports = true;
+        webpackConfig.optimization.sideEffects = false;
+      }
       
       // Disable hot reload completely if environment variable is set
       if (config.disableHotReload) {

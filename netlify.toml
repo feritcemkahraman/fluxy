@@ -1,7 +1,7 @@
 [build]
   publish = "frontend/build"
   functions = "netlify/functions"
-  command = "npm install && cd frontend && npm install && npm run build"
+  command = "npm ci --legacy-peer-deps --prefer-offline && cd frontend && npm ci --legacy-peer-deps --prefer-offline && npm run build"
 
 # Plugin to install dependencies for Netlify Functions
 [[plugins]]
@@ -9,6 +9,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NODE_OPTIONS = "--max-old-space-size=4096"
+  NPM_FLAGS = "--legacy-peer-deps --prefer-offline"
 
 [[redirects]]
   from = "/api/*"
@@ -24,6 +26,20 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
 
 [functions]
   directory = "netlify/functions"
