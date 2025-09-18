@@ -1,164 +1,278 @@
 import axios from 'axios';
+import { handleAPIError, retryRequest } from '../utils/errorHandling';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/.netlify/functions/api';
 
-// Create axios instance
+// Create axios instance with enhanced configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000, // 30 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and request tracking
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add request timestamp for performance monitoring
+    config.metadata = { startTime: Date.now() };
+    
     return config;
   },
   (error) => {
-    return Promise.reject(error);
+    return Promise.reject(handleAPIError(error));
   }
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor with enhanced error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log response time for performance monitoring
+    if (response.config.metadata) {
+      const duration = Date.now() - response.config.metadata.startTime;
+      if (duration > 5000) { // Log slow requests
+        console.warn(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
+      }
+    }
+    
+    return response;
+  },
   (error) => {
+    // Handle authentication errors
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Redirect to home page where AuthWrapper will handle login
-      window.location.href = '/';
+      localStorage.removeItem('userStatus');
+      
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     }
-    return Promise.reject(error);
+    
+    return Promise.reject(handleAPIError(error));
   }
 );
 
-// Auth API
+// Enhanced API methods with retry and error handling
+const apiCall = async (method, url, data = null, retries = 3) => {
+  return retryRequest(async () => {
+    switch (method) {
+      case 'GET':
+        return api.get(url);
+      case 'POST':
+        return api.post(url, data);
+      case 'PUT':
+        return api.put(url, data);
+      case 'DELETE':
+        return api.delete(url);
+      default:
+        throw new Error(`Unsupported HTTP method: ${method}`);
+    }
+  }, retries);
+};
+
+// Enhanced Auth API with error handling and retry
 export const authAPI = {
-  register: (userData) => api.post('/auth/register', userData),
-  login: (credentials) => api.post('/auth/login', credentials),
-  logout: () => api.post('/auth/logout'),
-  getMe: () => api.get('/auth/me'),
-  updateStatus: (statusData) => api.put('/profile/status', statusData),
+  register: async (userData) => {
+    try {
+      const response = await apiCall('POST', '/auth/register', userData);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  },
+  login: async (credentials) => {
+    try {
+      const response = await apiCall('POST', '/auth/login', credentials);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  },
+  logout: async () => {
+    try {
+      await apiCall('POST', '/auth/logout');
+    } catch (error) {
+      console.warn('Logout API call failed:', error.message);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userStatus');
+    }
+  },
+  getMe: () => apiCall('GET', '/auth/me'),
+  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
 };
 
-// Server API
+// Enhanced Server API with retry
 export const serverAPI = {
-  getServers: () => api.get('/servers'),
-  createServer: (serverData) => api.post('/servers', serverData),
-  getServer: (serverId) => api.get(`/servers/${serverId}`),
-  updateServer: (serverId, serverData) => api.put(`/servers/${serverId}`, serverData),
-  deleteServer: (serverId) => api.delete(`/servers/${serverId}`),
-  joinServer: (serverId) => api.post(`/servers/${serverId}/join`),
-  leaveServer: (serverId) => api.delete(`/servers/${serverId}/leave`),
-  getServerMembers: (serverId) => api.get(`/servers/${serverId}/members`),
-  kickMember: (serverId, userId, reason) => api.post(`/servers/${serverId}/kick/${userId}`, { reason }),
-  banMember: (serverId, userId, banData) => api.post(`/servers/${serverId}/ban/${userId}`, banData),
-  unbanMember: (serverId, userId) => api.delete(`/servers/${serverId}/ban/${userId}`),
-  getBannedUsers: (serverId) => api.get(`/servers/${serverId}/bans`),
-  createInvite: (serverId) => api.post(`/servers/${serverId}/invite`),
+  getServers: () => apiCall('GET', '/servers'),
+  createServer: (serverData) => apiCall('POST', '/servers', serverData),
+  getServer: (serverId) => apiCall('GET', `/servers/${serverId}`),
+  updateServer: (serverId, serverData) => apiCall('PUT', `/servers/${serverId}`, serverData),
+  deleteServer: (serverId) => apiCall('DELETE', `/servers/${serverId}`),
+  joinServer: (serverId) => apiCall('POST', `/servers/${serverId}/join`),
+  leaveServer: (serverId) => apiCall('DELETE', `/servers/${serverId}/leave`),
+  getServerMembers: (serverId) => apiCall('GET', `/servers/${serverId}/members`),
+  kickMember: (serverId, userId, reason) => apiCall('POST', `/servers/${serverId}/kick/${userId}`, { reason }),
+  banMember: (serverId, userId, banData) => apiCall('POST', `/servers/${serverId}/ban/${userId}`, banData),
+  unbanMember: (serverId, userId) => apiCall('DELETE', `/servers/${serverId}/ban/${userId}`),
+  getBannedUsers: (serverId) => apiCall('GET', `/servers/${serverId}/bans`),
+  createInvite: (serverId) => apiCall('POST', `/servers/${serverId}/invite`),
 };
 
-// Channel API
+// Enhanced Channel API with retry
 export const channelAPI = {
-  getChannels: (serverId) => api.get(`/channels/${serverId}`),
-  createChannel: (channelData) => api.post('/channels', channelData),
-  updateChannel: (channelId, channelData) => api.put(`/channels/${channelId}`, channelData),
-  deleteChannel: (channelId) => api.delete(`/channels/${channelId}`),
-  joinVoiceChannel: (channelId) => api.post(`/channels/${channelId}/join`),
-  leaveVoiceChannel: (channelId) => api.delete(`/channels/${channelId}/leave`),
+  getChannels: (serverId) => apiCall('GET', `/channels/${serverId}`),
+  createChannel: (channelData) => apiCall('POST', '/channels', channelData),
+  updateChannel: (channelId, channelData) => apiCall('PUT', `/channels/${channelId}`, channelData),
+  deleteChannel: (channelId) => apiCall('DELETE', `/channels/${channelId}`),
+  joinVoiceChannel: (channelId) => apiCall('POST', `/channels/${channelId}/join`),
+  leaveVoiceChannel: (channelId) => apiCall('DELETE', `/channels/${channelId}/leave`),
 };
 
-// Message API
+// Enhanced Message API with retry
 export const messageAPI = {
   getMessages: (channelId, page = 1, limit = 50) => 
-    api.get(`/messages/${channelId}?page=${page}&limit=${limit}`),
+    apiCall('GET', `/messages/${channelId}?page=${page}&limit=${limit}`),
   sendMessage: (channelId, content) => 
-    api.post('/messages', { content, channelId }),
+    apiCall('POST', '/messages', { content, channelId }),
   editMessage: (messageId, content) => 
-    api.put(`/messages/${messageId}`, { content }),
+    apiCall('PUT', `/messages/${messageId}`, { content }),
   deleteMessage: (messageId) => 
-    api.delete(`/messages/${messageId}`),
+    apiCall('DELETE', `/messages/${messageId}`),
   addReaction: (messageId, emoji) => 
-    api.post(`/messages/${messageId}/react`, { emoji }),
+    apiCall('POST', `/messages/${messageId}/react`, { emoji }),
   removeReaction: (messageId, emoji) => 
-    api.delete(`/messages/${messageId}/react`, { data: { emoji } })
+    apiCall('DELETE', `/messages/${messageId}/react`, { emoji })
 };
 
-// Direct Messages API
+// Enhanced Direct Messages API with retry
 export const dmAPI = {
-  getConversations: () => api.get('/dm/conversations'),
+  getConversations: () => apiCall('GET', '/dm/conversations'),
   getMessages: (conversationId, page = 1, limit = 50) => 
-    api.get(`/dm/${conversationId}/messages?page=${page}&limit=${limit}`),
+    apiCall('GET', `/dm/${conversationId}/messages?page=${page}&limit=${limit}`),
   sendMessage: (userId, content) => 
-    api.post('/dm/send', { userId, content }),
+    apiCall('POST', '/dm/send', { userId, content }),
   createConversation: (userId) => 
-    api.post('/dm/conversations', { userId }),
+    apiCall('POST', '/dm/conversations', { userId }),
   markAsRead: (conversationId) => 
-    api.put(`/dm/${conversationId}/read`)
+    apiCall('PUT', `/dm/${conversationId}/read`)
 };
 
-// Role API
+// Enhanced Role API with retry
 export const roleAPI = {
-  getRoles: (serverId) => api.get(`/roles/server/${serverId}`),
-  createRole: (serverId, roleData) => api.post(`/roles/server/${serverId}`, roleData),
-  updateRole: (roleId, roleData) => api.put(`/roles/${roleId}`, roleData),
-  deleteRole: (roleId) => api.delete(`/roles/${roleId}`),
-  assignRole: (roleId, userId, serverId) => api.post(`/roles/${roleId}/assign/${userId}`, { serverId }),
-  removeRole: (roleId, userId, serverId) => api.delete(`/roles/${roleId}/remove/${userId}`, { data: { serverId } }),
-  reorderRoles: (serverId, roleOrder) => api.put(`/roles/server/${serverId}/reorder`, { roleOrder })
+  getRoles: (serverId) => apiCall('GET', `/roles/server/${serverId}`),
+  createRole: (serverId, roleData) => apiCall('POST', `/roles/server/${serverId}`, roleData),
+  updateRole: (roleId, roleData) => apiCall('PUT', `/roles/${roleId}`, roleData),
+  deleteRole: (roleId) => apiCall('DELETE', `/roles/${roleId}`),
+  assignRole: (roleId, userId, serverId) => apiCall('POST', `/roles/${roleId}/assign/${userId}`, { serverId }),
+  removeRole: (roleId, userId, serverId) => apiCall('DELETE', `/roles/${roleId}/remove/${userId}`, { serverId }),
+  reorderRoles: (serverId, roleOrder) => apiCall('PUT', `/roles/server/${serverId}/reorder`, { roleOrder })
 };
 
-// User Settings API
+// Enhanced User Settings API with retry
 export const userSettingsAPI = {
-  getSettings: () => api.get('/user-settings'),
-  updateSettings: (settings) => api.put('/user-settings', settings),
-  updateCategory: (category, settings) => api.put(`/user-settings/${category}`, settings),
-  resetSettings: () => api.post('/user-settings/reset'),
-  exportSettings: () => api.get('/user-settings/export'),
-  importSettings: (settings) => api.post('/user-settings/import', { settings })
+  getSettings: () => apiCall('GET', '/user-settings'),
+  updateSettings: (settings) => apiCall('PUT', '/user-settings', settings),
+  updateCategory: (category, settings) => apiCall('PUT', `/user-settings/${category}`, settings),
+  resetSettings: () => apiCall('POST', '/user-settings/reset'),
+  exportSettings: () => apiCall('GET', '/user-settings/export'),
+  importSettings: (settings) => apiCall('POST', '/user-settings/import', { settings })
 };
 
-// Profile API
+// Enhanced Profile API with retry
 export const profileAPI = {
-  getProfile: (userId) => api.get(`/profile/${userId}`),
-  updateProfile: (profileData) => api.put('/profile', profileData),
-  updateStatus: (statusData) => api.put('/profile/status', statusData),
-  addBadge: (badgeData) => api.post('/profile/badges', badgeData),
-  removeBadge: (badgeId) => api.delete(`/profile/badges/${badgeId}`),
-  addConnection: (connectionData) => api.post('/profile/connections', connectionData),
-  removeConnection: (connectionId) => api.delete(`/profile/connections/${connectionId}`),
-  clearCustomStatus: () => api.delete('/profile/status/custom')
+  getProfile: (userId) => apiCall('GET', `/profile/${userId}`),
+  updateProfile: (profileData) => apiCall('PUT', '/profile', profileData),
+  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
+  addBadge: (badgeData) => apiCall('POST', '/profile/badges', badgeData),
+  removeBadge: (badgeId) => apiCall('DELETE', `/profile/badges/${badgeId}`),
+  addConnection: (connectionData) => apiCall('POST', '/profile/connections', connectionData),
+  removeConnection: (connectionId) => apiCall('DELETE', `/profile/connections/${connectionId}`),
+  clearCustomStatus: () => apiCall('DELETE', '/profile/status/custom')
 };
 
-// Upload API
+// Enhanced Upload API with retry and better error handling
 export const uploadAPI = {
-  uploadFiles: (files) => {
-    const formData = new FormData();
-    files.forEach(file => formData.append('files', file));
-    return api.post('/upload/files', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+  uploadFiles: async (files) => {
+    try {
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      
+      const response = await retryRequest(async () => {
+        return api.post('/upload/files', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 60000, // 60 second timeout for file uploads
+        });
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('File upload error:', error);
+      throw error;
+    }
   },
-  uploadAvatar: (file) => {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    return api.post('/upload/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+  uploadAvatar: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      const response = await retryRequest(async () => {
+        return api.post('/upload/avatar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 30000,
+        });
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      throw error;
+    }
   },
-  uploadServerIcon: (file) => {
-    const formData = new FormData();
-    formData.append('icon', file);
-    return api.post('/upload/server-icon', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+  uploadServerIcon: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('icon', file);
+      
+      const response = await retryRequest(async () => {
+        return api.post('/upload/server-icon', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 30000,
+        });
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Server icon upload error:', error);
+      throw error;
+    }
   }
+};
+
+// Health Check API
+export const healthAPI = {
+  check: () => apiCall('GET', '/health'),
+  detailed: () => apiCall('GET', '/health/detailed')
 };
 
 // Templates API

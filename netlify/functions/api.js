@@ -25,32 +25,64 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://your-netlify-app.netlify.app',
+  'https://fluxycorn.netlify.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 // Security middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable CSP for API
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
 }));
 
-// Rate limiting
-const limiter = rateLimit({
+// Rate limiting with different tiers
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Bu IP adresinden çok fazla istek, lütfen daha sonra tekrar deneyin.'
+  max: 5, // limit each IP to 5 login attempts per windowMs
+  message: 'Çok fazla giriş denemesi, 15 dakika sonra tekrar deneyin.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-app.use('/api/', limiter);
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  message: 'Bu IP adresinden çok fazla istek, lütfen daha sonra tekrar deneyin.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-// CORS middleware
+// Apply rate limiting
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/', generalLimiter);
+
+// CORS middleware with strict production settings
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // In production, be more strict about origins
+    if (process.env.NODE_ENV === 'production') {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error('CORS politikası tarafından engellendi'), false);
+      }
+    }
 
-    // For development, allow all localhost origins
+    // For development, allow localhost origins
+    if (!origin) return callback(null, true);
     if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
       return callback(null, true);
     }
@@ -58,12 +90,14 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(null, true); // Allow all for now
+      return callback(null, true); // Allow all for development
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['X-Total-Count', 'X-Request-ID'],
+  maxAge: 86400, // Cache preflight for 24 hours
   preflightContinue: false,
   optionsSuccessStatus: 200
 }));
@@ -85,31 +119,81 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing middleware with security limits
+app.use(express.json({ 
+  limit: '10mb',
+  strict: true,
+  type: 'application/json'
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10mb',
+  parameterLimit: 1000
+}));
 
-// MongoDB connection with connection pooling
+// MongoDB connection with enhanced connection pooling and monitoring
 let isConnected = false;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 3;
 
 const connectToDatabase = async () => {
-  if (isConnected) return;
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
 
+  connectionAttempts++;
+  
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
+      minPoolSize: 2,
+      maxIdleTimeMS: 30000,
+      waitQueueTimeoutMS: 10000,
+      retryWrites: true,
+      retryReads: true,
+      readPreference: 'primary',
+      bufferCommands: false,
+      bufferMaxEntries: 0
+    };
+
+    await mongoose.connect(process.env.MONGODB_URI, options);
+    
     isConnected = true;
+    connectionAttempts = 0;
+    
     console.log('MongoDB connected successfully');
+    
+    // Connection event listeners
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+      isConnected = false;
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+      isConnected = false;
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log('MongoDB reconnected');
+      isConnected = true;
+    });
+    
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
+    console.error(`MongoDB connection attempt ${connectionAttempts} failed:`, error);
+    isConnected = false;
+    
+    if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+      throw new Error(`Failed to connect to MongoDB after ${MAX_CONNECTION_ATTEMPTS} attempts`);
+    }
+    
+    // Wait before retry
+    await new Promise(resolve => setTimeout(resolve, 2000 * connectionAttempts));
+    return connectToDatabase();
   }
 };
 
@@ -143,6 +227,23 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Request ID middleware for tracking
+app.use((req, res, next) => {
+  req.requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  res.set('X-Request-ID', req.requestId);
+  next();
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${req.requestId}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
@@ -156,12 +257,52 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/templates', templateRoutes);
 
-// Error handling middleware
+// Enhanced error handling middleware
 app.use((err, req, res, next) => {
-  console.error('API Error:', err.message);
-  res.status(500).json({
-    message: 'Bir şeyler ters gitti!',
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
+  const errorId = `err_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  
+  // Log detailed error for debugging
+  console.error(`[${req.requestId}] Error ${errorId}:`, {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+
+  // Determine error status code
+  let statusCode = err.statusCode || err.status || 500;
+  let message = 'Bir şeyler ters gitti!';
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = 'Geçersiz veri formatı';
+  } else if (err.name === 'CastError') {
+    statusCode = 400;
+    message = 'Geçersiz ID formatı';
+  } else if (err.code === 11000) {
+    statusCode = 409;
+    message = 'Bu veri zaten mevcut';
+  } else if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Geçersiz token';
+  } else if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Token süresi dolmuş';
+  }
+
+  // Send error response
+  res.status(statusCode).json({
+    success: false,
+    message,
+    errorId,
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && {
+      error: err.message,
+      stack: err.stack
+    })
   });
 });
 

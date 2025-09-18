@@ -59,25 +59,51 @@ const sendToUser = (userId, message) => {
   }
 };
 
-// Connect to MongoDB if not connected
+// Connect to MongoDB with enhanced error handling
 let isConnected = false;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 3;
 
 const connectDB = async () => {
-  if (isConnected) return;
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  connectionAttempts++;
   
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      maxPoolSize: 10,
+      maxPoolSize: 5, // Smaller pool for WebSocket function
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-    });
+      retryWrites: true,
+      bufferCommands: false,
+      bufferMaxEntries: 0
+    };
+
+    await mongoose.connect(process.env.MONGODB_URI, options);
     isConnected = true;
+    connectionAttempts = 0;
     console.log('MongoDB connected for WebSocket');
+    
+    // Connection monitoring
+    mongoose.connection.on('error', (err) => {
+      console.error('WebSocket MongoDB error:', err);
+      isConnected = false;
+    });
+    
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
+    console.error(`WebSocket MongoDB connection attempt ${connectionAttempts} failed:`, error);
+    isConnected = false;
+    
+    if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+      throw new Error(`WebSocket: Failed to connect to MongoDB after ${MAX_CONNECTION_ATTEMPTS} attempts`);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000 * connectionAttempts));
+    return connectDB();
   }
 };
 
