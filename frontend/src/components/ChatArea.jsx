@@ -9,6 +9,7 @@ import FileUploadArea from "./FileUploadArea";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { messageAPI } from "../services/api";
+import socketService from "../services/socket";
 import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
@@ -54,8 +55,20 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
   // Socket event listeners
   useEffect(() => {
-    // Join channel for real-time updates
-    if (channel?._id && joinChannel) {
+    // Wait for socket authentication before joining channel
+    const handleAuthenticated = () => {
+      if (channel?._id && joinChannel) {
+        console.log('Socket authenticated, joining channel:', channel._id);
+        joinChannel(channel._id);
+      }
+    };
+
+    // Listen for authentication
+    const unsubscribeAuth = on('authenticated', handleAuthenticated);
+
+    // If already authenticated, join immediately
+    if (channel?._id && joinChannel && socketService.isAuthenticated) {
+      console.log('Socket already authenticated, joining channel:', channel._id);
       joinChannel(channel._id);
     }
 
@@ -104,6 +117,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       if (channel?._id && leaveChannel) {
         leaveChannel(channel._id);
       }
+      unsubscribeAuth();
       unsubscribeNewMessage();
       unsubscribeTyping();
       unsubscribeReaction();
