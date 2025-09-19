@@ -239,8 +239,15 @@ router.put('/status', auth, [
     res.json({
       message: 'Durum başarıyla güncellendi',
       user: {
+        id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        email: user.email,
+        discriminator: user.discriminator,
+        fullUsername: user.fullUsername,
         status: user.status,
-        customStatus: user.customStatus
+        customStatus: user.customStatus,
+        avatar: user.avatar
       }
     });
   } catch (error) {

@@ -64,6 +64,12 @@ api.interceptors.response.use(
 
 // Enhanced API methods with retry and error handling
 const apiCall = async (method, url, data = null, retries = 3) => {
+  console.log(`API Call: ${method} ${url}`, data ? { data } : '');
+  
+  // Don't retry POST requests to avoid duplicate creations
+  const shouldRetry = method !== 'POST';
+  const actualRetries = shouldRetry ? retries : 0;
+  
   return retryRequest(async () => {
     switch (method) {
       case 'GET':
@@ -77,7 +83,7 @@ const apiCall = async (method, url, data = null, retries = 3) => {
       default:
         throw new Error(`Unsupported HTTP method: ${method}`);
     }
-  }, retries);
+  }, actualRetries);
 };
 
 // Enhanced Auth API with error handling and retry
@@ -129,7 +135,7 @@ export const authAPI = {
     }
   },
   getMe: () => apiCall('GET', '/auth/me'),
-  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
+  updateStatus: (statusData) => apiCall('PUT', '/auth/status', statusData),
 };
 
 // Enhanced Server API with retry
@@ -213,7 +219,7 @@ export const userSettingsAPI = {
 export const profileAPI = {
   getProfile: (userId) => apiCall('GET', `/profile/${userId}`),
   updateProfile: (profileData) => apiCall('PUT', '/profile', profileData),
-  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
+  updateStatus: (statusData) => apiCall('PUT', '/auth/status', statusData),
   addBadge: (badgeData) => apiCall('POST', '/profile/badges', badgeData),
   removeBadge: (badgeId) => apiCall('DELETE', `/profile/badges/${badgeId}`),
   addConnection: (connectionData) => apiCall('POST', '/profile/connections', connectionData),

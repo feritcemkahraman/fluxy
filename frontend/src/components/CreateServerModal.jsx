@@ -168,7 +168,16 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       onServerCreated(response.server);
       handleClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Sunucu oluşturulamadı');
+      console.error('Server creation error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Sunucu oluşturulamadı';
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

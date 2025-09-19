@@ -91,7 +91,12 @@ router.post('/', auth, [
 
   } catch (error) {
     console.error('Create server error:', error);
-    res.status(500).json({ message: 'Server error during server creation' });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', error.message);
+    res.status(500).json({ 
+      message: 'Server error during server creation',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 

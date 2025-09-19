@@ -1,4 +1,5 @@
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
+import { devLog } from '../utils/devLogger';
 
 class WebSocketService {
   constructor() {
@@ -26,9 +27,7 @@ class WebSocketService {
         return;
       }
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Connecting to Socket.IO:', socketUrl);
-      }
+      devLog.log('Connecting to Socket.IO:', socketUrl);
       this.socket = io(socketUrl, {
         auth: {
           token: token
@@ -37,9 +36,7 @@ class WebSocketService {
       });
       
       this.socket.on('connect', () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Socket.IO connected to ngrok backend');
-        }
+        devLog.log('Socket.IO connected to ngrok backend');
         this.reconnectAttempts = 0;
         this.emit('connected');
         
@@ -49,9 +46,7 @@ class WebSocketService {
 
       // Listen for authentication success
       this.socket.on('authenticated', () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Socket authentication successful');
-        }
+        devLog.log('Socket authentication successful');
         this.isAuthenticated = true;
         this.emit('authenticated');
       });
@@ -64,9 +59,7 @@ class WebSocketService {
       });
 
       this.socket.on('disconnect', (reason) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Socket.IO disconnected:', reason);
-        }
+        devLog.log('Socket.IO disconnected:', reason);
         this.isAuthenticated = false;
         this.emit('disconnected');
         
@@ -83,7 +76,7 @@ class WebSocketService {
 
       // Authentication events
       this.socket.on('authenticated', (data) => {
-        console.log('Socket authenticated:', data);
+        devLog.log('Socket authenticated:', data);
         this.isAuthenticated = true;
         this.connectionId = data?.connectionId || this.socket.id;
         this.emit('authenticated', data || { connectionId: this.socket.id });
