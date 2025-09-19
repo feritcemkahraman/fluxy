@@ -14,6 +14,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import friendsAPI from '../services/friendsAPI';
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const FriendsPanel = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('online');
@@ -143,13 +144,12 @@ const FriendsPanel = ({ onBack }) => {
           <div key={friend.id} className="flex items-center justify-between p-3 hover:bg-gray-700 rounded-lg group">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                  {friend.avatar ? (
-                    <img src={friend.avatar} alt={friend.username} className="w-8 h-8 rounded-full" />
-                  ) : (
-                    <span className="text-sm font-medium">{friend.username[0].toUpperCase()}</span>
-                  )}
-                </div>
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={null} alt={friend.username} />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                    {friend.username[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-800 ${getStatusColor(friend.status)}`}></div>
               </div>
               <div>
@@ -191,13 +191,12 @@ const FriendsPanel = ({ onBack }) => {
       {pendingRequests.map(request => (
         <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-              {request.from.avatar ? (
-                <img src={request.from.avatar} alt={request.from.username} className="w-8 h-8 rounded-full" />
-              ) : (
-                <span className="text-sm font-medium">{request.from.username[0].toUpperCase()}</span>
-              )}
-            </div>
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={null} alt={request.from.username} />
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                {request.from.username[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <div>
               <div className="text-white font-medium">{request.from.username}</div>
               <div className="text-gray-400 text-sm">#{request.from.discriminator}</div>
@@ -236,13 +235,12 @@ const FriendsPanel = ({ onBack }) => {
       {blockedUsers.map(user => (
         <div key={user.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
-              ) : (
-                <span className="text-sm font-medium">{user.username[0].toUpperCase()}</span>
-              )}
-            </div>
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={null} alt={user.username} />
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                {user.username[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <div>
               <div className="text-white font-medium">{user.username}</div>
               <div className="text-gray-400 text-sm">#{user.discriminator}</div>
@@ -311,13 +309,12 @@ const FriendsPanel = ({ onBack }) => {
             {searchResults.map(user => (
               <div key={user.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
-                    ) : (
-                      <span className="text-sm font-medium">{user.username[0].toUpperCase()}</span>
-                    )}
-                  </div>
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={null} alt={user.username} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                      {user.username[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <div className="text-white font-medium">{user.username}</div>
                     <div className="text-gray-400 text-sm">#{user.discriminator}</div>

@@ -653,12 +653,12 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                               <div className="flex items-center space-x-3 flex-1">
                                 <div className="relative">
                                   <Avatar className="w-12 h-12">
-                                    <AvatarImage src={member.avatar} alt={member.username} />
+                                    <AvatarImage src={null} alt={member.username} />
                                     <AvatarFallback 
                                       className="text-white"
                                       style={{ backgroundColor: highestRole?.color || '#6b7280' }}
                                     >
-                                      {(member.displayName || member.username).charAt(0)}
+                                      {(member.displayName || member.username).charAt(0).toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
                                   

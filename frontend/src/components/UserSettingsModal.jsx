@@ -424,9 +424,9 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="relative group">
                       <Avatar className="w-20 h-20 ring-4 ring-white/20">
-                        <AvatarImage src={userProfile.avatar} alt={userProfile.username} />
+                        <AvatarImage src={null} alt={userProfile.username} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
-                          {userProfile.username.charAt(0)}
+                          {userProfile.username.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <Button
