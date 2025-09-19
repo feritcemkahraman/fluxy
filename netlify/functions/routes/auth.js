@@ -247,4 +247,25 @@ router.put('/status', auth, [
   }
 });
 
+// Test route for debugging
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Auth router working',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
+router.post('/test', (req, res) => {
+  res.json({ 
+    message: 'Auth router POST test working',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
 module.exports = router;
