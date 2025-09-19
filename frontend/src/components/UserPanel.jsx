@@ -7,7 +7,6 @@ import { Mic, MicOff, Headphones, Settings, LogOut, User, Palette, PhoneOff, Vol
 import StatusIndicator from './StatusIndicator';
 import UserSettingsModal from './UserSettingsModal';
 import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../hooks/useSocket';
 import { useVoiceChat } from '../hooks/useVoiceChat';
 import { useAudio } from '../hooks/useAudio';
 

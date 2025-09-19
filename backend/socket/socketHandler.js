@@ -344,17 +344,18 @@ const handleConnection = (io) => {
           'members.user': socket.userId
         });
 
-        userServers.forEach(server => {
-          console.log(`🔄 Socket: Broadcasting status update for user ${socket.user.username} (${socket.userId}) to server: ${server.name} (${server._id})`);
-          console.log(`🔄 Socket status broadcast data:`, { userId: String(socket.userId), status, username: socket.user.username });
-          socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-            userId: String(socket.userId), // Ensure it's a string
-            status,
-            username: socket.user.username
-          });
-        });
+        // Note: Broadcast is handled by HTTP API in profile.js to avoid duplication
+        // userServers.forEach(server => {
+        //   console.log(`🔄 Socket: Broadcasting status update for user ${socket.user.username} (${socket.userId}) to server: ${server.name} (${server._id})`);
+        //   console.log(`🔄 Socket status broadcast data:`, { userId: String(socket.userId), status, username: socket.user.username });
+        //   socket.to(`server_${server._id}`).emit('userStatusUpdate', {
+        //     userId: String(socket.userId), // Ensure it's a string
+        //     status,
+        //     username: socket.user.username
+        //   });
+        // });
 
-        console.log(`✅ User ${socket.user.username} status updated to: ${status}`);
+        console.log(`✅ User ${socket.user.username} status updated to: ${status} (broadcast handled by HTTP API)`);
 
       } catch (error) {
         console.error('❌ Update user status error:', error);
