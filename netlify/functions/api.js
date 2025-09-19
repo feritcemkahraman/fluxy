@@ -280,8 +280,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`[ROUTE DEBUG] ${req.method} ${req.path} - Original: ${req.originalUrl}`);
+  console.log(`[ROUTE DEBUG] Available routes: auth, servers, channels, messages, dm, upload, roles, user-settings, profile, friends, templates`);
+  next();
+});
+
 // API routes - Direct paths after transformation
-app.use('/auth', authRoutes);
+app.use('/auth', (req, res, next) => {
+  console.log(`[AUTH ROUTER] Handling ${req.method} ${req.path} - Original: ${req.originalUrl}`);
+  next();
+}, authRoutes);
 app.use('/servers', serverRoutes);
 app.use('/channels', channelRoutes);
 app.use('/messages', messageRoutes);
