@@ -108,14 +108,14 @@ const retryRequest = async (fn, maxRetries = 3, delay = 1000) => {
     } catch (error) {
       lastError = error;
       
-      // Don't retry on client errors (4xx)
+      // Don't retry on client errors (4xx) - throw immediately
       if (error.response?.status >= 400 && error.response?.status < 500) {
-        throw handleAPIError(error);
+        throw error; // Don't double-handle here
       }
       
       // Don't retry on the last attempt
       if (i === maxRetries) {
-        throw handleAPIError(error);
+        throw error; // Don't double-handle here
       }
       
       // Wait before retrying
@@ -123,7 +123,7 @@ const retryRequest = async (fn, maxRetries = 3, delay = 1000) => {
     }
   }
   
-  throw handleAPIError(lastError);
+  throw lastError; // Don't double-handle here
 };
 
 export { APIError, NetworkError, handleAPIError, retryRequest };

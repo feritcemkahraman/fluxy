@@ -158,14 +158,24 @@ export function AuthProvider({ children }) {
       return { success: true };
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
-      const errorMessage = error.response?.data?.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.';
-      const errorType = error.response?.data?.type;
+      
+      // Extract the most relevant error information
+      let errorMessage = 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.';
+      let errorType = null;
+      
+      if (error.response?.data) {
+        errorMessage = error.response.data.message || errorMessage;
+        errorType = error.response.data.type;
+      } else if (error.message && error.message !== 'Network Error') {
+        errorMessage = error.message;
+      }
       
       console.error('Registration error:', {
         message: errorMessage,
         type: errorType,
         status: error.response?.status,
-        data: error.response?.data
+        data: error.response?.data,
+        originalError: error
       });
 
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
