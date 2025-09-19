@@ -204,7 +204,30 @@ const FluxyApp = () => {
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
     const handleUserStatusUpdate = (data) => {
-      // Update user status in UI - silent
+      const { userId, status } = data;
+      
+      // Update user status in the current server's members
+      setActiveServer(prevServer => {
+        if (!prevServer || !prevServer.members) return prevServer;
+        
+        const updatedMembers = prevServer.members.map(member => {
+          if (member.user && (member.user._id === userId || member.user.id === userId)) {
+            return {
+              ...member,
+              user: {
+                ...member.user,
+                status: status
+              }
+            };
+          }
+          return member;
+        });
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
     };
 
     const handleVoiceChannelUpdate = (data) => {
@@ -233,14 +256,38 @@ const FluxyApp = () => {
       }
     };
 
+    const handleServerJoined = (data) => {
+      devLog.log('Server joined event received:', data);
+      if (data.server) {
+        setServers(prev => {
+          // Check if server already exists to avoid duplicates
+          const exists = prev.some(s => (s._id || s.id) === (data.server._id || data.server.id));
+          if (!exists) {
+            return [...prev, data.server];
+          }
+          return prev;
+        });
+        
+        // Auto-select the joined server
+        setActiveServer(data.server);
+        if (data.server.channels && data.server.channels.length > 0) {
+          const firstChannel = data.server.channels.find(c => c.type === 'text') || data.server.channels[0];
+          setActiveChannel(firstChannel);
+        }
+        setIsDirectMessages(false);
+      }
+    };
+
     const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
     const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
     const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
+    const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
 
     return () => {
       unsubscribeUserStatus();
       unsubscribeVoiceUpdate();
       unsubscribeServerCreated();
+      unsubscribeServerJoined();
     };
   }, [on]); // on is stable from useSocket hook
 

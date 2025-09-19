@@ -30,6 +30,7 @@ import { dmAPI, serverAPI } from "../services/api";
 import DirectMessageChat from "./DirectMessageChat";
 import { useSocket } from "../hooks/useSocket";
 import friendsAPI from '../services/friendsAPI';
+import { useToast } from "../hooks/use-toast";
 
 const DirectMessages = ({ onChannelSelect }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,6 +38,7 @@ const DirectMessages = ({ onChannelSelect }) => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const { on } = useSocket();
+  const { toast } = useToast();
 
   // Friends data states
   const [friends, setFriends] = useState([]);
@@ -165,8 +167,6 @@ const DirectMessages = ({ onChannelSelect }) => {
       
       // API'den gerçek sunucu verilerini getir
       const response = await serverAPI.discoverServers();
-      console.log('Discover API response:', response);
-      console.log('Response data:', response.data);
       
       // API response'unu uygun formata çevir
       const formattedServers = response.data.servers.map(server => ({
@@ -183,7 +183,6 @@ const DirectMessages = ({ onChannelSelect }) => {
         isMember: server.isMember || false // Backend'den gelen member status
       }));
       
-      console.log('Formatted servers:', formattedServers);
       setDiscoverServers(formattedServers);
       
       // Fallback olarak mock data kullan eğer API'den veri gelmazse
@@ -294,9 +293,6 @@ const DirectMessages = ({ onChannelSelect }) => {
   };
 
   const getFilteredServers = () => {
-    console.log('getFilteredServers called - discoverServers:', discoverServers);
-    console.log('discoverFilter:', discoverFilter, 'discoverSearch:', discoverSearch);
-    
     let filtered = discoverServers;
     
     // Category filter
@@ -315,7 +311,6 @@ const DirectMessages = ({ onChannelSelect }) => {
       );
     }
     
-    console.log('Filtered result:', filtered);
     return filtered;
   };
 
@@ -334,9 +329,22 @@ const DirectMessages = ({ onChannelSelect }) => {
       await serverAPI.joinServer(serverId);
       
       // Başarılı katılım sonrası kullanıcıyı bilgilendir
-      alert('Sunucuya başarıyla katıldınız!');
+      toast({
+        title: "Başarılı!",
+        description: "Sunucuya başarıyla katıldınız!",
+        duration: 3000,
+      });
       
-      // Keşfet listesini güncelle (kullanıcı artık bu sunucuda)
+      // Local state'i güncelle - bu sunucuda artık member'ız
+      setDiscoverServers(prevServers => 
+        prevServers.map(server => 
+          server.id === serverId 
+            ? { ...server, isMember: true, memberCount: server.memberCount + 1 }
+            : server
+        )
+      );
+      
+      // Keşfet listesini güncelle (backend'den fresh data al)
       await loadDiscoverServers();
       
     } catch (error) {
@@ -344,11 +352,26 @@ const DirectMessages = ({ onChannelSelect }) => {
       
       // Kullanıcıya hata mesajı göster
       if (error.response?.status === 400) {
-        alert('Bu sunucuya zaten üyesiniz!');
+        toast({
+          title: "Hata",
+          description: "Bu sunucuya zaten üyesiniz!",
+          variant: "destructive",
+          duration: 3000,
+        });
       } else if (error.response?.status === 404) {
-        alert('Sunucu bulunamadı!');
+        toast({
+          title: "Hata",
+          description: "Sunucu bulunamadı!",
+          variant: "destructive",
+          duration: 3000,
+        });
       } else {
-        alert('Sunucuya katılırken bir hata oluştu.');
+        toast({
+          title: "Hata",
+          description: "Sunucuya katılırken bir hata oluştu.",
+          variant: "destructive",
+          duration: 3000,
+        });
       }
     }
   };

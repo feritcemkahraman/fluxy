@@ -89,10 +89,24 @@ const MemberList = ({ server, activeChannel }) => {
   useEffect(() => {
     const handleUserStatusUpdate = ({ userId, status, username }) => {
       setMembers(prev => prev.map(member => {
-        const shouldUpdate = member.id === userId || member._id === userId;
+        // Check if this member's user ID matches the updated user
+        const memberUserId = member.user?._id || member.user?.id || member.id || member._id;
+        const shouldUpdate = memberUserId === userId;
         
         if (shouldUpdate) {
-          return { ...member, status };
+          // Update the user's status within the member object
+          if (member.user) {
+            return { 
+              ...member, 
+              user: { 
+                ...member.user, 
+                status 
+              } 
+            };
+          } else {
+            // Fallback for direct member objects
+            return { ...member, status };
+          }
         }
         return member;
       }));
