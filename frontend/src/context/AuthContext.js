@@ -57,26 +57,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      const savedStatus = localStorage.getItem('userStatus');
-
-      if (token && user) {
+      const savedUser = localStorage.getItem('user');
+      
+      if (token && savedUser) {
         try {
-          // Verify token is still valid
+          // Verify token by making an API call
           const response = await authAPI.getMe();
-          const userData = response.data.user;
+          const user = response.data;
+          const savedStatus = localStorage.getItem('userStatus') || 'online';
           
-          // Restore saved status if it exists
-          if (savedStatus && savedStatus !== 'offline') {
-            userData.status = savedStatus;
-          }
-
           dispatch({
             type: 'LOGIN_SUCCESS',
             payload: {
-              user: userData,
-              token: token,
-            },
+              user: { ...user, status: savedStatus },
+              token
+            }
           });
 
           // Don't connect socket here - let the other useEffect handle it
@@ -91,9 +86,7 @@ export function AuthProvider({ children }) {
         // No token found
         dispatch({ type: 'SET_LOADING', payload: false });
       }
-    };
-
-    initAuth();
+    };    initAuth();
   }, []); // Only run once on mount
 
   const login = async (credentials) => {
@@ -272,14 +265,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateStatus = async (statusData) => {
-    console.log('AuthContext updateStatus called with:', statusData);
-    
     try {
       const response = await authAPI.updateStatus(statusData);
-      console.log('AuthAPI updateStatus response:', response);
-      
       const updatedUser = response.data.user;
-      console.log('Updated user from API:', updatedUser);
       
       // Save status to localStorage
       localStorage.setItem('userStatus', updatedUser.status);
@@ -289,10 +277,8 @@ export function AuthProvider({ children }) {
         payload: updatedUser,
       });
       
-      console.log('User state updated successfully');
       return { success: true };
     } catch (error) {
-      console.error('Status update error:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Status update failed';
       return { success: false, error: errorMessage };
     }

@@ -222,7 +222,7 @@ router.post('/logout', auth, async (req, res) => {
 // @desc    Update user status
 // @access  Private
 router.put('/status', auth, [
-  body('status').isIn(['online', 'idle', 'dnd', 'invisible']).withMessage('Geçersiz durum'),
+  body('status').isIn(['online', 'idle', 'dnd', 'invisible', 'offline']).withMessage('Geçersiz durum'),
   body('customStatus').optional().isLength({ max: 128 }).withMessage('Özel durum çok uzun')
 ], async (req, res) => {
   try {
