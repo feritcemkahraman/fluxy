@@ -44,7 +44,7 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
     username: user.username,
     displayName: user.displayName || user.username,
     discriminator: user.discriminator,
-    avatar: user.avatar,
+    avatar: null, // Always use initial letters instead of avatar URL
     status: user.status
   });
 
@@ -280,7 +280,7 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
         username: user.username,
         displayName: user.displayName || user.username,
         discriminator: user.discriminator,
-        avatar: user.avatar,
+        avatar: null, // Always use initial letters instead of avatar URL
         status: user.status
       });
       

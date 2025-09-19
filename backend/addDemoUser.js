@@ -13,7 +13,7 @@ async function addDemoUser() {
       username: 'DemoUser',
       email: 'demo@example.com',
       password: 'password123', // Bu production'da hash'lenmeli
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop',
+      // avatar: removed - will use initial letters instead
       status: 'online',
       discriminator: '1234'
     });
