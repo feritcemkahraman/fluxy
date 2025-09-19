@@ -44,7 +44,7 @@ const handleAPIError = (error) => {
       return new APIError(
         data?.message || 'Geçersiz istek',
         status,
-        'BAD_REQUEST',
+        data?.type || 'BAD_REQUEST',
         data
       );
     case 401:
