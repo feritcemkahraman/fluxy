@@ -18,11 +18,27 @@ const MemberList = ({ server, activeChannel }) => {
   // Update current user's status in member list when AuthContext user changes
   useEffect(() => {
     if (currentUser && members.length > 0) {
-      setMembers(prev => prev.map(member => 
-        member.id === currentUser._id || member._id === currentUser._id
-          ? { ...member, status: currentUser.status || 'online' }
-          : member
-      ));
+      setMembers(prev => prev.map(member => {
+        // Properly check member user ID
+        const memberUserId = member.user?._id || member.user?.id || member.id || member._id;
+        const currentUserId = currentUser._id || currentUser.id;
+        
+        if (memberUserId === currentUserId) {
+          // Update only the current user's status
+          if (member.user) {
+            return { 
+              ...member, 
+              user: { 
+                ...member.user, 
+                status: currentUser.status || 'online' 
+              } 
+            };
+          } else {
+            return { ...member, status: currentUser.status || 'online' };
+          }
+        }
+        return member;
+      }));
     }
   }, [currentUser?.status, members.length]);
 
@@ -204,8 +220,8 @@ const MemberList = ({ server, activeChannel }) => {
                             </AvatarFallback>
                           </Avatar>
                           <div 
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.status)}`}
-                            title={getStatusText(member.status)}
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.user?.status || member.status || 'offline')}`}
+                            title={getStatusText(member.user?.status || member.status || 'offline')}
                           />
                         </div>
                         
@@ -259,8 +275,8 @@ const MemberList = ({ server, activeChannel }) => {
                             </AvatarFallback>
                           </Avatar>
                           <div 
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.status)}`}
-                            title={getStatusText(member.status)}
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.user?.status || member.status || 'offline')}`}
+                            title={getStatusText(member.user?.status || member.status || 'offline')}
                           />
                         </div>
                         

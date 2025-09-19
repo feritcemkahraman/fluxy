@@ -304,10 +304,12 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
                       <div className="ml-6 space-y-1">
                         {connectedUsers.map((userId) => {
                           // Find user in server members
-                          // Server members are direct user objects, not nested in member.user
-                          const user = server?.members?.find(member =>
-                            (member?.id || member?._id) === userId
+                          // Server members have nested user objects: member.user._id
+                          const memberData = server?.members?.find(member =>
+                            (member?.user?._id || member?.user?.id || member?.id || member?._id) === userId
                           );
+                          
+                          const user = memberData?.user || memberData;
 
                           if (!user) {
                             return (

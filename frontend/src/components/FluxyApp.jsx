@@ -231,7 +231,30 @@ const FluxyApp = () => {
     };
 
     const handleVoiceChannelUpdate = (data) => {
-      // Update voice channel state - silent
+      const { channelId, action, userId } = data;
+      
+      // Update voice channel users based on socket event
+      setVoiceChannelUsers(prev => {
+        const currentUsers = prev[channelId] || [];
+        
+        if (action === 'userJoined') {
+          // Add user if not already in channel
+          if (!currentUsers.includes(userId)) {
+            return {
+              ...prev,
+              [channelId]: [...currentUsers, userId]
+            };
+          }
+        } else if (action === 'userLeft') {
+          // Remove user from channel
+          return {
+            ...prev,
+            [channelId]: currentUsers.filter(id => id !== userId)
+          };
+        }
+        
+        return prev;
+      });
     };
 
     const handleServerCreated = (data) => {
