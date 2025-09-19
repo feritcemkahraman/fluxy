@@ -40,6 +40,39 @@ const userSchema = new mongoose.Schema({
     enum: ['online', 'idle', 'dnd', 'invisible', 'offline'],
     default: 'online'
   },
+  activity: {
+    type: {
+      type: String,
+      enum: ['playing', 'streaming', 'listening', 'watching', 'custom'],
+      default: null
+    },
+    name: {
+      type: String,
+      default: null
+    },
+    details: {
+      type: String,
+      default: null
+    },
+    state: {
+      type: String,
+      default: null
+    },
+    timestamps: {
+      start: {
+        type: Date,
+        default: null
+      },
+      end: {
+        type: Date,
+        default: null
+      }
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
   customStatus: {
     type: mongoose.Schema.Types.Mixed, // Can be string or object
     default: null

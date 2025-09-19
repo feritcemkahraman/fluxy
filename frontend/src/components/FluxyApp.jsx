@@ -359,12 +359,40 @@ const FluxyApp = () => {
       const { userId, username, displayName, avatar, bio, pronouns, banner } = profileUpdate;
       console.log('👤 User profile update received:', profileUpdate);
       
-      // Update user profile in the current server's members
+      // Update user in servers
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          const updatedMembers = server.members?.map(member => {
+            if (member.user._id === userId || member.user.id === userId) {
+              return {
+                ...member,
+                user: {
+                  ...member.user,
+                  username: username || member.user.username,
+                  displayName: displayName || member.user.displayName,
+                  avatar: avatar || member.user.avatar,
+                  bio: bio || member.user.bio,
+                  pronouns: pronouns || member.user.pronouns,
+                  banner: banner || member.user.banner
+                }
+              };
+            }
+            return member;
+          });
+          
+          return {
+            ...server,
+            members: updatedMembers
+          };
+        });
+      });
+      
+      // Update active server
       setActiveServer(prevServer => {
-        if (!prevServer || !prevServer.members) return prevServer;
+        if (!prevServer) return prevServer;
         
-        const updatedMembers = prevServer.members.map(member => {
-          if (member.user && (member.user._id === userId || member.user.id === userId)) {
+        const updatedMembers = prevServer.members?.map(member => {
+          if (member.user._id === userId || member.user.id === userId) {
             return {
               ...member,
               user: {
@@ -388,8 +416,339 @@ const FluxyApp = () => {
       });
     };
 
-    const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
+    const handleRoleAssignment = (roleData) => {
+      const { userId, serverId, roleId, roleName, roleColor, action } = roleData;
+      console.log('🎯 Role assignment update received:', roleData);
+      
+      // Update servers state
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            const updatedMembers = server.members?.map(member => {
+              if (member.user._id === userId || member.user.id === userId) {
+                if (action === 'assigned') {
+                  // Add role if not already present
+                  if (!member.roles?.includes(roleId)) {
+                    return {
+                      ...member,
+                      roles: [...(member.roles || []), roleId]
+                    };
+                  }
+                } else if (action === 'removed') {
+                  // Remove role
+                  return {
+                    ...member,
+                    roles: (member.roles || []).filter(r => r !== roleId)
+                  };
+                }
+              }
+              return member;
+            });
+            
+            return {
+              ...server,
+              members: updatedMembers
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Update active server if it matches
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        const updatedMembers = prevServer.members?.map(member => {
+          if (member.user._id === userId || member.user.id === userId) {
+            if (action === 'assigned') {
+              // Add role if not already present
+              if (!member.roles?.includes(roleId)) {
+                return {
+                  ...member,
+                  roles: [...(member.roles || []), roleId]
+                };
+              }
+            } else if (action === 'removed') {
+              // Remove role
+              return {
+                ...member,
+                roles: (member.roles || []).filter(r => r !== roleId)
+              };
+            }
+          }
+          return member;
+        });
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
+    const handleServerUpdate = (updateData) => {
+      const { serverId, name, description, icon } = updateData;
+      console.log('🏰 Server update received:', updateData);
+      
+      // Update servers list
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            return {
+              ...server,
+              name: name || server.name,
+              description: description !== undefined ? description : server.description,
+              icon: icon || server.icon
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Update active server if it matches
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        return {
+          ...prevServer,
+          name: name || prevServer.name,
+          description: description !== undefined ? description : prevServer.description,
+          icon: icon || prevServer.icon
+        };
+      });
+    };
+
+    const handleMemberKicked = (kickData) => {
+      const { serverId, userId, kickedByUsername, kickedUser, reason } = kickData;
+      console.log('👢 Member kicked:', kickData);
+      
+      // Remove member from servers list
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            const updatedMembers = server.members?.filter(member => 
+              (member.user._id || member.user.id) !== userId
+            );
+            return {
+              ...server,
+              members: updatedMembers
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Remove member from active server
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        const updatedMembers = prevServer.members?.filter(member => 
+          (member.user._id || member.user.id) !== userId
+        );
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
+    const handleMemberBanned = (banData) => {
+      const { serverId, userId, bannedByUsername, bannedUser, reason } = banData;
+      console.log('🔨 Member banned:', banData);
+      
+      // Remove member from servers list (same as kick)
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            const updatedMembers = server.members?.filter(member => 
+              (member.user._id || member.user.id) !== userId
+            );
+            return {
+              ...server,
+              members: updatedMembers
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Remove member from active server
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        const updatedMembers = prevServer.members?.filter(member => 
+          (member.user._id || member.user.id) !== userId
+        );
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
+    const handleUserKicked = (kickData) => {
+      const { serverId, serverName, kickedBy, reason } = kickData;
+      console.log('😢 You were kicked from server:', kickData);
+      
+      // Remove server from user's server list
+      setServers(prevServers => 
+        prevServers.filter(server => (server._id || server.id) !== serverId)
+      );
+      
+      // If kicked from current server, go to home
+      if (activeServer && (activeServer._id || activeServer.id) === serverId) {
+        setActiveServer(null);
+        setActiveChannel(null);
+        setIsDirectMessages(true);
+      }
+    };
+
+    const handleUserBanned = (banData) => {
+      const { serverId, serverName, bannedBy, reason } = banData;
+      console.log('🚫 You were banned from server:', banData);
+      
+      // Remove server from user's server list (same as kick)
+      setServers(prevServers => 
+        prevServers.filter(server => (server._id || server.id) !== serverId)
+      );
+      
+      // If banned from current server, go to home
+      if (activeServer && (activeServer._id || activeServer.id) === serverId) {
+        setActiveServer(null);
+        setActiveChannel(null);
+        setIsDirectMessages(true);
+      }
+    };
+
+    const handleUserActivityUpdate = (activityData) => {
+      const { userId, username, activity } = activityData;
+      console.log('🎮 User activity update received:', activityData);
+      
+      // Update user activity in servers
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          const updatedMembers = server.members?.map(member => {
+            if (member.user._id === userId || member.user.id === userId) {
+              return {
+                ...member,
+                user: {
+                  ...member.user,
+                  activity: activity
+                }
+              };
+            }
+            return member;
+          });
+          
+          return {
+            ...server,
+            members: updatedMembers
+          };
+        });
+      });
+      
+      // Update active server
+      setActiveServer(prevServer => {
+        if (!prevServer) return prevServer;
+        
+        const updatedMembers = prevServer.members?.map(member => {
+          if (member.user._id === userId || member.user.id === userId) {
+            return {
+              ...member,
+              user: {
+                ...member.user,
+                activity: activity
+              }
+            };
+          }
+          return member;
+        });
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
+    const handleInviteCreated = (inviteData) => {
+      const { serverId, inviteCode, createdByUsername, serverName } = inviteData;
+      console.log('📨 Invite created:', inviteData);
+      
+      // Update server invite code if needed
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            return {
+              ...server,
+              inviteCode: inviteCode
+            };
+          }
+          return server;
+        });
+      });
+    };
+
+    const handleMemberJoinedViaInvite = (joinData) => {
+      const { serverId, newMember, inviteCode, joinedAt } = joinData;
+      console.log('🎉 New member joined via invite:', joinData);
+      
+      // Could show notification or update UI
+      // For now just log the invite usage
+    };
+
+    const handleNewMemberJoined = (memberData) => {
+      const { serverId, member } = memberData;
+      console.log('👋 New member joined server:', memberData);
+      
+      // Add new member to server members list
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            const updatedMembers = [...(server.members || []), member];
+            return {
+              ...server,
+              members: updatedMembers
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Add member to active server if it matches
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        const updatedMembers = [...(prevServer.members || []), member];
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };    const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
     const unsubscribeUserProfile = on('userProfileUpdate', handleUserProfileUpdate);
+    const unsubscribeUserActivity = on('userActivityUpdate', handleUserActivityUpdate);
+    const unsubscribeRoleAssignment = on('roleAssignment', handleRoleAssignment);
+    const unsubscribeServerUpdate = on('serverUpdate', handleServerUpdate);
+    const unsubscribeMemberKicked = on('memberKicked', handleMemberKicked);
+    const unsubscribeMemberBanned = on('memberBanned', handleMemberBanned);
+    const unsubscribeUserKicked = on('kicked', handleUserKicked);
+    const unsubscribeUserBanned = on('banned', handleUserBanned);
+    const unsubscribeInviteCreated = on('inviteCreated', handleInviteCreated);
+    const unsubscribeMemberJoinedViaInvite = on('memberJoinedViaInvite', handleMemberJoinedViaInvite);
+    const unsubscribeNewMemberJoined = on('newMemberJoined', handleNewMemberJoined);
     const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
     const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
     const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
@@ -399,6 +758,16 @@ const FluxyApp = () => {
     return () => {
       unsubscribeUserStatus();
       unsubscribeUserProfile();
+      unsubscribeUserActivity();
+      unsubscribeRoleAssignment();
+      unsubscribeServerUpdate();
+      unsubscribeMemberKicked();
+      unsubscribeMemberBanned();
+      unsubscribeUserKicked();
+      unsubscribeUserBanned();
+      unsubscribeInviteCreated();
+      unsubscribeMemberJoinedViaInvite();
+      unsubscribeNewMemberJoined();
       unsubscribeVoiceUpdate();
       unsubscribeServerCreated();
       unsubscribeServerJoined();

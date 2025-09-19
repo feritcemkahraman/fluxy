@@ -283,6 +283,14 @@ router.put('/:id', auth, requirePermission(PERMISSIONS.MANAGE_SERVER), [
 
     await server.save();
 
+    // Broadcast server update to all members
+    req.io.to(`server_${server._id}`).emit('serverUpdate', {
+      serverId: server._id,
+      name: server.name,
+      description: server.description,
+      icon: server.icon
+    });
+
     res.json({
       message: 'Server updated successfully',
       server: {
@@ -382,6 +390,36 @@ router.post('/:id/join', auth, [
       io.to(`user_${req.user._id}`).emit('serverJoined', {
         server: populatedServerForEvent
       });
+
+      // If joined via invite, broadcast to server members about new member
+      if (inviteCode) {
+        io.to(`server_${server._id}`).emit('memberJoinedViaInvite', {
+          serverId: server._id,
+          newMember: {
+            _id: req.user._id,
+            username: req.user.username,
+            avatar: req.user.avatar,
+            discriminator: req.user.discriminator
+          },
+          inviteCode: inviteCode,
+          joinedAt: new Date()
+        });
+      }
+
+      // Broadcast new member joined to all server members
+      io.to(`server_${server._id}`).emit('newMemberJoined', {
+        serverId: server._id,
+        member: {
+          user: {
+            _id: req.user._id,
+            username: req.user.username,
+            avatar: req.user.avatar,
+            status: req.user.status
+          },
+          roles: defaultRole ? [defaultRole._id] : [],
+          joinedAt: new Date()
+        }
+      });
     }
 
     res.json({
@@ -452,6 +490,15 @@ router.post('/:id/invite', auth, requireMember, async (req, res) => {
     if (!server.inviteCode) {
       server.inviteCode = Math.random().toString(36).substr(2, 8).toUpperCase();
       await server.save();
+
+      // Broadcast invite creation to all server members
+      req.io.to(`server_${server._id}`).emit('inviteCreated', {
+        serverId: server._id,
+        inviteCode: server.inviteCode,
+        createdBy: req.user._id,
+        createdByUsername: req.user.username,
+        serverName: server.name
+      });
     }
 
     res.json({ 
@@ -582,12 +629,39 @@ router.post('/:id/kick/:userId', auth, requirePermission(PERMISSIONS.KICK_MEMBER
     }
 
     // Remove user from server members
+    const kickedMember = server.members[memberIndex];
     server.members.splice(memberIndex, 1);
     await server.save();
 
     // Remove server from user's servers list
     await User.findByIdAndUpdate(userId, {
       $pull: { servers: server._id }
+    });
+
+    // Get kicked user details for broadcast
+    const kickedUser = await User.findById(userId).select('username displayName avatar');
+
+    // Broadcast member kick to all server members
+    req.io.to(`server_${server._id}`).emit('memberKicked', {
+      serverId: server._id,
+      userId,
+      kickedBy: req.user._id,
+      kickedByUsername: req.user.username,
+      kickedUser: {
+        _id: userId,
+        username: kickedUser?.username,
+        displayName: kickedUser?.displayName,
+        avatar: kickedUser?.avatar
+      },
+      reason: reason || 'No reason provided'
+    });
+
+    // Notify the kicked user
+    req.io.to(`user_${userId}`).emit('kicked', {
+      serverId: server._id,
+      serverName: server.name,
+      kickedBy: req.user.username,
+      reason: reason || 'No reason provided'
     });
 
     res.json({ 
@@ -674,6 +748,33 @@ router.post('/:id/ban/:userId', auth, requirePermission(PERMISSIONS.BAN_MEMBERS)
     }
 
     await server.save();
+
+    // Get banned user details for broadcast
+    const bannedUser = await User.findById(userId).select('username displayName avatar');
+
+    // Broadcast member ban to all server members
+    req.io.to(`server_${server._id}`).emit('memberBanned', {
+      serverId: server._id,
+      userId,
+      bannedBy: req.user._id,
+      bannedByUsername: req.user.username,
+      bannedUser: {
+        _id: userId,
+        username: bannedUser?.username,
+        displayName: bannedUser?.displayName,
+        avatar: bannedUser?.avatar
+      },
+      reason: reason || 'No reason provided',
+      deleteMessageDays: deleteMessageDays || 0
+    });
+
+    // Notify the banned user
+    req.io.to(`user_${userId}`).emit('banned', {
+      serverId: server._id,
+      serverName: server.name,
+      bannedBy: req.user.username,
+      reason: reason || 'No reason provided'
+    });
 
     res.json({ message: 'Member banned successfully' });
 

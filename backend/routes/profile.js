@@ -211,6 +211,123 @@ router.put('/status', auth, async (req, res) => {
   }
 });
 
+// Update user activity/presence
+router.put('/activity', auth, async (req, res) => {
+  try {
+    const { type, name, details, state, timestamps } = req.body;
+    const userId = req.user._id;
+
+    const validActivityTypes = ['playing', 'streaming', 'listening', 'watching', 'custom'];
+    if (type && !validActivityTypes.includes(type)) {
+      return res.status(400).json({ 
+        error: 'Invalid activity type',
+        validTypes: validActivityTypes
+      });
+    }
+
+    const activityData = {
+      type: type || null,
+      name: name || null,
+      details: details || null,
+      state: state || null,
+      timestamps: timestamps || null,
+      updatedAt: new Date()
+    };
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        activity: activityData,
+        lastSeen: new Date()
+      },
+      { new: true }
+    ).select('-password -email');
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Broadcast activity update to all user's servers
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        const userServers = await Server.find({
+          'members.user': userId
+        });
+
+        userServers.forEach(server => {
+          io.to(`server_${server._id}`).emit('userActivityUpdate', {
+            userId: userId,
+            username: updatedUser.username,
+            activity: activityData
+          });
+        });
+
+        console.log(`🎮 Activity update broadcasted to ${userServers.length} servers for user ${updatedUser.username}`);
+      } catch (socketError) {
+        console.error('❌ Activity broadcast error:', socketError);
+      }
+    }
+
+    res.json({
+      message: 'Activity updated successfully',
+      activity: activityData
+    });
+  } catch (error) {
+    console.error('❌ Update activity error:', error);
+    res.status(500).json({ error: 'Failed to update activity' });
+  }
+});
+
+// Clear user activity
+router.delete('/activity', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        activity: null,
+        lastSeen: new Date()
+      },
+      { new: true }
+    ).select('-password -email');
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Broadcast activity clear to all user's servers
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        const userServers = await Server.find({
+          'members.user': userId
+        });
+
+        userServers.forEach(server => {
+          io.to(`server_${server._id}`).emit('userActivityUpdate', {
+            userId: userId,
+            username: updatedUser.username,
+            activity: null
+          });
+        });
+
+        console.log(`🎮 Activity cleared for user ${updatedUser.username}`);
+      } catch (socketError) {
+        console.error('❌ Activity clear broadcast error:', socketError);
+      }
+    }
+
+    res.json({
+      message: 'Activity cleared successfully'
+    });
+  } catch (error) {
+    console.error('❌ Clear activity error:', error);
+    res.status(500).json({ error: 'Failed to clear activity' });
+  }
+});
+
 // Add user badge
 router.post('/badges', auth, [
   body('type')

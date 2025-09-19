@@ -155,6 +155,21 @@ router.post('/:roleId/assign/:userId', [auth, requirePermission(PERMISSIONS.MANA
     member.roles.push(roleId);
     await server.save();
 
+    // Emit socket event to notify all server members about role assignment
+    const io = req.app.get('io');
+    if (io) {
+      const roleAssignmentData = {
+        userId: userId,
+        roleId: roleId,
+        roleName: role.name,
+        roleColor: role.color,
+        action: 'assigned'
+      };
+      
+      io.to(`server:${serverId}`).emit('roleAssignment', roleAssignmentData);
+      console.log(`🎭 Role ${role.name} assigned to user ${userId} - broadcasted to server:${serverId}`);
+    }
+
     res.json({ message: 'Role assigned successfully' });
   } catch (error) {
     console.error('Assign role error:', error);
@@ -182,6 +197,20 @@ router.delete('/:roleId/remove/:userId', [auth, requirePermission(PERMISSIONS.MA
     // Remove role from member
     member.roles = member.roles.filter(r => r.toString() !== roleId);
     await server.save();
+
+    // Find role details for the broadcast
+    const role = await Role.findById(roleId);
+    if (role) {
+      // Broadcast role removal to all server members
+      req.io.to(`server_${serverId}`).emit('roleAssignment', {
+        userId,
+        serverId,
+        roleId,
+        roleName: role.name,
+        roleColor: role.color,
+        action: 'removed'
+      });
+    }
 
     res.json({ message: 'Role removed successfully' });
   } catch (error) {
