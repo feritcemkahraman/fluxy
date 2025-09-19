@@ -104,12 +104,28 @@ const MemberList = ({ server, activeChannel }) => {
   // Listen for real-time member updates
   useEffect(() => {
     const handleUserStatusUpdate = ({ userId, status, username }) => {
+      console.log('🔄 MemberList: User status update received:', { userId, status, username });
+      console.log('🔄 MemberList: Current user ID:', currentUser?._id || currentUser?.id);
+      
+      // Convert both IDs to string for comparison
+      const currentUserId = String(currentUser?._id || currentUser?.id);
+      const updateUserId = String(userId);
+      
+      // Don't update status for current user - they handle their own status via AuthContext
+      if (updateUserId === currentUserId) {
+        console.log('🔄 MemberList: Ignoring status update for current user');
+        return;
+      }
+      
+      console.log('🔄 MemberList: Processing status update for other user');
+      
       setMembers(prev => prev.map(member => {
         // Check if this member's user ID matches the updated user
-        const memberUserId = member.user?._id || member.user?.id || member.id || member._id;
-        const shouldUpdate = memberUserId === userId;
+        const memberUserId = String(member.user?._id || member.user?.id || member.id || member._id);
+        const shouldUpdate = memberUserId === updateUserId;
         
         if (shouldUpdate) {
+          console.log('🔄 MemberList: Updating status for user:', member.user?.username || member.username, 'from', member.user?.status || member.status, 'to', status);
           // Update the user's status within the member object
           if (member.user) {
             return { 
