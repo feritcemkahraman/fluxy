@@ -205,23 +205,23 @@ const UserPanel = ({ user, server }) => {
                   <Avatar className="w-12 h-12">
                     <AvatarImage
                       src={null} // Sadece baş harf avatarı kullan
-                      alt={user.username}
+                      alt={user?.username || 'User'}
                     />
                     <AvatarFallback className="bg-indigo-600 text-white text-lg font-semibold">
-                      {getUserInitials(user.username)}
+                      {user?.username ? getUserInitials(user.username) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute -bottom-0.5 -right-0.5">
-                    <StatusIndicator status={user.status || 'online'} size="small" />
+                    <StatusIndicator status={user?.status || 'online'} size="small" />
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="text-white text-lg font-bold truncate">
-                    {user.displayName || user.username}
+                    {user?.displayName || user?.username || 'Yükleniyor...'}
                   </div>
                   <div className="text-sm text-gray-400 truncate">
-                    {getStatusLabel(user.status || 'online')}
+                    {user ? getStatusLabel(user.status || 'online') : 'Yükleniyor...'}
                   </div>
                 </div>
               </div>
@@ -244,17 +244,17 @@ const UserPanel = ({ user, server }) => {
                       <Avatar className="w-10 h-10">
                         <AvatarImage
                           src={null} // Sadece baş harf avatarı kullan
-                          alt={user.username}
+                          alt={user?.username || 'User'}
                         />
                         <AvatarFallback className="bg-indigo-600 text-white text-sm font-semibold">
-                          {getUserInitials(user.username)}
+                          {user?.username ? getUserInitials(user.username) : 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-semibold truncate">{user.displayName || user.username}</div>
+                        <div className="text-white font-semibold truncate">{user?.displayName || user?.username || 'Yükleniyor...'}</div>
                       </div>
                       <div className="relative">
-                        <StatusIndicator status={user.status || 'online'} size="small" />
+                        <StatusIndicator status={user?.status || 'online'} size="small" />
                       </div>
                     </div>
                   </div>
@@ -272,15 +272,15 @@ const UserPanel = ({ user, server }) => {
                         <div
                           key={item.status}
                           className={`flex items-center px-2 py-2 rounded cursor-pointer hover:bg-gray-700/50 ${
-                            user.status === item.status ? 'bg-gray-700/30' : ''
+                            (user?.status || 'online') === item.status ? 'bg-gray-700/30' : ''
                           }`}
                           onClick={() => handleStatusChange(item.status)}
                         >
                           <div className={`w-3 h-3 ${item.color} rounded-full mr-3`}></div>
-                          <span className={`text-sm ${user.status === item.status ? item.textColor : 'text-gray-300'}`}>
+                          <span className={`text-sm ${(user?.status || 'online') === item.status ? item.textColor : 'text-gray-300'}`}>
                             {item.label}
                           </span>
-                          {user.status === item.status && (
+                          {(user?.status || 'online') === item.status && (
                             <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>
                           )}
                         </div>

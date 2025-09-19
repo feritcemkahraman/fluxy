@@ -61,17 +61,26 @@ export function AuthProvider({ children }) {
       
       if (token && savedUser) {
         try {
-          // Verify token by making an API call
-          const response = await authAPI.getMe();
-          const user = response.data;
+          // Immediately load user from localStorage for instant UI
+          const localUser = JSON.parse(savedUser);
           const savedStatus = localStorage.getItem('userStatus') || 'online';
           
           dispatch({
             type: 'LOGIN_SUCCESS',
             payload: {
-              user: { ...user, status: savedStatus },
+              user: { ...localUser, status: savedStatus },
               token
             }
+          });
+
+          // Then verify token by making an API call and update if needed
+          const response = await authAPI.getMe();
+          const apiUser = response.data;
+          
+          // Update with fresh data from API (in case user info changed)
+          dispatch({
+            type: 'UPDATE_USER',
+            payload: { ...apiUser, status: savedStatus }
           });
 
           // Don't connect socket here - let the other useEffect handle it
