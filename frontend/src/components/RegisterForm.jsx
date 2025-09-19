@@ -57,12 +57,15 @@ export default function RegisterForm({ onToggleMode }) {
     });
     
     if (result.success) {
-      toast.success('Hesap başarıyla oluşturuldu!');
+      toast.success('Hesap başarıyla oluşturuldu! Yönlendiriliyor...');
+      // AuthContext state'inin update olması için biraz bekle
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     } else {
       toast.error(result.error);
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (

@@ -144,6 +144,7 @@ export function AuthProvider({ children }) {
 
       return { success: true };
     } catch (error) {
+      dispatch({ type: 'SET_LOADING', payload: false });
       const errorMessage = error.response?.data?.message || 'Registration failed';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       return { success: false, error: errorMessage };
