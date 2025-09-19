@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
-  const { sendMessage, addReaction, sendTyping, on, joinChannel, leaveChannel } = useSocket();
+  const { sendMessage, on, joinChannel, leaveChannel } = useSocket();
   
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);

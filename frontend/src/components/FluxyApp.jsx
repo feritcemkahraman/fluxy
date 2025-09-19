@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
-  const { isConnected, joinServer, leaveServer, on } = useSocket();
+  const { isConnected, on } = useSocket();
   const { 
     isConnected: isVoiceConnected, 
     currentChannel: currentVoiceChannel,

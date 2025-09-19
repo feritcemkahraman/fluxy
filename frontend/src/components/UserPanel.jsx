@@ -16,8 +16,8 @@ const UserPanel = ({ user, server }) => {
   const [isDeafened, setIsDeafened] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const { logout, updateStatus, updateUser } = useAuth();
-  const { updateUserStatus } = useSocket();
+  const { logout, updateStatus: updateAuthStatus, updateUser } = useAuth();
+  const { updateStatus: updateSocketStatus } = useSocket();
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 

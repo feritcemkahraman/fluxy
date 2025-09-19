@@ -2,16 +2,8 @@ import { useCallback } from 'react';
 import socketService from '../services/socket';
 
 export function useSocket() {
-  const joinServer = useCallback((serverId) => {
-    socketService.joinServer(serverId);
-  }, []);
-
-  const leaveServer = useCallback((serverId) => {
-    socketService.leaveServer(serverId);
-  }, []);
-
-  const sendMessage = useCallback((channelId, content, serverId) => {
-    return socketService.sendMessage(channelId, content, serverId);
+  const sendMessage = useCallback((channelId, content, messageType = 'text') => {
+    return socketService.sendMessage(channelId, content, messageType);
   }, []);
 
   const joinChannel = useCallback((channelId) => {
@@ -26,20 +18,12 @@ export function useSocket() {
     socketService.joinVoiceChannel(channelId);
   }, []);
 
-  const leaveVoiceChannel = useCallback(() => {
-    socketService.leaveVoiceChannel();
+  const leaveVoiceChannel = useCallback((channelId) => {
+    socketService.leaveVoiceChannel(channelId);
   }, []);
 
-  const sendTyping = useCallback((channelId, isTyping) => {
-    return socketService.sendTyping(channelId, isTyping);
-  }, []);
-
-  const addReaction = useCallback((messageId, emoji, channelId) => {
-    return socketService.addReaction(messageId, emoji, channelId);
-  }, []);
-
-  const updateUserStatus = useCallback((status) => {
-    socketService.updateUserStatus(status);
+  const updateStatus = useCallback((status) => {
+    socketService.updateStatus(status);
   }, []);
 
   const on = useCallback((event, callback) => {
@@ -47,18 +31,23 @@ export function useSocket() {
     return () => socketService.off(event, callback);
   }, []);
 
+  const isConnected = useCallback(() => {
+    return socketService.isConnected();
+  }, []);
+
+  const isAuthenticated = useCallback(() => {
+    return socketService.isAuth();
+  }, []);
+
   return {
-    isConnected: socketService.isConnected,
-    joinServer,
-    leaveServer,
     sendMessage,
     joinChannel,
     leaveChannel,
     joinVoiceChannel,
     leaveVoiceChannel,
-    sendTyping,
-    addReaction,
-    updateUserStatus,
+    updateStatus,
     on,
+    isConnected,
+    isAuthenticated
   };
 }

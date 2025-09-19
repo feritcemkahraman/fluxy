@@ -1,6 +1,8 @@
+import io from 'socket.io-client';
+
 class WebSocketService {
   constructor() {
-    this.ws = null;
+    this.socket = null;
     this.listeners = new Map();
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -11,218 +13,237 @@ class WebSocketService {
   }
 
   connect(token) {
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+    if (this.socket && this.socket.connected) {
       return;
     }
 
     try {
-      // Use configured WebSocket URL (ngrok backend)
-      const wsUrl = process.env.REACT_APP_WS_URL;
+      // Use configured Socket.IO URL (ngrok backend)
+      const socketUrl = process.env.REACT_APP_SOCKET_URL;
       
-      if (!wsUrl) {
-        console.error('REACT_APP_WS_URL is not configured');
+      if (!socketUrl) {
+        console.error('REACT_APP_SOCKET_URL is not configured');
         return;
       }
       
-      console.log('Connecting to WebSocket:', wsUrl);
-      this.ws = new WebSocket(wsUrl);
+      console.log('Connecting to Socket.IO:', socketUrl);
+      this.socket = io(socketUrl, {
+        auth: {
+          token: token
+        },
+        transports: ['websocket', 'polling']
+      });
       
-      this.ws.onopen = () => {
-        console.log('WebSocket connected to ngrok backend');
+      this.socket.on('connect', () => {
+        console.log('Socket.IO connected to ngrok backend');
         this.reconnectAttempts = 0;
         this.emit('connected');
         
-        // Authenticate immediately after connection
-        if (token) {
-          this.authenticate(token);
-        }
-      };
+        // Authentication handled by backend automatically via auth token
+        this.isAuthenticated = true;
+      });
 
-      this.ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          this.handleMessage(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      this.ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+      this.socket.on('disconnect', (reason) => {
+        console.log('Socket.IO disconnected:', reason);
         this.isAuthenticated = false;
-        this.currentChannel = null;
-        this.emit('disconnected', { code: event.code, reason: event.reason });
+        this.emit('disconnected');
         
-        // Attempt to reconnect if not a manual close
-        if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.scheduleReconnect(token);
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect
+          this.handleReconnect();
         }
-      };
+      });
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.emit('error', error);
-      };
+      this.socket.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error.message);
+        this.handleReconnect();
+      });
+
+      // Authentication events
+      this.socket.on('authenticated', (data) => {
+        console.log('Socket authenticated:', data);
+        this.isAuthenticated = true;
+        this.connectionId = data.connectionId;
+        this.emit('authenticated', data);
+      });
+
+      this.socket.on('authentication_failed', (error) => {
+        console.error('Socket authentication failed:', error);
+        this.isAuthenticated = false;
+        this.emit('authentication_failed', error);
+      });
+
+      // Message events
+      this.socket.on('new_message', (message) => {
+        this.emit('new_message', message);
+      });
+
+      this.socket.on('message_updated', (message) => {
+        this.emit('message_updated', message);
+      });
+
+      this.socket.on('message_deleted', (messageId) => {
+        this.emit('message_deleted', messageId);
+      });
+
+      // Channel events
+      this.socket.on('user_joined_channel', (data) => {
+        this.emit('user_joined_channel', data);
+      });
+
+      this.socket.on('user_left_channel', (data) => {
+        this.emit('user_left_channel', data);
+      });
+
+      // Voice events
+      this.socket.on('voice_user_joined', (data) => {
+        this.emit('voice_user_joined', data);
+      });
+
+      this.socket.on('voice_user_left', (data) => {
+        this.emit('voice_user_left', data);
+      });
+
+      // Server events
+      this.socket.on('server_updated', (server) => {
+        this.emit('server_updated', server);
+      });
+
+      this.socket.on('channel_created', (channel) => {
+        this.emit('channel_created', channel);
+      });
+
+      this.socket.on('channel_updated', (channel) => {
+        this.emit('channel_updated', channel);
+      });
+
+      this.socket.on('channel_deleted', (channelId) => {
+        this.emit('channel_deleted', channelId);
+      });
+
+      // User events
+      this.socket.on('user_status_changed', (data) => {
+        this.emit('user_status_changed', data);
+      });
+
+      this.socket.on('user_joined_server', (data) => {
+        this.emit('user_joined_server', data);
+      });
+
+      this.socket.on('user_left_server', (data) => {
+        this.emit('user_left_server', data);
+      });
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      this.emit('error', error);
+      console.error('Error connecting to Socket.IO:', error);
+      this.handleReconnect();
     }
   }
 
-  scheduleReconnect(token) {
+  handleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log('Max reconnection attempts reached');
+      this.emit('max_reconnect_attempts_reached');
+      return;
+    }
+
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
     
     setTimeout(() => {
-      if (this.reconnectAttempts <= this.maxReconnectAttempts) {
-        this.connect(token);
+      if (this.socket) {
+        this.socket.connect();
       }
-    }, delay);
+    }, this.reconnectDelay * this.reconnectAttempts);
   }
 
   disconnect() {
-    if (this.ws) {
-      this.ws.close(1000, 'Manual disconnect');
-      this.ws = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
     this.isAuthenticated = false;
     this.currentChannel = null;
-    this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
+    this.connectionId = null;
   }
 
-  send(message) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-      return true;
+  // Send message to channel
+  sendMessage(channelId, content, messageType = 'text') {
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
     }
-    console.warn('WebSocket not connected, cannot send message:', message);
-    return false;
-  }
 
-  authenticate(token) {
-    return this.send({
-      type: 'authenticate',
-      data: { token }
+    this.socket.emit('send_message', {
+      channelId,
+      content,
+      type: messageType
     });
   }
 
+  // Join a channel
   joinChannel(channelId) {
-    if (!this.isAuthenticated) {
-      console.warn('Cannot join channel: not authenticated');
-      return false;
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
     }
-    
+
+    if (this.currentChannel) {
+      this.leaveChannel(this.currentChannel);
+    }
+
     this.currentChannel = channelId;
-    return this.send({
-      type: 'joinChannel',
-      data: { channelId }
-    });
+    this.socket.emit('join_channel', { channelId });
   }
 
+  // Leave a channel
   leaveChannel(channelId) {
-    if (!this.isAuthenticated) {
-      console.warn('Cannot leave channel: not authenticated');
-      return false;
-    }
-    
+    if (!this.socket) return;
+
+    this.socket.emit('leave_channel', { channelId });
     if (this.currentChannel === channelId) {
       this.currentChannel = null;
     }
-    
-    return this.send({
-      type: 'leaveChannel',
-      data: { channelId }
-    });
   }
 
-  sendMessage(channelId, content, serverId) {
-    if (!this.isAuthenticated) {
-      console.warn('Cannot send message: not authenticated');
-      return false;
+  // Join voice channel
+  joinVoiceChannel(channelId) {
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
     }
-    
-    return this.send({
-      type: 'sendMessage',
-      data: { channelId, content, serverId }
-    });
+
+    this.socket.emit('join_voice', { channelId });
   }
 
-  sendTyping(channelId, isTyping) {
-    if (!this.isAuthenticated) {
-      return false;
-    }
-    
-    return this.send({
-      type: 'typing',
-      data: { channelId, isTyping }
-    });
+  // Leave voice channel
+  leaveVoiceChannel(channelId) {
+    if (!this.socket) return;
+
+    this.socket.emit('leave_voice', { channelId });
   }
 
-  addReaction(messageId, emoji, channelId) {
-    if (!this.isAuthenticated) {
-      console.warn('Cannot add reaction: not authenticated');
-      return false;
+  // Update user status
+  updateStatus(status) {
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
     }
-    
-    return this.send({
-      type: 'reaction',
-      data: { messageId, emoji, channelId }
-    });
-  }
 
-  handleMessage(message) {
-    const { type, data } = message;
-    
-    switch (type) {
-      case 'authenticated':
-        this.isAuthenticated = true;
-        console.log('WebSocket authenticated');
-        this.emit('authenticated', data);
-        break;
-        
-      case 'newMessage':
-        this.emit('newMessage', data);
-        break;
-        
-      case 'userTyping':
-        this.emit('userTyping', data);
-        break;
-        
-      case 'reactionUpdate':
-        this.emit('reactionUpdate', data);
-        break;
-        
-      case 'userJoinedChannel':
-        this.emit('userJoinedChannel', data);
-        break;
-        
-      case 'userLeftChannel':
-        this.emit('userLeftChannel', data);
-        break;
-        
-      default:
-        console.log('Unhandled message type:', type, data);
-    }
+    this.socket.emit('update_status', { status });
   }
 
   // Event listener management
   on(event, callback) {
     if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+      this.listeners.set(event, new Set());
     }
-    this.listeners.get(event).push(callback);
+    this.listeners.get(event).add(callback);
   }
 
   off(event, callback) {
     if (this.listeners.has(event)) {
-      const callbacks = this.listeners.get(event);
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
+      this.listeners.get(event).delete(callback);
     }
   }
 
@@ -232,79 +253,27 @@ class WebSocketService {
         try {
           callback(data);
         } catch (error) {
-          console.error('Error in event callback:', error);
+          console.error(`Error in event listener for ${event}:`, error);
         }
       });
     }
   }
 
-  // Compatibility methods for existing code
-  joinServer(serverId) {
-    console.log('joinServer called (WebSocket implementation):', serverId);
-    // In WebSocket implementation, server joining might be handled differently
-  }
-
-  leaveServer(serverId) {
-    console.log('leaveServer called (WebSocket implementation):', serverId);
-  }
-
-  joinVoiceChannel(channelId) {
-    console.log('joinVoiceChannel called (WebSocket implementation):', channelId);
-    // Voice chat requires additional WebRTC implementation
-  }
-
-  leaveVoiceChannel() {
-    console.log('leaveVoiceChannel called (WebSocket implementation)');
-  }
-
-  updateUserStatus(status) {
-    console.log('updateUserStatus called (WebSocket implementation):', status);
-  }
-
-  // Voice and screen sharing methods (placeholder for future implementation)
-  joinVoiceChannelWebRTC(channelId, userId) {
-    console.log('Voice WebRTC not yet implemented for WebSocket API');
-  }
-
-  leaveVoiceChannelWebRTC(channelId, userId) {
-    console.log('Voice WebRTC not yet implemented for WebSocket API');
-  }
-
-  sendVoiceSignal(signal, userId, channelId, fromUserId) {
-    console.log('Voice signaling not yet implemented for WebSocket API');
-  }
-
-  sendVoiceMuteStatus(channelId, isMuted, userId) {
-    console.log('Voice mute status not yet implemented for WebSocket API');
-  }
-
-  sendVoiceDeafenStatus(channelId, isDeafened, userId) {
-    console.log('Voice deafen status not yet implemented for WebSocket API');
-  }
-
-  startScreenShare(channelId, userId) {
-    console.log('Screen sharing not yet implemented for WebSocket API');
-  }
-
-  stopScreenShare(channelId, userId) {
-    console.log('Screen sharing not yet implemented for WebSocket API');
-  }
-
-  sendScreenSignal(signal, userId, channelId, fromUserId) {
-    console.log('Screen signaling not yet implemented for WebSocket API');
-  }
-
+  // Utility methods
   isConnected() {
-    return this.ws && this.ws.readyState === WebSocket.OPEN && this.isAuthenticated;
+    return this.socket && this.socket.connected;
   }
 
-  getConnectionInfo() {
-    return {
-      connected: this.isConnected(),
-      authenticated: this.isAuthenticated,
-      currentChannel: this.currentChannel,
-      reconnectAttempts: this.reconnectAttempts
-    };
+  isAuth() {
+    return this.isAuthenticated;
+  }
+
+  getCurrentChannel() {
+    return this.currentChannel;
+  }
+
+  getConnectionId() {
+    return this.connectionId;
   }
 }
 
@@ -312,4 +281,3 @@ class WebSocketService {
 const webSocketService = new WebSocketService();
 
 export default webSocketService;
-export { webSocketService };
