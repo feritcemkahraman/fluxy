@@ -108,22 +108,28 @@ const retryRequest = async (fn, maxRetries = 3, delay = 1000) => {
     } catch (error) {
       lastError = error;
       
-      // Don't retry on client errors (4xx) - throw immediately
-      if (error.response?.status >= 400 && error.response?.status < 500) {
-        throw error; // Don't double-handle here
+      // Get status from various error formats
+      const status = error.response?.status || error.status;
+      
+      // Don't retry on client errors (4xx) or success codes that failed
+      if (status >= 400 && status < 500) {
+        console.log(`Not retrying due to client error: ${status}`);
+        throw error;
       }
       
       // Don't retry on the last attempt
       if (i === maxRetries) {
-        throw error; // Don't double-handle here
+        console.log('Max retries reached, throwing error');
+        throw error;
       }
       
+      console.log(`Retrying request (attempt ${i + 1}/${maxRetries + 1})`);
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
     }
   }
   
-  throw lastError; // Don't double-handle here
+  throw lastError;
 };
 
 export { APIError, NetworkError, handleAPIError, retryRequest };

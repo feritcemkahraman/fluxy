@@ -162,18 +162,29 @@ export function AuthProvider({ children }) {
       // Extract the most relevant error information
       let errorMessage = 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.';
       let errorType = null;
+      let status = undefined;
       
-      if (error.response?.data) {
+      // If it's an APIError from our error handling system
+      if (error.message && error.status !== undefined) {
+        errorMessage = error.message;
+        errorType = error.type;
+        status = error.status;
+      }
+      // If it's a raw axios error
+      else if (error.response?.data) {
         errorMessage = error.response.data.message || errorMessage;
         errorType = error.response.data.type;
-      } else if (error.message && error.message !== 'Network Error') {
+        status = error.response.status;
+      }
+      // Network or other errors
+      else if (error.message && error.message !== 'Network Error') {
         errorMessage = error.message;
       }
       
       console.error('Registration error:', {
         message: errorMessage,
         type: errorType,
-        status: error.response?.status,
+        status: status,
         data: error.response?.data,
         originalError: error
       });
