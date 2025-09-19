@@ -132,8 +132,9 @@ const handleConnection = (io) => {
     // Broadcast user current status to all servers
     userServers.forEach(server => {
       console.log(`🔄 Broadcasting user ${socket.user.username} status (${socket.user.status}) to server: ${server.name}`);
+      console.log(`🔄 Connection status broadcast data:`, { userId: String(socket.userId), status: socket.user.status, username: socket.user.username });
       socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-        userId: socket.userId,
+        userId: String(socket.userId), // Ensure it's a string
         status: socket.user.status, // Use actual user status, not hardcoded 'online'
         username: socket.user.username
       });
@@ -345,8 +346,9 @@ const handleConnection = (io) => {
 
         userServers.forEach(server => {
           console.log(`🔄 Socket: Broadcasting status update for user ${socket.user.username} (${socket.userId}) to server: ${server.name} (${server._id})`);
+          console.log(`🔄 Socket status broadcast data:`, { userId: String(socket.userId), status, username: socket.user.username });
           socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-            userId: socket.userId,
+            userId: String(socket.userId), // Ensure it's a string
             status,
             username: socket.user.username
           });
@@ -453,7 +455,7 @@ const handleConnection = (io) => {
 
       userServers.forEach(server => {
         socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-          userId: socket.userId,
+          userId: String(socket.userId), // Ensure it's a string
           status: 'offline',
           username: socket.user.username
         });

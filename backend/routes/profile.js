@@ -188,8 +188,9 @@ router.put('/status', auth, async (req, res) => {
         // Broadcast status update to all user's servers
         userServers.forEach(server => {
           console.log(`🔄 Broadcasting status update for user ${updatedUser.username} (${userId}) to server: ${server.name} (${server._id})`);
+          console.log(`🔄 Status broadcast data:`, { userId: String(userId), status: updatedUser.status, username: updatedUser.username });
           io.to(`server_${server._id}`).emit('userStatusUpdate', {
-            userId: userId,
+            userId: String(userId), // Ensure it's a string
             status: updatedUser.status,
             username: updatedUser.username
           });

@@ -219,7 +219,7 @@ const FluxyApp = () => {
       const currentUserId = String(user?._id || user?.id);
       const updateUserId = String(userId);
       
-      // Don't update status for current user - they handle their own status
+      // Don't update status for current user - they handle their own status via AuthContext
       if (updateUserId === currentUserId) {
         console.log('🔄 Ignoring status update for current user - IDs match:', { currentUserId, updateUserId });
         return;
@@ -227,14 +227,16 @@ const FluxyApp = () => {
       
       console.log('🔄 Processing status update for other user:', { currentUserId, updateUserId });
       
-      // Update user status in all servers
+      // Update user status in all servers (only for other users)
       setServers(prevServers => {
-        return prevServers.map(server => {
+        const updatedServers = prevServers.map(server => {
           if (!server.members) return server;
           
+          let memberUpdated = false;
           const updatedMembers = server.members.map(member => {
             if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
-              console.log('🔄 Updating status for user:', member.user.username, 'from', member.user.status, 'to', status);
+              console.log('🔄 Updating status in server', server.name, 'for user:', member.user.username, 'from', member.user.status, 'to', status);
+              memberUpdated = true;
               return {
                 ...member,
                 user: {
@@ -246,19 +248,23 @@ const FluxyApp = () => {
             return member;
           });
           
-          return {
+          return memberUpdated ? {
             ...server,
             members: updatedMembers
-          };
+          } : server;
         });
+        
+        return updatedServers;
       });
       
-      // Update user status in the current server's members
+      // Update user status in the current server's members (only for other users)
       setActiveServer(prevServer => {
         if (!prevServer || !prevServer.members) return prevServer;
         
+        let memberUpdated = false;
         const updatedMembers = prevServer.members.map(member => {
           if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
+            memberUpdated = true;
             return {
               ...member,
               user: {
@@ -270,10 +276,10 @@ const FluxyApp = () => {
           return member;
         });
         
-        return {
+        return memberUpdated ? {
           ...prevServer,
           members: updatedMembers
-        };
+        } : prevServer;
       });
     };
 
