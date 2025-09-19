@@ -166,7 +166,7 @@ const FluxyApp = () => {
             setActiveChannel(firstTextChannel);
           }
           
-          joinServer(firstServer._id);
+          // Server join handled automatically by Socket.IO authentication
         }
       } catch (error) {
         if (!isMounted) return;
@@ -198,7 +198,7 @@ const FluxyApp = () => {
     return () => {
       isMounted = false;
     };
-  }, [joinServer]); // Only depend on joinServer which is stable
+  }, []); // No dependencies needed - only runs once on mount
 
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
@@ -228,9 +228,9 @@ const FluxyApp = () => {
     } else {
       setIsDirectMessages(false);
 
-      // Leave previous server
+      // Leave previous server - handled automatically by Socket.IO
       if (activeServer && activeServer._id) {
-        leaveServer(activeServer._id);
+        // Socket.IO handles server switching automatically
       }
 
       setActiveServer(server);
@@ -242,9 +242,9 @@ const FluxyApp = () => {
         setActiveChannel(firstTextChannel);
       }
 
-      // Join new server
+      // Server joined automatically by Socket.IO
       if (server._id) {
-        joinServer(server._id);
+        // Socket.IO handles server connection automatically
       }
     }
   };
@@ -296,7 +296,7 @@ const FluxyApp = () => {
     }
     
     if (newServer?._id || newServer?.id) {
-      joinServer(newServer._id || newServer.id);
+      // Socket.IO handles server connection automatically
     }
     // Removed English toast notification for server creation
   };
@@ -338,7 +338,7 @@ const FluxyApp = () => {
             setActiveChannel(firstTextChannel);
           }
           
-          joinServer(firstServer._id || firstServer.id);
+          // Socket.IO handles server connection automatically
         } else {
           // No servers left, switch to direct messages
           setActiveServer(null);
