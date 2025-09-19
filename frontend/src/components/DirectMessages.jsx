@@ -26,7 +26,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { dmAPI } from "../services/api";
+import { dmAPI, serverAPI } from "../services/api";
 import DirectMessageChat from "./DirectMessageChat";
 import { useSocket } from "../hooks/useSocket";
 import friendsAPI from '../services/friendsAPI';
@@ -162,7 +162,102 @@ const DirectMessages = ({ onChannelSelect }) => {
   const loadDiscoverServers = async () => {
     try {
       setDiscoverLoading(true);
-      // Mock data - Bu gerçek bir API endpoint olacak
+      
+      // API'den gerçek sunucu verilerini getir
+      const response = await serverAPI.discoverServers();
+      
+      // API response'unu uygun formata çevir
+      const formattedServers = response.servers.map(server => ({
+        id: server.id,
+        name: server.name,
+        description: server.description || 'Açıklama yok',
+        icon: server.icon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&h=150&fit=crop',
+        members: server.memberCount || 0,
+        online: Math.floor((server.memberCount || 0) * 0.3), // Estimate online members
+        category: server.tags?.[0] || 'Community',
+        featured: server.memberCount > 100, // Featured if more than 100 members
+        tags: server.tags || ['Community'],
+        inviteCode: server.inviteCode
+      }));
+      
+      setDiscoverServers(formattedServers);
+      
+      // Fallback olarak mock data kullan eğer API'den veri gelmazse
+      if (formattedServers.length === 0) {
+        const mockServers = [
+          {
+            id: '1',
+            name: 'Genshin Impact Official',
+            description: 'Welcome to Teyvat, Traveler! This is the place to discuss with others about your favorite game, Genshin Impact!',
+            icon: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=150&h=150&fit=crop',
+            members: 340150,
+            online: 2135047,
+            category: 'Gaming',
+            featured: true,
+            tags: ['Gaming', 'Anime', 'Community']
+          },
+          {
+            id: '2',
+            name: 'VALORANT',
+            description: 'The official Discord server for VALORANT! Find the latest news and discuss the game!',
+            icon: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&h=150&fit=crop',
+            members: 714435,
+            online: 173376,
+            category: 'Gaming',
+            featured: true,
+            tags: ['Gaming', 'FPS', 'Competitive']
+          },
+          {
+            id: '3',
+            name: 'Midjourney',
+            description: 'The official server for Midjourney, a text-to-image AI where your imagination is the only limit.',
+            icon: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=150&h=150&fit=crop',
+            members: 728398,
+            online: 20515749,
+            category: 'Technology',
+            featured: true,
+            tags: ['AI', 'Art', 'Technology']
+          },
+          {
+            id: '4',
+            name: 'Lofi Hip Hop',
+            description: 'A chill community for lofi lovers to study, work, and relax together.',
+            icon: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop',
+            members: 45230,
+            online: 12450,
+            category: 'Music',
+            featured: false,
+            tags: ['Music', 'Chill', 'Study']
+          },
+          {
+            id: '5',
+            name: 'Coding Community',
+            description: 'Learn, share, and grow together as developers. All programming languages welcome!',
+            icon: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=150&h=150&fit=crop',
+            members: 67890,
+            online: 8234,
+            category: 'Technology',
+            featured: false,
+            tags: ['Programming', 'Learning', 'Community']
+          },
+          {
+            id: '6',
+            name: 'Art & Design Hub',
+            description: 'Share your artwork, get feedback, and connect with fellow artists and designers.',
+            icon: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=150&h=150&fit=crop',
+            members: 23456,
+            online: 3456,
+            category: 'Art',
+            featured: false,
+            tags: ['Art', 'Design', 'Creative']
+          }
+        ];
+        setDiscoverServers(mockServers);
+      }
+    } catch (error) {
+      console.error('Failed to load discover servers:', error);
+      
+      // Hata durumunda mock data kullan
       const mockServers = [
         {
           id: '1',
@@ -185,55 +280,9 @@ const DirectMessages = ({ onChannelSelect }) => {
           category: 'Gaming',
           featured: true,
           tags: ['Gaming', 'FPS', 'Competitive']
-        },
-        {
-          id: '3',
-          name: 'Midjourney',
-          description: 'The official server for Midjourney, a text-to-image AI where your imagination is the only limit.',
-          icon: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=150&h=150&fit=crop',
-          members: 728398,
-          online: 20515749,
-          category: 'Technology',
-          featured: true,
-          tags: ['AI', 'Art', 'Technology']
-        },
-        {
-          id: '4',
-          name: 'Lofi Hip Hop',
-          description: 'A chill community for lofi lovers to study, work, and relax together.',
-          icon: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop',
-          members: 45230,
-          online: 12450,
-          category: 'Music',
-          featured: false,
-          tags: ['Music', 'Chill', 'Study']
-        },
-        {
-          id: '5',
-          name: 'Coding Community',
-          description: 'Learn, share, and grow together as developers. All programming languages welcome!',
-          icon: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=150&h=150&fit=crop',
-          members: 67890,
-          online: 8234,
-          category: 'Technology',
-          featured: false,
-          tags: ['Programming', 'Learning', 'Community']
-        },
-        {
-          id: '6',
-          name: 'Art & Design Hub',
-          description: 'Share your artwork, get feedback, and connect with fellow artists and designers.',
-          icon: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=150&h=150&fit=crop',
-          members: 23456,
-          online: 3456,
-          category: 'Art',
-          featured: false,
-          tags: ['Art', 'Design', 'Creative']
         }
       ];
       setDiscoverServers(mockServers);
-    } catch (error) {
-      // console.error('Failed to load discover servers:', error);
     } finally {
       setDiscoverLoading(false);
     }
@@ -272,10 +321,26 @@ const DirectMessages = ({ onChannelSelect }) => {
 
   const handleJoinServer = async (serverId) => {
     try {
-      // Bu gerçek bir join server API call olacak
-      // console.log('Joining server:', serverId);
+      // Gerçek join server API call
+      await serverAPI.joinServer(serverId);
+      
+      // Başarılı katılım sonrası kullanıcıyı bilgilendir
+      alert('Sunucuya başarıyla katıldınız!');
+      
+      // Keşfet listesini güncelle (kullanıcı artık bu sunucuda)
+      await loadDiscoverServers();
+      
     } catch (error) {
-      // console.error('Failed to join server:', error);
+      console.error('Failed to join server:', error);
+      
+      // Kullanıcıya hata mesajı göster
+      if (error.response?.status === 400) {
+        alert('Bu sunucuya zaten üyesiniz!');
+      } else if (error.response?.status === 404) {
+        alert('Sunucu bulunamadı!');
+      } else {
+        alert('Sunucuya katılırken bir hata oluştu.');
+      }
     }
   };
 

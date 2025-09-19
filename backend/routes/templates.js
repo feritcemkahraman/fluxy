@@ -159,8 +159,8 @@ router.post('/:id/use', auth, async (req, res) => {
       return res.status(403).json({ message: 'Template is not available' });
     }
 
-    const { name, description, icon } = req.body;
-    console.log('Creating server with:', { name, description, icon });
+    const { name, description, icon, isPublic } = req.body;
+    console.log('Creating server with:', { name, description, icon, isPublic });
 
     // Create server from template
     const serverData = {
@@ -173,7 +173,7 @@ router.post('/:id/use', auth, async (req, res) => {
         roles: [],
         joinedAt: new Date()
       }],
-      isPublic: template.template.server.isPublic,
+      isPublic: isPublic !== undefined ? isPublic : template.template.server.isPublic,
       inviteCode: template.template.server.inviteCode || generateInviteCode()
     };
 

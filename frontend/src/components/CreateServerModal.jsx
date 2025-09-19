@@ -153,6 +153,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
         response = await templatesAPI.useTemplate(selectedTemplate._id, {
           name: formData.name.trim(),
           description: formData.description.trim(),
+          isPublic: formData.isPublic,
           icon: iconPreview
         });
       } else {

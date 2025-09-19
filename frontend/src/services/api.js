@@ -142,6 +142,7 @@ export const authAPI = {
 // Enhanced Server API with retry
 export const serverAPI = {
   getServers: () => apiCall('GET', '/servers'),
+  discoverServers: () => apiCall('GET', '/servers/discover'),
   createServer: (serverData) => apiCall('POST', '/servers', serverData),
   getServer: (serverId) => apiCall('GET', `/servers/${serverId}`),
   updateServer: (serverId, serverData) => apiCall('PUT', `/servers/${serverId}`, serverData),

@@ -31,7 +31,7 @@ router.post('/', auth, [
       });
     }
 
-    const { name, description, icon } = req.body;
+    const { name, description, icon, isPublic } = req.body;
 
     // Create server
     const server = new Server({
@@ -39,6 +39,7 @@ router.post('/', auth, [
       description: description || '',
       icon: icon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&h=150&fit=crop',
       owner: req.user._id,
+      isPublic: isPublic || false,
       members: [{
         user: req.user._id,
         roles: [],
@@ -142,6 +143,42 @@ router.get('/', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Get servers error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/servers/discover
+// @desc    Get top 10 servers by member count for discovery
+// @access  Public (no auth required)
+router.get('/discover', async (req, res) => {
+  try {
+    const servers = await Server.find({
+      isPublic: true  // Only show public servers
+    })
+    .populate('owner', 'username avatar discriminator')
+    .sort({ memberCount: -1 })  // Sort by member count descending
+    .limit(10)  // Top 10 servers
+    .select('name description icon memberCount createdAt tags isPublic inviteCode');
+
+    const discoveryServers = servers.map(server => ({
+      id: server._id,
+      name: server.name,
+      description: server.description || 'Açıklama yok',
+      icon: server.icon,
+      memberCount: server.memberCount || 0,
+      owner: server.owner,
+      tags: server.tags || [],
+      inviteCode: server.inviteCode,
+      createdAt: server.createdAt
+    }));
+
+    res.json({
+      servers: discoveryServers,
+      total: discoveryServers.length
+    });
+
+  } catch (error) {
+    console.error('Discover servers error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
