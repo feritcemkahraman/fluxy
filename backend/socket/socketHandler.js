@@ -120,6 +120,10 @@ const handleConnection = (io) => {
       'members.user': socket.userId
     });
 
+    // Join user to their personal room for friend notifications
+    socket.join(`user_${socket.userId}`);
+    console.log(`User ${socket.user.username} joined personal room: user_${socket.userId}`);
+
     userServers.forEach(server => {
       socket.join(`server:${server._id}`);
       console.log(`User ${socket.user.username} joined server room: ${server._id}`);

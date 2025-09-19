@@ -90,7 +90,7 @@ class WebSocketService {
 
       // Message events
       this.socket.on('newMessage', (message) => {
-        this.emit('new_message', message);
+        this.emit('newMessage', message);
       });
 
       this.socket.on('message_updated', (message) => {
@@ -138,7 +138,7 @@ class WebSocketService {
 
       // User events
       this.socket.on('userStatusUpdate', (data) => {
-        this.emit('user_status_changed', data);
+        this.emit('userStatusUpdate', data);
       });
 
       this.socket.on('userProfileUpdate', (data) => {
@@ -171,6 +171,11 @@ class WebSocketService {
         this.emit('dmSent', data);
       });
 
+      // Typing indicators
+      this.socket.on('userTyping', (data) => {
+        this.emit('userTyping', data);
+      });
+
       this.socket.on('user_joined_server', (data) => {
         this.emit('user_joined_server', data);
       });
@@ -181,7 +186,7 @@ class WebSocketService {
 
       // Voice channel updates
       this.socket.on('voiceChannelUpdate', (data) => {
-        this.emit('voice_channel_update', data);
+        this.emit('voiceChannelUpdate', data);
       });
 
     } catch (error) {
