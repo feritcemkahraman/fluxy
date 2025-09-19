@@ -47,7 +47,14 @@ export default function LoginForm({ onToggleMode }) {
     if (result.success) {
       toast.success('Başarıyla giriş yapıldı!');
     } else {
-      toast.error(result.error);
+      // Detailed error messages based on error type
+      if (result.type === 'USER_NOT_FOUND') {
+        toast.error('Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı');
+      } else if (result.type === 'WRONG_PASSWORD') {
+        toast.error('Şifre hatalı. Lütfen doğru şifreyi girin');
+      } else {
+        toast.error(result.error || 'Giriş başarısız. Lütfen tekrar deneyin.');
+      }
     }
     
     setIsLoading(false);

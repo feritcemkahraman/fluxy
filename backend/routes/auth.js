@@ -105,13 +105,19 @@ router.post('/login', [
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Geçersiz kimlik bilgileri' });
+      return res.status(400).json({ 
+        message: 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı',
+        type: 'USER_NOT_FOUND'
+      });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Geçersiz kimlik bilgileri' });
+      return res.status(400).json({ 
+        message: 'Şifre hatalı. Lütfen doğru şifreyi girin',
+        type: 'WRONG_PASSWORD'
+      });
     }
 
     // Update user status to online

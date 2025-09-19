@@ -117,9 +117,22 @@ export function AuthProvider({ children }) {
 
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      const errorMessage = error.response?.data?.message || 'Giriş başarısız. Lütfen tekrar deneyin.';
+      const errorType = error.response?.data?.type;
+      
+      console.error('Login error:', {
+        message: errorMessage,
+        type: errorType,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      return { success: false, error: errorMessage };
+      return { 
+        success: false, 
+        error: errorMessage,
+        type: errorType
+      };
     }
   };
 
