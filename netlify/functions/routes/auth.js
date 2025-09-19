@@ -12,6 +12,22 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+// @route   GET /api/auth/register
+// @desc    Get register form info (for testing)
+// @access  Public
+router.get('/register', (req, res) => {
+  res.json({
+    message: 'Register endpoint is working',
+    method: 'GET',
+    availableMethods: ['POST'],
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString(),
+    instructions: 'Use POST method with username, email, password to register'
+  });
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user
 // @access  Public
