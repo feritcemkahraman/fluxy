@@ -166,9 +166,10 @@ const DirectMessages = ({ onChannelSelect }) => {
       // API'den gerçek sunucu verilerini getir
       const response = await serverAPI.discoverServers();
       console.log('Discover API response:', response);
+      console.log('Response data:', response.data);
       
       // API response'unu uygun formata çevir
-      const formattedServers = response.servers.map(server => ({
+      const formattedServers = response.data.servers.map(server => ({
         id: server.id,
         name: server.name,
         description: server.description || 'Açıklama yok',
@@ -176,7 +177,7 @@ const DirectMessages = ({ onChannelSelect }) => {
         members: server.memberCount || 0,
         online: Math.floor((server.memberCount || 0) * 0.3), // Estimate online members
         category: server.tags?.[0] || 'Community',
-        featured: server.memberCount > 100, // Featured if more than 100 members
+        featured: server.memberCount >= 1, // 1 veya daha fazla üyesi olan sunucular featured olabilir
         tags: server.tags || ['Community'],
         inviteCode: server.inviteCode
       }));
