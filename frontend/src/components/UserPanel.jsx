@@ -324,7 +324,7 @@ const UserPanel = ({ user, server }) => {
                     <div
                       className="flex items-center px-3 py-2 rounded cursor-pointer hover:bg-red-900/20 text-red-400 hover:text-red-300"
                       onClick={() => {
-                        handleLogout();
+                        logout();
                         setShowDropdown(false);
                       }}
                     >

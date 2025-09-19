@@ -39,8 +39,22 @@ class WebSocketService {
         this.reconnectAttempts = 0;
         this.emit('connected');
         
+        // Wait for authentication confirmation from backend
         // Authentication handled by backend automatically via auth token
+      });
+
+      // Listen for authentication success
+      this.socket.on('authenticated', () => {
+        console.log('Socket authentication successful');
         this.isAuthenticated = true;
+        this.emit('authenticated');
+      });
+
+      // Listen for authentication error
+      this.socket.on('auth_error', (error) => {
+        console.error('Socket authentication failed:', error);
+        this.isAuthenticated = false;
+        this.emit('auth_error', error);
       });
 
       this.socket.on('disconnect', (reason) => {
