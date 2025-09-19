@@ -184,6 +184,9 @@ app.use('*', (req, res) => {
 // Initialize Socket.IO
 handleConnection(io);
 
+// Make io available to routes
+app.set('io', io);
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {

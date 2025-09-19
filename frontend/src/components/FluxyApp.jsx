@@ -210,12 +210,36 @@ const FluxyApp = () => {
       // Update voice channel state - silent
     };
 
+    const handleServerCreated = (data) => {
+      console.log('Server created event received:', data);
+      if (data.server) {
+        setServers(prev => {
+          // Check if server already exists to avoid duplicates
+          const exists = prev.some(s => (s._id || s.id) === (data.server._id || data.server.id));
+          if (!exists) {
+            return [...prev, data.server];
+          }
+          return prev;
+        });
+        
+        // Auto-select the new server
+        setActiveServer(data.server);
+        if (data.server.channels && data.server.channels.length > 0) {
+          const firstChannel = data.server.channels.find(c => c.type === 'text') || data.server.channels[0];
+          setActiveChannel(firstChannel);
+        }
+        setIsDirectMessages(false);
+      }
+    };
+
     const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
     const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
+    const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
 
     return () => {
       unsubscribeUserStatus();
       unsubscribeVoiceUpdate();
+      unsubscribeServerCreated();
     };
   }, [on]); // on is stable from useSocket hook
 

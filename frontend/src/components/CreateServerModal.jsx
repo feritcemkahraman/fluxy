@@ -165,7 +165,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       }
 
       toast.success('Sunucu başarıyla oluşturuldu!');
-      onServerCreated(response.server);
+      // onServerCreated(response.server); // Removed - WebSocket will handle this
       handleClose();
     } catch (error) {
       console.error('Server creation error:', error);

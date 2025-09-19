@@ -86,6 +86,14 @@ router.post('/', auth, [
       .populate('members.user', 'username avatar discriminator status')
       .populate('channels');
 
+    // Emit server creation event to the user
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${req.user._id}`).emit('serverCreated', {
+        server: populatedServer
+      });
+    }
+
     res.status(201).json({
       message: 'Server created successfully',
       server: populatedServer
