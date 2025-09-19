@@ -199,17 +199,22 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    // First clear storage and state immediately
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userStatus');
+    
+    dispatch({ type: 'LOGOUT' });
+    
+    // Disconnect socket
+    socketService.disconnect();
+    
+    // Optionally try to notify server, but don't block logout
     try {
       await authAPI.logout();
     } catch (error) {
-      // Logout error handled silently
-    } finally {
-      // Clear storage and state
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userStatus');
-      socketService.disconnect();
-      dispatch({ type: 'LOGOUT' });
+      // Silently handle server logout errors
+      console.log('Server logout notification failed (ignored):', error.message);
     }
   };
 

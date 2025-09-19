@@ -114,9 +114,10 @@ export const authAPI = {
     localStorage.removeItem('user');
     localStorage.removeItem('userStatus');
 
-    // Try to notify server, but don't fail if it doesn't work
+    // Try to notify server, but don't retry if it fails
     try {
-      await apiCall('POST', '/auth/logout');
+      // Direct API call without retry for logout
+      await api.post('/auth/logout');
       console.log('Server logout successful');
     } catch (error) {
       console.warn('Server logout failed, but local logout completed:', error.message);
