@@ -179,7 +179,8 @@ const DirectMessages = ({ onChannelSelect }) => {
         category: server.tags?.[0] || 'Community',
         featured: server.memberCount >= 1, // 1 veya daha fazla üyesi olan sunucular featured olabilir
         tags: server.tags || ['Community'],
-        inviteCode: server.inviteCode
+        inviteCode: server.inviteCode,
+        isMember: server.isMember || false // Backend'den gelen member status
       }));
       
       console.log('Formatted servers:', formattedServers);
@@ -803,9 +804,14 @@ const DirectMessages = ({ onChannelSelect }) => {
                                     <Button
                                       onClick={() => handleJoinServer(server.id)}
                                       size="sm"
-                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                      className={
+                                        server.isMember
+                                          ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                                          : "bg-green-600 hover:bg-green-700 text-white"
+                                      }
+                                      disabled={server.isMember}
                                     >
-                                      Katıl
+                                      {server.isMember ? "Zaten Katıldın" : "Katıl"}
                                     </Button>
                                   </div>
                                   <div className="flex flex-wrap gap-1 mt-3">
@@ -862,9 +868,14 @@ const DirectMessages = ({ onChannelSelect }) => {
                                       <Button
                                         onClick={() => handleJoinServer(server.id)}
                                         size="sm"
-                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                        className={
+                                          server.isMember
+                                            ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                                            : "bg-green-600 hover:bg-green-700 text-white"
+                                        }
+                                        disabled={server.isMember}
                                       >
-                                        Katıl
+                                        {server.isMember ? "Katıldın" : "Katıl"}
                                       </Button>
                                     </div>
                                   </div>

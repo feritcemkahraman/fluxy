@@ -149,16 +149,30 @@ router.get('/', auth, async (req, res) => {
 
 // @route   GET /api/servers/discover
 // @desc    Get top 10 servers by member count for discovery
-// @access  Public (no auth required)
+// @access  Public (auth optional for member check)
 router.get('/discover', async (req, res) => {
   try {
+    // Try to get user from token if provided
+    let currentUserId = null;
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        currentUserId = decoded.userId;
+      } catch (err) {
+        // Invalid token, continue without user
+      }
+    }
+
     const servers = await Server.find({
       isPublic: true  // Only show public servers
     })
     .populate('owner', 'username avatar discriminator')
+    .populate('members.user', '_id')
     .sort({ memberCount: -1 })  // Sort by member count descending
     .limit(10)  // Top 10 servers
-    .select('name description icon memberCount createdAt tags isPublic inviteCode');
+    .select('name description icon memberCount createdAt tags isPublic inviteCode members');
 
     const discoveryServers = servers.map(server => ({
       id: server._id,
@@ -169,7 +183,10 @@ router.get('/discover', async (req, res) => {
       owner: server.owner,
       tags: server.tags || [],
       inviteCode: server.inviteCode,
-      createdAt: server.createdAt
+      createdAt: server.createdAt,
+      isMember: currentUserId ? server.members.some(member => 
+        member.user._id.toString() === currentUserId.toString()
+      ) : false
     }));
 
     res.json({
@@ -283,10 +300,11 @@ router.put('/:id', auth, requirePermission(PERMISSIONS.MANAGE_SERVER), [
 });
 
 // @route   POST /api/servers/:id/join
-// @desc    Join server with invite code
+// @desc    Join server (with or without invite code)
 // @access  Private
 router.post('/:id/join', auth, [
   body('inviteCode')
+    .optional()
     .isLength({ min: 6, max: 6 })
     .withMessage('Invalid invite code')
 ], async (req, res) => {
@@ -300,14 +318,30 @@ router.post('/:id/join', auth, [
     }
 
     const { inviteCode } = req.body;
+    let server;
     
-    const server = await Server.findOne({ 
-      _id: req.params.id,
-      inviteCode: inviteCode.toUpperCase()
-    });
-
-    if (!server) {
-      return res.status(404).json({ message: 'Invalid invite code' });
+    if (inviteCode) {
+      // Join with invite code
+      server = await Server.findOne({ 
+        _id: req.params.id,
+        inviteCode: inviteCode.toUpperCase()
+      });
+      
+      if (!server) {
+        return res.status(404).json({ message: 'Invalid invite code' });
+      }
+    } else {
+      // Join public server without invite code
+      server = await Server.findById(req.params.id);
+      
+      if (!server) {
+        return res.status(404).json({ message: 'Server not found' });
+      }
+      
+      // Check if server is public
+      if (!server.isPublic) {
+        return res.status(403).json({ message: 'This server requires an invite code' });
+      }
     }
 
     // Check if user is already a member
