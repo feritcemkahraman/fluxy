@@ -309,8 +309,15 @@ router.post('/:id/join', auth, [
     .withMessage('Invalid invite code')
 ], async (req, res) => {
   try {
+    console.log('Join server request:', {
+      serverId: req.params.id,
+      userId: req.user._id,
+      body: req.body
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ 
         message: 'Validation failed',
         errors: errors.array()
@@ -321,6 +328,7 @@ router.post('/:id/join', auth, [
     let server;
     
     if (inviteCode) {
+      console.log('Joining with invite code:', inviteCode);
       // Join with invite code
       server = await Server.findOne({ 
         _id: req.params.id,
@@ -328,48 +336,68 @@ router.post('/:id/join', auth, [
       });
       
       if (!server) {
+        console.log('Server not found with invite code');
         return res.status(404).json({ message: 'Invalid invite code' });
       }
     } else {
+      console.log('Joining public server without invite code');
       // Join public server without invite code
       server = await Server.findById(req.params.id);
       
       if (!server) {
+        console.log('Server not found by ID');
         return res.status(404).json({ message: 'Server not found' });
       }
       
+      console.log('Server found:', { id: server._id, name: server.name, isPublic: server.isPublic });
+      
       // Check if server is public
       if (!server.isPublic) {
+        console.log('Server is not public');
         return res.status(403).json({ message: 'This server requires an invite code' });
       }
     }
 
     // Check if user is already a member
-    const isMember = server.members.some(member => 
-      member.user.toString() === req.user._id.toString()
+    const populatedServer = await Server.findById(server._id).populate('members.user', '_id');
+    const isMember = populatedServer.members.some(member => 
+      member.user._id.toString() === req.user._id.toString()
     );
+
+    console.log('Membership check:', {
+      isMember,
+      memberCount: populatedServer.members.length,
+      userId: req.user._id,
+      memberIds: populatedServer.members.map(m => m.user._id.toString())
+    });
 
     if (isMember) {
       return res.status(400).json({ message: 'You are already a member of this server' });
     }
 
     // Get default @everyone role
+    console.log('Looking for default role...');
     const defaultRole = await Role.findOne({ server: server._id, isDefault: true });
+    console.log('Default role found:', defaultRole ? { id: defaultRole._id, name: defaultRole.name } : 'None');
     
     // Add user to server
+    console.log('Adding user to server...');
     server.members.push({
       user: req.user._id,
       roles: defaultRole ? [defaultRole._id] : [],
       joinedAt: new Date()
     });
 
+    console.log('Saving server...');
     await server.save();
 
     // Add server to user's servers list
+    console.log('Adding server to user servers list...');
     await User.findByIdAndUpdate(req.user._id, {
       $push: { servers: server._id }
     });
 
+    console.log('Join successful!');
     res.json({
       message: 'Successfully joined server',
       server: {
