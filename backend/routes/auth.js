@@ -184,14 +184,21 @@ router.get('/me', auth, async (req, res) => {
 router.post('/logout', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    user.status = 'offline';
-    user.lastSeen = new Date();
-    await user.save();
+    if (user) {
+      user.status = 'offline';
+      user.lastSeen = new Date();
+      await user.save();
+      console.log(`User ${user.username} logged out successfully`);
+    } else {
+      console.log('User not found during logout, but continuing...');
+    }
 
     res.json({ message: 'Başarıyla çıkış yapıldı' });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ message: 'Çıkış sırasında sunucu hatası' });
+    // Even if there's an error, return success for logout
+    // Frontend will clear local storage anyway
+    res.json({ message: 'Çıkış yapıldı (sunucu hatası göz ardı edildi)' });
   }
 });
 

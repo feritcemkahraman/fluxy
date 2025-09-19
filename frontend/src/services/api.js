@@ -109,14 +109,18 @@ export const authAPI = {
     }
   },
   logout: async () => {
+    // Always clear local storage first
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userStatus');
+
+    // Try to notify server, but don't fail if it doesn't work
     try {
       await apiCall('POST', '/auth/logout');
+      console.log('Server logout successful');
     } catch (error) {
-      console.warn('Logout API call failed:', error.message);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userStatus');
+      console.warn('Server logout failed, but local logout completed:', error.message);
+      // Don't throw error - local logout is more important
     }
   },
   getMe: () => apiCall('GET', '/auth/me'),
