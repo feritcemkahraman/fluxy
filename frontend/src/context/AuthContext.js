@@ -272,9 +272,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateStatus = async (statusData) => {
+    console.log('AuthContext updateStatus called with:', statusData);
+    
     try {
       const response = await authAPI.updateStatus(statusData);
+      console.log('AuthAPI updateStatus response:', response);
+      
       const updatedUser = response.data.user;
+      console.log('Updated user from API:', updatedUser);
       
       // Save status to localStorage
       localStorage.setItem('userStatus', updatedUser.status);
@@ -283,8 +288,11 @@ export function AuthProvider({ children }) {
         type: 'UPDATE_USER',
         payload: updatedUser,
       });
+      
+      console.log('User state updated successfully');
       return { success: true };
     } catch (error) {
+      console.error('Status update error:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Status update failed';
       return { success: false, error: errorMessage };
     }

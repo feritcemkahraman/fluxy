@@ -100,18 +100,26 @@ const UserPanel = ({ user, server }) => {
   };
 
   const handleStatusChange = async (status) => {
+    console.log('Status change requested:', status);
+    console.log('Current user status:', user?.status);
+    
     try {
       setShowDropdown(false);
       
       // Update status via AuthContext (includes API call and state update)
-      const result = await updateStatus({ status });
+      const result = await updateAuthStatus({ status });
+      
+      console.log('Status update result:', result);
       
       if (result.success) {
-        // Emit socket event to notify other clients (optional)
-        updateUserStatus(status);
+        // Emit socket event to notify other clients
+        updateSocketStatus(status);
+        console.log('Status updated successfully');
+      } else {
+        console.error('Status update failed:', result.error);
       }
     } catch (error) {
-      // Error handled silently or could show toast
+      console.error('Error updating status:', error);
     }
   };
 
