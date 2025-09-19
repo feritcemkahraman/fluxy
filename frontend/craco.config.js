@@ -15,9 +15,14 @@ module.exports = {
       
       // Production optimizations
       if (env === 'production') {
-        // Optimize chunk splitting
+        // Disable CSS minimization to fix Radix UI issues
         webpackConfig.optimization = {
           ...webpackConfig.optimization,
+          minimize: true,
+          minimizer: webpackConfig.optimization.minimizer.filter(minimizer => {
+            // Keep JS minimizer, remove CSS minimizer
+            return minimizer.constructor.name !== 'CssMinimizerPlugin';
+          }),
           splitChunks: {
             chunks: 'all',
             maxSize: 250000,
