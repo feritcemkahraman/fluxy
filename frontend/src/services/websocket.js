@@ -89,7 +89,7 @@ class WebSocketService {
       });
 
       // Message events
-      this.socket.on('new_message', (message) => {
+      this.socket.on('newMessage', (message) => {
         this.emit('new_message', message);
       });
 
@@ -137,7 +137,7 @@ class WebSocketService {
       });
 
       // User events
-      this.socket.on('user_status_changed', (data) => {
+      this.socket.on('userStatusUpdate', (data) => {
         this.emit('user_status_changed', data);
       });
 
@@ -147,6 +147,11 @@ class WebSocketService {
 
       this.socket.on('user_left_server', (data) => {
         this.emit('user_left_server', data);
+      });
+
+      // Voice channel updates
+      this.socket.on('voiceChannelUpdate', (data) => {
+        this.emit('voice_channel_update', data);
       });
 
     } catch (error) {
@@ -189,7 +194,7 @@ class WebSocketService {
       return;
     }
 
-    this.socket.emit('send_message', {
+    this.socket.emit('sendMessage', {
       channelId,
       content,
       type: messageType
@@ -228,14 +233,14 @@ class WebSocketService {
       return;
     }
 
-    this.socket.emit('join_voice', { channelId });
+    this.socket.emit('joinVoiceChannel', { channelId });
   }
 
   // Leave voice channel
   leaveVoiceChannel(channelId) {
     if (!this.socket) return;
 
-    this.socket.emit('leave_voice', { channelId });
+    this.socket.emit('leaveVoiceChannel', { channelId });
   }
 
   // Update user status
@@ -245,7 +250,7 @@ class WebSocketService {
       return;
     }
 
-    this.socket.emit('update_status', { status });
+    this.socket.emit('updateUserStatus', { status });
   }
 
   // Event listener management

@@ -27,8 +27,8 @@ class VoiceChatService {
   }
 
   setupSocketListeners() {
-    socketService.on('voice-user-joined', this.handleUserJoined.bind(this));
-    socketService.on('voice-user-left', this.handleUserLeft.bind(this));
+    socketService.on('userJoinedVoice', this.handleUserJoined.bind(this));
+    socketService.on('userLeftVoice', this.handleUserLeft.bind(this));
     socketService.on('voice-signal', this.handleSignal.bind(this));
     socketService.on('voice-user-muted', this.handleUserMuted.bind(this));
     socketService.on('voice-user-deafened', this.handleUserDeafened.bind(this));
@@ -193,7 +193,7 @@ class VoiceChatService {
       this.currentChannel = channelId;
       this.isConnected = true;
 
-      socketService.joinVoiceChannelWebRTC(channelId, this.currentUserId);
+      socketService.joinVoiceChannel(channelId);
       
       this.emit('connected', { channelId });
       return true;
@@ -235,7 +235,7 @@ class VoiceChatService {
     this.screenPeers.clear();
 
     // Notify server
-    socketService.leaveVoiceChannelWebRTC(this.currentChannel, this.currentUserId);
+    socketService.leaveVoiceChannel(this.currentChannel);
 
     const leftChannel = this.currentChannel;
     this.currentChannel = null;

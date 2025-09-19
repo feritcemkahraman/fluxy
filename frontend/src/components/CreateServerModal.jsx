@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { X, Upload, Hash, Sparkles, Users, Star, Search, Palette, Zap, Shield, Globe, Crown } from 'lucide-react';
 import { serverAPI, templatesAPI } from '../services/api';
 import { toast } from 'sonner';
+import { devLog } from '../utils/devLogger';
 
 const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
   const [currentStep, setCurrentStep] = useState('template'); // 'template', 'confirm', 'customize'
@@ -168,9 +169,9 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       // onServerCreated(response.server); // Removed - WebSocket will handle this
       handleClose();
     } catch (error) {
-      console.error('Server creation error:', error);
-      console.error('Error response:', error.response);
-      console.error('Error data:', error.response?.data);
+      devLog.error('Server creation error:', error);
+      devLog.error('Error response:', error.response);
+      devLog.error('Error data:', error.response?.data);
       
       const errorMessage = error.response?.data?.error || 
                           error.response?.data?.message || 

@@ -406,142 +406,6 @@ const handleConnection = (io) => {
       }
     });
 
-    // Voice chat events
-    socket.on('join-voice-channel', async ({ channelId }) => {
-      try {
-        const channel = await Channel.findById(channelId);
-        if (!channel || channel.type !== 'voice') {
-          return socket.emit('error', { message: 'Invalid voice channel' });
-        }
-
-        // Leave current voice channel if connected
-        if (socket.currentVoiceChannel) {
-          const currentChannelUsers = voiceChannels.get(socket.currentVoiceChannel);
-          if (currentChannelUsers) {
-            currentChannelUsers.delete(socket.userId);
-            socket.to(`voice:${socket.currentVoiceChannel}`).emit('voice-user-left', {
-              userId: socket.userId,
-              channelId: socket.currentVoiceChannel
-            });
-          }
-          socket.leave(`voice:${socket.currentVoiceChannel}`);
-        }
-
-        // Join new voice channel
-        socket.currentVoiceChannel = channelId;
-        socket.join(`voice:${channelId}`);
-
-        // Add to voice channel users
-        if (!voiceChannels.has(channelId)) {
-          voiceChannels.set(channelId, new Set());
-        }
-        voiceChannels.get(channelId).add(socket.userId);
-
-        // Notify existing users in the channel
-        socket.to(`voice:${channelId}`).emit('voice-user-joined', {
-          userId: socket.userId,
-          channelId
-        });
-
-        console.log(`User ${socket.user.username} joined voice channel ${channelId}`);
-      } catch (error) {
-        console.error('Join voice channel error:', error);
-        socket.emit('error', { message: 'Failed to join voice channel' });
-      }
-    });
-
-    socket.on('leave-voice-channel', async ({ channelId }) => {
-      try {
-        if (socket.currentVoiceChannel === channelId) {
-          // Remove from voice channel users
-          const channelUsers = voiceChannels.get(channelId);
-          if (channelUsers) {
-            channelUsers.delete(socket.userId);
-            if (channelUsers.size === 0) {
-              voiceChannels.delete(channelId);
-            }
-          }
-
-          // Notify other users
-          socket.to(`voice:${channelId}`).emit('voice-user-left', {
-            userId: socket.userId,
-            channelId
-          });
-
-          socket.leave(`voice:${channelId}`);
-          socket.currentVoiceChannel = null;
-
-          console.log(`User ${socket.user.username} left voice channel ${channelId}`);
-        }
-      } catch (error) {
-        console.error('Leave voice channel error:', error);
-        socket.emit('error', { message: 'Failed to leave voice channel' });
-      }
-    });
-
-    socket.on('voice-signal', ({ signal, userId, channelId }) => {
-      // Forward WebRTC signaling data to specific user
-      const targetSocket = Array.from(io.sockets.sockets.values())
-        .find(s => s.userId === userId);
-      
-      if (targetSocket) {
-        targetSocket.emit('voice-signal', {
-          signal,
-          userId: socket.userId,
-          channelId
-        });
-      }
-    });
-
-    socket.on('voice-mute-status', ({ channelId, isMuted }) => {
-      socket.to(`voice:${channelId}`).emit('voice-user-muted', {
-        userId: socket.userId,
-        isMuted
-      });
-    });
-
-    socket.on('voice-deafen-status', ({ channelId, isDeafened }) => {
-      socket.to(`voice:${channelId}`).emit('voice-user-deafened', {
-        userId: socket.userId,
-        isDeafened
-      });
-    });
-
-    // Screen sharing events
-    socket.on('start-screen-share', ({ channelId }) => {
-      if (socket.currentVoiceChannel === channelId) {
-        socket.to(`voice:${channelId}`).emit('screen-share-started', {
-          userId: socket.userId,
-          channelId
-        });
-        console.log(`User ${socket.user.username} started screen sharing in channel ${channelId}`);
-      }
-    });
-
-    socket.on('stop-screen-share', ({ channelId }) => {
-      if (socket.currentVoiceChannel === channelId) {
-        socket.to(`voice:${channelId}`).emit('screen-share-stopped', {
-          userId: socket.userId,
-          channelId
-        });
-        console.log(`User ${socket.user.username} stopped screen sharing in channel ${channelId}`);
-      }
-    });
-
-    socket.on('screen-signal', ({ signal, userId, channelId }) => {
-      // Forward screen sharing WebRTC signaling data to specific user
-      const targetSocket = Array.from(io.sockets.sockets.values())
-        .find(s => s.userId === userId);
-      
-      if (targetSocket) {
-        targetSocket.emit('screen-signal', {
-          signal,
-          userId: socket.userId,
-          channelId
-        });
-      }
-    });
-
     // Handle disconnect
     socket.on('disconnect', async () => {
       console.log(`User ${socket.user.username} disconnected`);
@@ -552,18 +416,23 @@ const handleConnection = (io) => {
 
       // Leave voice channel if connected
       if (socket.currentVoiceChannel) {
-        const channelUsers = voiceChannels.get(socket.currentVoiceChannel);
-        if (channelUsers) {
-          channelUsers.delete(socket.userId);
-          if (channelUsers.size === 0) {
-            voiceChannels.delete(socket.currentVoiceChannel);
-          }
-        }
-
-        socket.to(`voice:${socket.currentVoiceChannel}`).emit('voice-user-left', {
-          userId: socket.userId,
-          channelId: socket.currentVoiceChannel
+        // Leave voice channel  
+        const channel = await Channel.findByIdAndUpdate(socket.currentVoiceChannel, {
+          $pull: { connectedUsers: { user: socket.userId } }
         });
+
+        if (channel) {
+          socket.to(`voice:${socket.currentVoiceChannel}`).emit('userLeftVoice', {
+            userId: socket.userId,
+            username: socket.user.username
+          });
+
+          socket.to(`server:${channel.server}`).emit('voiceChannelUpdate', {
+            channelId: socket.currentVoiceChannel,
+            action: 'userLeft',
+            userId: socket.userId
+          });
+        }
       }
 
       // Broadcast offline status but DON'T update database

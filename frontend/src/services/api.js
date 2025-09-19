@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { handleAPIError, retryRequest } from '../utils/errorHandling';
+import { devLog } from '../utils/devLogger';
 
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api-placeholder.com') + '/api';
 
@@ -64,7 +65,7 @@ api.interceptors.response.use(
 
 // Enhanced API methods with retry and error handling
 const apiCall = async (method, url, data = null, retries = 3) => {
-  console.log(`API Call: ${method} ${url}`, data ? { data } : '');
+      devLog.log(`API Call: ${method} ${url}`, data ? { data } : '');
   
   // Don't retry POST requests to avoid duplicate creations
   const shouldRetry = method !== 'POST';

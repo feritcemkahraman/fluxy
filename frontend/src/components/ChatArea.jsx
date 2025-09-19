@@ -8,6 +8,7 @@ import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
+import { devLog } from "../utils/devLogger";
 import { messageAPI } from "../services/api";
 import socketService from "../services/socket";
 import { toast } from "sonner";
@@ -58,7 +59,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     // Wait for socket authentication before joining channel
     const handleAuthenticated = () => {
       if (channel?._id && joinChannel) {
-        console.log('Socket authenticated, joining channel:', channel._id);
+        devLog.log('Socket authenticated, joining channel:', channel._id);
         joinChannel(channel._id);
       }
     };
@@ -68,7 +69,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
     // If already authenticated, join immediately
     if (channel?._id && joinChannel && socketService.isAuthenticated) {
-      console.log('Socket already authenticated, joining channel:', channel._id);
+      devLog.log('Socket already authenticated, joining channel:', channel._id);
       joinChannel(channel._id);
     }
 

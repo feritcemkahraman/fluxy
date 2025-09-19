@@ -12,6 +12,7 @@ import { voiceChatService } from "../services/voiceChat";
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { serverAPI } from "../services/api";
 import { toast } from "sonner";
+import { devLog } from "../utils/devLogger";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -211,7 +212,7 @@ const FluxyApp = () => {
     };
 
     const handleServerCreated = (data) => {
-      console.log('Server created event received:', data);
+            devLog.log('Server created event received:', data);
       if (data.server) {
         setServers(prev => {
           // Check if server already exists to avoid duplicates

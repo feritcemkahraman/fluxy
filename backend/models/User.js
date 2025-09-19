@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema({
     enum: ['online', 'idle', 'dnd', 'offline'],
     default: 'offline'
   },
+  customStatus: {
+    type: mongoose.Schema.Types.Mixed, // Can be string or object
+    default: null
+  },
   bio: {
     type: String,
     maxlength: [500, 'Bio cannot exceed 500 characters'],
