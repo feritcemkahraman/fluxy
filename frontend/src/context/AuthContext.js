@@ -120,12 +120,14 @@ export function AuthProvider({ children }) {
       const errorMessage = error.response?.data?.message || 'Giriş başarısız. Lütfen tekrar deneyin.';
       const errorType = error.response?.data?.type;
       
-      console.error('Login error:', {
-        message: errorMessage,
-        type: errorType,
-        status: error.response?.status,
-        data: error.response?.data
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Login error:', {
+          message: errorMessage,
+          type: errorType,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+      }
 
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       return { 
@@ -181,13 +183,15 @@ export function AuthProvider({ children }) {
         errorMessage = error.message;
       }
       
-      console.error('Registration error:', {
-        message: errorMessage,
-        type: errorType,
-        status: status,
-        data: error.response?.data,
-        originalError: error
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Registration error:', {
+          message: errorMessage,
+          type: errorType,
+          status: status,
+          data: error.response?.data,
+          originalError: error
+        });
+      }
 
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       return { 

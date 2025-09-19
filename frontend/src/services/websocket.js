@@ -26,7 +26,9 @@ class WebSocketService {
         return;
       }
       
-      console.log('Connecting to Socket.IO:', socketUrl);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Connecting to Socket.IO:', socketUrl);
+      }
       this.socket = io(socketUrl, {
         auth: {
           token: token
@@ -35,7 +37,9 @@ class WebSocketService {
       });
       
       this.socket.on('connect', () => {
-        console.log('Socket.IO connected to ngrok backend');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Socket.IO connected to ngrok backend');
+        }
         this.reconnectAttempts = 0;
         this.emit('connected');
         
@@ -45,7 +49,9 @@ class WebSocketService {
 
       // Listen for authentication success
       this.socket.on('authenticated', () => {
-        console.log('Socket authentication successful');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Socket authentication successful');
+        }
         this.isAuthenticated = true;
         this.emit('authenticated');
       });
@@ -58,7 +64,9 @@ class WebSocketService {
       });
 
       this.socket.on('disconnect', (reason) => {
-        console.log('Socket.IO disconnected:', reason);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Socket.IO disconnected:', reason);
+        }
         this.isAuthenticated = false;
         this.emit('disconnected');
         

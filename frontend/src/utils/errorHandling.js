@@ -19,13 +19,15 @@ class NetworkError extends Error {
 }
 
 const handleAPIError = (error) => {
-  console.error('API Error Details:', {
-    message: error.message,
-    status: error.status,
-    url: error.config?.url,
-    method: error.config?.method,
-    timestamp: new Date().toISOString()
-  });
+  if (process.env.NODE_ENV === 'development') {
+    console.error('API Error Details:', {
+      message: error.message,
+      status: error.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      timestamp: new Date().toISOString()
+    });
+  }
 
   // Network errors
   if (error.code === 'ERR_NETWORK' || !error.response) {
@@ -113,17 +115,23 @@ const retryRequest = async (fn, maxRetries = 3, delay = 1000) => {
       
       // Don't retry on client errors (4xx) or success codes that failed
       if (status >= 400 && status < 500) {
-        console.log(`Not retrying due to client error: ${status}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Not retrying due to client error: ${status}`);
+        }
         throw error;
       }
       
       // Don't retry on the last attempt
       if (i === maxRetries) {
-        console.log('Max retries reached, throwing error');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Max retries reached, throwing error');
+        }
         throw error;
       }
       
-      console.log(`Retrying request (attempt ${i + 1}/${maxRetries + 1})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Retrying request (attempt ${i + 1}/${maxRetries + 1})`);
+      }
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
     }

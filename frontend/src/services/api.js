@@ -118,9 +118,13 @@ export const authAPI = {
     try {
       // Direct API call without retry for logout
       await api.post('/auth/logout');
-      console.log('Server logout successful');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Server logout successful');
+      }
     } catch (error) {
-      console.warn('Server logout failed, but local logout completed:', error.message);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Server logout failed, but local logout completed:', error.message);
+      }
       // Don't throw error - local logout is more important
     }
   },
