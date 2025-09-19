@@ -58,6 +58,7 @@ router.post('/', auth, [
       name: 'general',
       type: 'text',
       server: server._id,
+      createdBy: req.user._id,
       position: 0
     });
 
@@ -65,6 +66,7 @@ router.post('/', auth, [
       name: 'general',
       type: 'voice',
       server: server._id,
+      createdBy: req.user._id,
       position: 1
     });
 
