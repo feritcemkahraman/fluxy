@@ -424,9 +424,9 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="relative group">
                       <Avatar className="w-20 h-20 ring-4 ring-white/20">
-                        <AvatarImage src={null} alt={userProfile.username} />
+                        <AvatarImage src={null} alt={userProfile?.username || 'User'} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
-                          {userProfile.username.charAt(0).toUpperCase()}
+                          {userProfile?.username?.charAt(0)?.toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <Button
@@ -450,7 +450,7 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
                       <Label htmlFor="username" className="text-gray-300">Kullanıcı Adı</Label>
                       <Input
                         id="username"
-                        value={userProfile.username}
+                        value={userProfile?.username || ''}
                         onChange={(e) => {
                           setUserProfile(prev => ({ ...prev, username: e.target.value }));
                           setHasChanges(true);
@@ -463,7 +463,7 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
                       <Label htmlFor="displayName" className="text-gray-300">Görünen Ad</Label>
                       <Input
                         id="displayName"
-                        value={userProfile.displayName}
+                        value={userProfile?.displayName || ''}
                         onChange={(e) => {
                           setUserProfile(prev => ({ ...prev, displayName: e.target.value }));
                           setHasChanges(true);

@@ -96,6 +96,7 @@ const FluxyApp = () => {
   useEffect(() => {
     const updateVoiceUsers = () => {
       const status = voiceChatService.getStatus();
+      console.log('🔊 updateVoiceUsers called, voiceChat status:', status);
 
       if (status.currentChannel) {
         // Add current user to connected users if not already included
@@ -104,7 +105,13 @@ const FluxyApp = () => {
         const userId = user?.id || user?._id;
         if (userId && !connectedUsers.includes(userId)) {
           connectedUsers = [userId, ...connectedUsers];
+          console.log('🔊 Added current user to voice channel users:', userId);
         }
+
+        console.log('🔊 Setting voice channel users:', {
+          [status.currentChannel]: connectedUsers,
+          currentChannel: status.currentChannel
+        });
 
         setVoiceChannelUsers({
           [status.currentChannel]: connectedUsers,
@@ -232,27 +239,34 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
+      console.log('🔊 Voice channel update received:', { channelId, action, userId });
       
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
         const currentUsers = prev[channelId] || [];
+        console.log('🔊 Current users in channel before update:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
+            const newUsers = [...currentUsers, userId];
+            console.log('🔊 Adding user to channel. New users:', newUsers);
             return {
               ...prev,
-              [channelId]: [...currentUsers, userId]
+              [channelId]: newUsers
             };
           }
         } else if (action === 'userLeft') {
           // Remove user from channel
+          const newUsers = currentUsers.filter(id => id !== userId);
+          console.log('🔊 Removing user from channel. New users:', newUsers);
           return {
             ...prev,
-            [channelId]: currentUsers.filter(id => id !== userId)
+            [channelId]: newUsers
           };
         }
         
+        console.log('🔊 No change to voice channel users');
         return prev;
       });
     };

@@ -201,7 +201,8 @@ const handleConnection = (io) => {
             userId: socket.userId
           });
 
-          console.log(`User ${socket.user.username} joined voice channel: ${channelId}`);
+          console.log(`✅ User ${socket.user.username} joined voice channel: ${channelId}`);
+          console.log(`📡 Emitted voiceChannelUpdate to server:${channel.server} - action: userJoined, userId: ${socket.userId}`);
         }
       } catch (error) {
         console.error('Join voice channel error:', error);
@@ -235,6 +236,9 @@ const handleConnection = (io) => {
             action: 'userLeft',
             userId: socket.userId
           });
+
+          console.log(`✅ User ${socket.user.username} left voice channel: ${channelId}`);
+          console.log(`📡 Emitted voiceChannelUpdate to server:${channel.server} - action: userLeft, userId: ${socket.userId}`);
 
           socket.leave(`voice:${channelId}`);
           socket.currentVoiceChannel = null;
