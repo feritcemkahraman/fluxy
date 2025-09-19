@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { handleAPIError, retryRequest } from '../utils/errorHandling';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api-placeholder.com';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api-placeholder.com') + '/api';
 
 // Create axios instance with enhanced configuration
 const api = axios.create({
