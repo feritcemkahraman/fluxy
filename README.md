@@ -166,6 +166,51 @@ npm start
 └── netlify.toml           # Netlify configuration
 ```
 
+## Production Deployment
+
+### Frontend (Netlify) + Backend (Local + Ngrok)
+
+1. **Backend'i başlatın:**
+   ```bash
+   cd backend
+   npm run dev
+   ```
+
+2. **Ngrok tunnel açın:**
+   ```bash
+   ngrok http 3001
+   ```
+
+3. **Environment'ları otomatik güncelleyin:**
+   ```powershell
+   .\update-ngrok-url.ps1
+   ```
+
+   Bu script:
+   - ✅ Ngrok URL'ini alır
+   - ✅ `frontend/.env.production` dosyasını günceller
+   - ✅ Netlify environment variables'ı günceller
+   - ✅ Netlify deploy'u trigger eder
+
+### Manual Update (Alternatif)
+
+Ngrok URL'inizi manuel güncellemek için:
+
+1. `.env.production` dosyasını düzenleyin:
+   ```env
+   REACT_APP_API_URL=https://your-ngrok-url.ngrok.io
+   REACT_APP_SOCKET_URL=https://your-ngrok-url.ngrok.io
+   ```
+
+2. Netlify Dashboard'da Environment Variables'ı güncelleyin
+
+### Netlify CLI Kurulumu
+
+```bash
+npm install -g netlify-cli
+netlify login
+```
+
 ## Contributing
 
 1. Fork the repository
