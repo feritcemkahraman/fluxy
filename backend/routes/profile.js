@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Server = require('../models/Server');
 const { auth } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
@@ -143,6 +144,31 @@ router.put('/status', auth, async (req, res) => {
     }
 
     console.log('✅ Profile API: Status updated successfully to:', updatedUser.status);
+
+    // Emit socket event to notify all clients about status change
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        // Find all servers where this user is a member
+        const userServers = await Server.find({
+          'members.user': userId
+        });
+
+        // Broadcast status update to all user's servers
+        userServers.forEach(server => {
+          io.to(`server:${server._id}`).emit('userStatusUpdate', {
+            userId: userId,
+            status: updatedUser.status,
+            username: updatedUser.username
+          });
+        });
+
+        console.log(`🔄 Profile API: Status update broadcasted to ${userServers.length} servers for user ${updatedUser.username}`);
+      } catch (socketError) {
+        console.error('❌ Profile API: Socket broadcast error:', socketError);
+        // Don't fail the API call if socket broadcast fails
+      }
+    }
 
     res.json({
       message: 'Status updated successfully',

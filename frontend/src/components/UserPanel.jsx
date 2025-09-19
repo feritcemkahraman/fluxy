@@ -17,7 +17,6 @@ const UserPanel = ({ user, server }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const { logout, updateStatus: updateAuthStatus, updateUser } = useAuth();
-  const { updateStatus: updateSocketStatus } = useSocket();
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -104,12 +103,11 @@ const UserPanel = ({ user, server }) => {
     try {
       setShowDropdown(false);
       
-      // Update status via AuthContext (includes API call and state update)
+      // Update status via AuthContext (includes API call and real-time socket broadcast)
       const result = await updateAuthStatus({ status });
       
-      if (result.success) {
-        // Emit socket event to notify other clients
-        updateSocketStatus(status);
+      if (!result.success) {
+        console.error('Error updating status:', result.error);
       }
     } catch (error) {
       console.error('Error updating status:', error);
