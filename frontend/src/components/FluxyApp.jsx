@@ -315,16 +315,95 @@ const FluxyApp = () => {
       }
     };
 
+    const handleChannelCreated = (channelData) => {
+      console.log('📢 Channel created:', channelData);
+      
+      // Add new channel to the active server if it's the current server
+      if (activeServer && (activeServer._id === channelData.server || activeServer.id === channelData.server)) {
+        setActiveServer(prevServer => ({
+          ...prevServer,
+          channels: [...(prevServer.channels || []), channelData]
+        }));
+      }
+    };
+
+    const handleChannelDeleted = ({ channelId, serverId }) => {
+      console.log('📢 Channel deleted:', { channelId, serverId });
+      
+      // Remove channel from the active server if it's the current server
+      if (activeServer && (activeServer._id === serverId || activeServer.id === serverId)) {
+        setActiveServer(prevServer => ({
+          ...prevServer,
+          channels: prevServer.channels?.filter(channel => 
+            channel._id !== channelId && channel.id !== channelId
+          ) || []
+        }));
+        
+        // If the deleted channel was the active channel, switch to another one
+        if (activeChannel && (activeChannel._id === channelId || activeChannel.id === channelId)) {
+          const remainingChannels = activeServer.channels?.filter(channel => 
+            channel._id !== channelId && channel.id !== channelId
+          ) || [];
+          
+          if (remainingChannels.length > 0) {
+            const nextChannel = remainingChannels.find(c => c.type === 'text') || remainingChannels[0];
+            setActiveChannel(nextChannel);
+          } else {
+            setActiveChannel(null);
+          }
+        }
+      }
+    };
+
+    const handleUserProfileUpdate = (profileUpdate) => {
+      const { userId, username, displayName, avatar, bio, pronouns, banner } = profileUpdate;
+      console.log('👤 User profile update received:', profileUpdate);
+      
+      // Update user profile in the current server's members
+      setActiveServer(prevServer => {
+        if (!prevServer || !prevServer.members) return prevServer;
+        
+        const updatedMembers = prevServer.members.map(member => {
+          if (member.user && (member.user._id === userId || member.user.id === userId)) {
+            return {
+              ...member,
+              user: {
+                ...member.user,
+                username: username || member.user.username,
+                displayName: displayName || member.user.displayName,
+                avatar: avatar || member.user.avatar,
+                bio: bio || member.user.bio,
+                pronouns: pronouns || member.user.pronouns,
+                banner: banner || member.user.banner
+              }
+            };
+          }
+          return member;
+        });
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
     const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
+    const unsubscribeUserProfile = on('userProfileUpdate', handleUserProfileUpdate);
     const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
     const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
     const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
+    const unsubscribeChannelCreated = on('channelCreated', handleChannelCreated);
+    const unsubscribeChannelDeleted = on('channelDeleted', handleChannelDeleted);
 
     return () => {
       unsubscribeUserStatus();
+      unsubscribeUserProfile();
       unsubscribeVoiceUpdate();
       unsubscribeServerCreated();
       unsubscribeServerJoined();
+      unsubscribeChannelCreated();
+      unsubscribeChannelDeleted();
     };
   }, [on]); // on is stable from useSocket hook
 

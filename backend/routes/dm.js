@@ -186,6 +186,25 @@ router.post('/send', auth, [
     conversation.lastActivity = new Date();
     await conversation.save();
 
+    // Emit socket event to notify the recipient about the new DM
+    const io = req.app.get('io');
+    if (io) {
+      const dmData = {
+        message: message,
+        conversationId: conversation._id,
+        from: req.user.id,
+        to: userId
+      };
+      
+      // Notify the recipient
+      io.to(`user_${userId}`).emit('newDirectMessage', dmData);
+      
+      // Notify the sender for consistency (useful for multi-device scenarios)
+      io.to(`user_${req.user.id}`).emit('dmSent', dmData);
+      
+      console.log(`💬 DM sent from ${req.user.username} to user ${userId}`);
+    }
+
     res.status(201).json({ message });
 
   } catch (error) {

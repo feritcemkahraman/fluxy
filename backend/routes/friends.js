@@ -89,6 +89,15 @@ router.post('/request', [
       .populate('from', 'username avatar discriminator')
       .populate('to', 'username avatar discriminator');
 
+    // Emit socket event to notify the target user about the friend request
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${targetUser._id}`).emit('friendRequestReceived', {
+        request: populatedRequest
+      });
+      console.log(`📬 Friend request notification sent to user: ${targetUser.username}`);
+    }
+
     res.status(201).json({ 
       message: 'Friend request sent',
       request: populatedRequest
@@ -115,6 +124,26 @@ router.post('/request/:requestId/accept', auth, async (req, res) => {
     const populatedRequest = await Friend.findById(request._id)
       .populate('from', 'username avatar discriminator')
       .populate('to', 'username avatar discriminator');
+
+    // Emit socket events to both users about the friendship being established
+    const io = req.app.get('io');
+    if (io) {
+      const friendshipData = {
+        request: populatedRequest,
+        friend: populatedRequest.from // For the accepter, the friend is the sender
+      };
+      
+      // Notify the original sender that their request was accepted
+      io.to(`user_${populatedRequest.from._id}`).emit('friendRequestAccepted', {
+        ...friendshipData,
+        friend: populatedRequest.to // For the sender, the friend is the accepter
+      });
+      
+      // Notify the accepter that they now have a new friend
+      io.to(`user_${populatedRequest.to._id}`).emit('friendAdded', friendshipData);
+      
+      console.log(`🤝 Friendship established between ${populatedRequest.from.username} and ${populatedRequest.to.username}`);
+    }
 
     res.json({ 
       message: 'Friend request accepted',
@@ -169,6 +198,21 @@ router.delete('/:friendId', auth, async (req, res) => {
     const { friendId } = req.params;
 
     await Friend.removeFriend(req.user._id.toString(), friendId);
+    
+    // Emit socket events to both users about the friendship being removed
+    const io = req.app.get('io');
+    if (io) {
+      const friendshipData = {
+        removedBy: req.user._id,
+        friendId: friendId
+      };
+      
+      // Notify both users that the friendship has been removed
+      io.to(`user_${req.user._id}`).emit('friendRemoved', friendshipData);
+      io.to(`user_${friendId}`).emit('friendRemoved', friendshipData);
+      
+      console.log(`💔 Friendship removed between ${req.user._id} and ${friendId}`);
+    }
     
     res.json({ message: 'Friend removed successfully' });
 

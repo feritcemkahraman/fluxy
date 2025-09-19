@@ -69,6 +69,22 @@ router.post('/', auth, [
       $push: { channels: channel._id }
     });
 
+    // Emit socket event to notify all server members about new channel
+    const io = req.app.get('io');
+    if (io) {
+      const channelData = {
+        id: channel._id,
+        name: channel.name,
+        type: channel.type,
+        description: channel.description,
+        position: channel.position,
+        server: channel.server
+      };
+      
+      io.to(`server:${serverId}`).emit('channelCreated', channelData);
+      console.log(`📢 Channel created broadcast to server:${serverId}`, channelData);
+    }
+
     res.status(201).json({
       message: 'Channel created successfully',
       channel: {
@@ -342,6 +358,16 @@ router.delete('/:id', auth, async (req, res) => {
 
     // Delete the channel
     await Channel.findByIdAndDelete(req.params.id);
+
+    // Emit socket event to notify all server members about channel deletion
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`server:${channel.server}`).emit('channelDeleted', {
+        channelId: req.params.id,
+        serverId: channel.server
+      });
+      console.log(`📢 Channel deleted broadcast to server:${channel.server}`, { channelId: req.params.id });
+    }
 
     res.json({ message: 'Channel deleted successfully' });
 

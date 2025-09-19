@@ -124,21 +124,51 @@ class WebSocketService {
         this.emit('server_updated', server);
       });
 
-      this.socket.on('channel_created', (channel) => {
-        this.emit('channel_created', channel);
+      this.socket.on('channelCreated', (channel) => {
+        this.emit('channelCreated', channel);
       });
 
       this.socket.on('channel_updated', (channel) => {
         this.emit('channel_updated', channel);
       });
 
-      this.socket.on('channel_deleted', (channelId) => {
-        this.emit('channel_deleted', channelId);
+      this.socket.on('channelDeleted', (data) => {
+        this.emit('channelDeleted', data);
       });
 
       // User events
       this.socket.on('userStatusUpdate', (data) => {
         this.emit('user_status_changed', data);
+      });
+
+      this.socket.on('userProfileUpdate', (data) => {
+        this.emit('userProfileUpdate', data);
+      });
+
+      // Friend events
+      this.socket.on('friendRequestReceived', (data) => {
+        this.emit('friendRequestReceived', data);
+      });
+
+      this.socket.on('friendRequestAccepted', (data) => {
+        this.emit('friendRequestAccepted', data);
+      });
+
+      this.socket.on('friendAdded', (data) => {
+        this.emit('friendAdded', data);
+      });
+
+      this.socket.on('friendRemoved', (data) => {
+        this.emit('friendRemoved', data);
+      });
+
+      // Direct Message events
+      this.socket.on('newDirectMessage', (data) => {
+        this.emit('newDirectMessage', data);
+      });
+
+      this.socket.on('dmSent', (data) => {
+        this.emit('dmSent', data);
       });
 
       this.socket.on('user_joined_server', (data) => {

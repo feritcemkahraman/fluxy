@@ -95,6 +95,37 @@ router.put('/', auth, [
       { new: true, runValidators: true }
     ).select('-password -email');
 
+    // Emit socket event to notify all servers where this user is a member
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        // Find all servers where this user is a member
+        const userServers = await Server.find({
+          'members.user': userId
+        });
+
+        // Broadcast profile update to all user's servers
+        const profileUpdate = {
+          userId: userId,
+          username: updatedUser.username,
+          displayName: updatedUser.displayName,
+          avatar: updatedUser.avatar,
+          bio: updatedUser.bio,
+          pronouns: updatedUser.pronouns,
+          banner: updatedUser.banner
+        };
+
+        userServers.forEach(server => {
+          io.to(`server:${server._id}`).emit('userProfileUpdate', profileUpdate);
+        });
+
+        console.log(`🔄 Profile update broadcasted to ${userServers.length} servers for user ${updatedUser.username}`);
+      } catch (socketError) {
+        console.error('❌ Profile update socket broadcast error:', socketError);
+        // Don't fail the API call if socket broadcast fails
+      }
+    }
+
     res.json({
       message: 'Profile updated successfully',
       user: updatedUser
