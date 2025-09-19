@@ -63,7 +63,14 @@ export default function RegisterForm({ onToggleMode }) {
         setIsLoading(false);
       }, 500);
     } else {
-      toast.error(result.error);
+      // Detailed error messages based on error type
+      if (result.type === 'EMAIL_EXISTS') {
+        toast.error('Bu e-posta adresi zaten kayıtlı. Farklı bir e-posta deneyin.');
+      } else if (result.type === 'USERNAME_EXISTS') {
+        toast.error('Bu kullanıcı adı zaten alınmış. Farklı bir kullanıcı adı deneyin.');
+      } else {
+        toast.error(result.error || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.');
+      }
       setIsLoading(false);
     }
   };

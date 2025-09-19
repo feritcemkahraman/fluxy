@@ -46,9 +46,17 @@ router.post('/register', [
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: existingUser.email === email ? 'E-posta zaten kayıtlı' : 'Kullanıcı adı zaten alınmış'
-      });
+      if (existingUser.email === email) {
+        return res.status(400).json({
+          message: 'Bu e-posta adresi zaten kayıtlı',
+          type: 'EMAIL_EXISTS'
+        });
+      } else {
+        return res.status(400).json({
+          message: 'Bu kullanıcı adı zaten alınmış',
+          type: 'USERNAME_EXISTS'
+        });
+      }
     }
 
     // Create new user
