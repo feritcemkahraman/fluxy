@@ -21,6 +21,10 @@ router.post('/register', [
     .withMessage('Kullanıcı adı 3 ile 30 karakter arasında olmalıdır')
     .matches(/^[a-zA-Z0-9_-]+$/)
     .withMessage('Kullanıcı adı sadece harf, rakam, alt çizgi ve tire içerebilir'),
+  body('displayName')
+    .optional()
+    .isLength({ max: 32 })
+    .withMessage('Görünen ad 32 karakterden uzun olamaz'),
   body('email')
     .isEmail()
     .withMessage('Geçerli bir e-posta adresi girin'),
@@ -38,7 +42,7 @@ router.post('/register', [
       });
     }
 
-    const { username, email, password } = req.body;
+    const { username, email, password, displayName } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -63,7 +67,8 @@ router.post('/register', [
     const user = new User({
       username,
       email,
-      password
+      password,
+      displayName: displayName || username
     });
 
     await user.save();

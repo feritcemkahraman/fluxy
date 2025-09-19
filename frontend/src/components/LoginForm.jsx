@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Eye, EyeOff, User, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function LoginForm({ onToggleMode }) {
   const [formData, setFormData] = useState({
     email: '',
-    phone: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [contactMethod, setContactMethod] = useState('email'); // 'email' or 'phone'
   const { login } = useAuth();
 
   const handleChange = (e) => {
@@ -24,141 +22,101 @@ export default function LoginForm({ onToggleMode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate contact method
-    if (contactMethod === 'email' && !formData.email) {
+    if (!formData.email) {
       toast.error('E-posta gereklidir');
       return;
     }
-    if (contactMethod === 'phone' && !formData.phone) {
-      toast.error('Telefon numarası gereklidir');
+    
+    if (!formData.password) {
+      toast.error('Şifre gereklidir');
       return;
     }
 
     setIsLoading(true);
 
-    const loginData = {
-      email: contactMethod === 'email' ? formData.email : '',
-      phone: contactMethod === 'phone' ? formData.phone : '',
-      password: formData.password,
-    };
-
-    const result = await login(loginData);
+    const result = await login(formData);
     
     if (result.success) {
       toast.success('Başarıyla giriş yapıldı!');
     } else {
-      // Detailed error messages based on error type
-      if (result.type === 'USER_NOT_FOUND') {
-        toast.error('Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı');
-      } else if (result.type === 'WRONG_PASSWORD') {
-        toast.error('Şifre hatalı. Lütfen doğru şifreyi girin');
-      } else {
-        toast.error(result.error || 'Giriş başarısız. Lütfen tekrar deneyin.');
-      }
+      toast.error(result.error || 'Giriş yapılamadı');
     }
     
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Modern geometric background */}
+      <div className="absolute inset-0 bg-gray-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-blue-900/20"></div>
+        {/* Geometric shapes */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-blue-500/10 to-purple-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+        
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white/20 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 3}s`
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 w-full max-w-md mx-auto p-6">
+        {/* Logo and title */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <User size={32} className="text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl mb-6">
+            <span className="text-2xl font-bold text-white">D</span>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Tekrar Hoş Geldiniz</h1>
-          <p className="text-gray-400">Hesabınıza giriş yapın</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Hoş geldiniz!</h1>
+          <p className="text-gray-300">Hesabınıza giriş yapın</p>
         </div>
 
-        {/* Form Container */}
-        <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Tekrar hoş geldiniz!</h2>
-              <p className="text-gray-300">Sizi tekrar görmekten çok mutluyuz!</p>
-            </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Contact Method Toggle */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Giriş yöntemi <span className="text-red-400">*</span>
-              </label>
-              <div className="flex rounded-md bg-gray-700 p-1">
-                <button
-                  type="button"
-                  onClick={() => setContactMethod('email')}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors ${
-                    contactMethod === 'email'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <Mail size={16} className="inline mr-2" />
-                  E-posta
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContactMethod('phone')}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors ${
-                    contactMethod === 'phone'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <Phone size={16} className="inline mr-2" />
-                  Telefon
-                </button>
-              </div>
-            </div>
-
-            {/* Email or Phone Input */}
-            {contactMethod === 'email' ? (
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  E-posta Adresi <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="E-posta adresinizi girin"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                  Telefon Numarası <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Telefon numaranızı girin"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Şifre <span className="text-red-400">*</span>
+        {/* Login form */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email field */}
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-200">
+                E-POSTA
               </label>
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="block w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="email@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Password field */}
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-200">
+                ŞİFRE
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="password"
                   name="password"
@@ -166,37 +124,32 @@ export default function LoginForm({ onToggleMode }) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="block w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="Şifrenizi girin"
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  )}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center text-gray-300">
-                <input type="checkbox" className="mr-2 rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500" />
-                Beni hatırla
-              </label>
-              <button type="button" className="text-indigo-400 hover:text-indigo-300 transition-colors">
-                Şifremi unuttum?
-              </button>
-            </div>
-
+            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
             >
               {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Giriş yapılıyor...
                 </div>
               ) : (
@@ -205,16 +158,17 @@ export default function LoginForm({ onToggleMode }) {
             </button>
           </form>
 
+          {/* Footer */}
           <div className="mt-6 text-center">
-            <span className="text-gray-400 text-sm">
+            <p className="text-gray-300">
               Hesabınız yok mu?{' '}
               <button
                 onClick={onToggleMode}
-                className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
-                Hesap Oluştur
+                Hesap oluşturun
               </button>
-            </span>
+            </p>
           </div>
         </div>
       </div>

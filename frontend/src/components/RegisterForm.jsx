@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Eye, EyeOff, User, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
 export default function RegisterForm({ onToggleMode }) {
   const [formData, setFormData] = useState({
     username: '',
+    displayName: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [contactMethod, setContactMethod] = useState('email'); // 'email' or 'phone'
   const { register } = useAuth();
 
   const handleChange = (e) => {
@@ -27,6 +26,21 @@ export default function RegisterForm({ onToggleMode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!formData.username) {
+      toast.error('Kullanıcı adı gereklidir');
+      return;
+    }
+    
+    if (!formData.displayName) {
+      toast.error('Görünen ad gereklidir');
+      return;
+    }
+    
+    if (!formData.email) {
+      toast.error('E-posta gereklidir');
+      return;
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       toast.error('Şifreler eşleşmiyor');
       return;
@@ -37,70 +51,74 @@ export default function RegisterForm({ onToggleMode }) {
       return;
     }
 
-    // Validate contact method
-    if (contactMethod === 'email' && !formData.email) {
-      toast.error('E-posta gereklidir');
-      return;
-    }
-    if (contactMethod === 'phone' && !formData.phone) {
-      toast.error('Telefon numarası gereklidir');
-      return;
-    }
-
     setIsLoading(true);
 
     const result = await register({
       username: formData.username,
-      email: contactMethod === 'email' ? formData.email : '',
-      phone: contactMethod === 'phone' ? formData.phone : '',
+      displayName: formData.displayName,
+      email: formData.email,
       password: formData.password,
     });
-    
+
     if (result.success) {
-      toast.success('Hesap başarıyla oluşturuldu! Yönlendiriliyor...');
-      // AuthContext state'inin update olması için biraz bekle
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
+      toast.success('Hesap başarıyla oluşturuldu!');
     } else {
-      // Detailed error messages based on error type
-      if (result.type === 'EMAIL_EXISTS') {
-        toast.error('Bu e-posta adresi zaten kayıtlı. Farklı bir e-posta deneyin.');
-      } else if (result.type === 'USERNAME_EXISTS') {
-        toast.error('Bu kullanıcı adı zaten alınmış. Farklı bir kullanıcı adı deneyin.');
-      } else {
-        toast.error(result.error || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.');
-      }
-      setIsLoading(false);
+      toast.error(result.error || 'Kayıt oluşturulamadı');
     }
+    
+    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Modern geometric background */}
+      <div className="absolute inset-0 bg-gray-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-blue-900/20"></div>
+        {/* Geometric shapes */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-blue-500/10 to-purple-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+        
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(25)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white/20 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 3}s`
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 w-full max-w-md mx-auto p-6">
+        {/* Logo and title */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <User size={32} className="text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl mb-6">
+            <span className="text-2xl font-bold text-white">D</span>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Hesap Oluştur</h1>
-          <p className="text-gray-400">Topluluğumuza katılın</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Hesap oluşturun</h1>
+          <p className="text-gray-300">Discord klonumuza katılın</p>
         </div>
 
-        {/* Form Container */}
-        <div className="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Hesap oluşturun</h2>
-              <p className="text-gray-300">Bugün topluluğumuza katılın!</p>
-            </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
-                Kullanıcı Adı <span className="text-red-400">*</span>
+        {/* Register form */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username field */}
+            <div className="space-y-2">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-200">
+                KULLANICI ADI
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="username"
                   name="username"
@@ -108,91 +126,65 @@ export default function RegisterForm({ onToggleMode }) {
                   required
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Kullanıcı adınızı girin"
+                  className="block w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="kullaniciadi"
                 />
               </div>
             </div>
 
-            {/* Contact Method Toggle */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                İletişim Yöntemi <span className="text-red-400">*</span>
+            {/* Display Name field */}
+            <div className="space-y-2">
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-200">
+                GÖRÜNEN AD
               </label>
-              <div className="flex rounded-md bg-gray-700 p-1">
-                <button
-                  type="button"
-                  onClick={() => setContactMethod('email')}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors ${
-                    contactMethod === 'email'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <Mail size={16} className="inline mr-2" />
-                  E-posta
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContactMethod('phone')}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors ${
-                    contactMethod === 'phone'
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <Phone size={16} className="inline mr-2" />
-                  Telefon
-                </button>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="displayName"
+                  name="displayName"
+                  type="text"
+                  required
+                  value={formData.displayName}
+                  onChange={handleChange}
+                  className="block w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Görünen Adınız"
+                />
               </div>
             </div>
 
-            {/* Email or Phone Input */}
-            {contactMethod === 'email' ? (
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  E-posta Adresi <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="E-posta adresinizi girin"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                  Telefon Numarası <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Telefon numaranızı girin"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Şifre <span className="text-red-400">*</span>
+            {/* Email field */}
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-200">
+                E-POSTA
               </label>
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="block w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="email@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Password field */}
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-200">
+                ŞİFRE
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="password"
                   name="password"
@@ -200,24 +192,32 @@ export default function RegisterForm({ onToggleMode }) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Bir şifre oluşturun"
+                  className="block w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Şifrenizi girin"
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  )}
                 </button>
               </div>
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                Şifreyi Onayla <span className="text-red-400">*</span>
+            {/* Confirm Password field */}
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-200">
+                ŞİFRE TEKRAR
               </label>
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -225,72 +225,61 @@ export default function RegisterForm({ onToggleMode }) {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Şifrenizi onaylayın"
+                  className="block w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Şifrenizi tekrar girin"
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300 transition-colors" />
+                  )}
                 </button>
               </div>
-              {formData.confirmPassword && (
-                <div className="mt-2 text-xs">
-                  {formData.password === formData.confirmPassword ? (
-                    <span className="text-green-400">✓ Şifreler eşleşiyor</span>
-                  ) : (
-                    <span className="text-red-400">✗ Şifreler eşleşmiyor</span>
-                  )}
-                </div>
-              )}
             </div>
 
-            <div className="flex items-start space-x-3 text-sm">
-              <input 
-                type="checkbox" 
-                required
-                className="mt-1 rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="text-gray-300 leading-relaxed">
-                <button type="button" className="text-indigo-400 hover:text-indigo-300 underline">
-                  Hizmet Şartları
-                </button>
-                {' '}ve{' '}
-                <button type="button" className="text-indigo-400 hover:text-indigo-300 underline">
-                  Gizlilik Politikası
-                </button>
-                {'nı kabul ediyorum'}
-              </span>
-            </div>
-
+            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
             >
               {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                  Hesap Oluşturuluyor...
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Hesap oluşturuluyor...
                 </div>
               ) : (
-                'Hesap Oluştur'
+                'Devam Et'
               )}
             </button>
           </form>
 
+          {/* Footer */}
           <div className="mt-6 text-center">
-            <span className="text-gray-400 text-sm">
+            <p className="text-gray-300">
               Zaten hesabınız var mı?{' '}
               <button
                 onClick={onToggleMode}
-                className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
-                Giriş Yap
+                Giriş yapın
               </button>
-            </span>
+            </p>
+          </div>
+
+          {/* Terms */}
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-400">
+              Kaydolarak{' '}
+              <span className="text-blue-400 hover:underline cursor-pointer">Hizmet Şartları</span>{' '}
+              ve{' '}
+              <span className="text-blue-400 hover:underline cursor-pointer">Gizlilik Politikası</span>'nı kabul etmiş olursunuz.
+            </p>
           </div>
         </div>
       </div>
