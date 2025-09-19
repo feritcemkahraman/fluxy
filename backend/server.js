@@ -17,7 +17,7 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  'https://fluxycorn.netlify.app', // Netlify frontend
+  'https://fluxycorn.netlify.app', // Netlify frontend (güncellenecek)
   process.env.FRONTEND_URL,
   process.env.NGROK_URL // Ngrok URL'i için
 ].filter(Boolean);
