@@ -125,13 +125,13 @@ const handleConnection = (io) => {
     console.log(`User ${socket.user.username} joined personal room: user_${socket.userId}`);
 
     userServers.forEach(server => {
-      socket.join(`server:${server._id}`);
-      console.log(`User ${socket.user.username} joined server room: ${server._id}`);
+      socket.join(`server_${server._id}`);
+      console.log(`User ${socket.user.username} joined server room: server_${server._id}`);
     });
 
     // Broadcast user online status to all servers
     userServers.forEach(server => {
-      socket.to(`server:${server._id}`).emit('userStatusUpdate', {
+      socket.to(`server_${server._id}`).emit('userStatusUpdate', {
         userId: socket.userId,
         status: 'online',
         username: socket.user.username
@@ -145,8 +145,8 @@ const handleConnection = (io) => {
         if (server && server.members.some(member => 
           member.user.toString() === socket.userId
         )) {
-          socket.join(`server:${serverId}`);
-          console.log(`User ${socket.user.username} joined server: ${serverId}`);
+          socket.join(`server_${serverId}`);
+          console.log(`User ${socket.user.username} joined server: server_${serverId}`);
         }
       } catch (error) {
         console.error('Join server error:', error);
@@ -155,7 +155,7 @@ const handleConnection = (io) => {
 
     // Handle leaving a server
     socket.on('leaveServer', (serverId) => {
-      socket.leave(`server:${serverId}`);
+      socket.leave(`server_${serverId}`);
       console.log(`User ${socket.user.username} left server: ${serverId}`);
     });
 
@@ -199,14 +199,14 @@ const handleConnection = (io) => {
           });
 
           // Notify server members
-          socket.to(`server:${channel.server}`).emit('voiceChannelUpdate', {
+          socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
             channelId,
             action: 'userJoined',
             userId: socket.userId
           });
 
           console.log(`✅ User ${socket.user.username} joined voice channel: ${channelId}`);
-          console.log(`📡 Emitted voiceChannelUpdate to server:${channel.server} - action: userJoined, userId: ${socket.userId}`);
+          console.log(`📡 Emitted voiceChannelUpdate to server_${channel.server} - action: userJoined, userId: ${socket.userId}`);
         }
       } catch (error) {
         console.error('Join voice channel error:', error);
@@ -235,14 +235,14 @@ const handleConnection = (io) => {
           });
 
           // Notify server members
-          socket.to(`server:${channel.server}`).emit('voiceChannelUpdate', {
+          socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
             channelId,
             action: 'userLeft',
             userId: socket.userId
           });
 
           console.log(`✅ User ${socket.user.username} left voice channel: ${channelId}`);
-          console.log(`📡 Emitted voiceChannelUpdate to server:${channel.server} - action: userLeft, userId: ${socket.userId}`);
+          console.log(`📡 Emitted voiceChannelUpdate to server_${channel.server} - action: userLeft, userId: ${socket.userId}`);
 
           socket.leave(`voice:${channelId}`);
           socket.currentVoiceChannel = null;
@@ -299,7 +299,7 @@ const handleConnection = (io) => {
           .populate('replyTo', 'content author');
 
         // Broadcast to all server members
-        io.to(`server:${channel.server}`).emit('newMessage', {
+        io.to(`server_${channel.server}`).emit('newMessage', {
           id: populatedMessage._id,
           content: populatedMessage.content,
           author: populatedMessage.author,
@@ -343,7 +343,7 @@ const handleConnection = (io) => {
         });
 
         userServers.forEach(server => {
-          socket.to(`server:${server._id}`).emit('userStatusUpdate', {
+          socket.to(`server_${server._id}`).emit('userStatusUpdate', {
             userId: socket.userId,
             status,
             username: socket.user.username
@@ -361,7 +361,7 @@ const handleConnection = (io) => {
     // Handle typing indicators
     socket.on('typing', (data) => {
       const { channelId, isTyping } = data;
-      socket.to(`server:${data.serverId || 'unknown'}`).emit('userTyping', {
+      socket.to(`server_${data.serverId || 'unknown'}`).emit('userTyping', {
         userId: socket.userId,
         username: socket.user.username,
         channelId,
@@ -403,7 +403,7 @@ const handleConnection = (io) => {
         await message.save();
 
         // Broadcast reaction update
-        io.to(`server:${message.server}`).emit('reactionUpdate', {
+        io.to(`server_${message.server}`).emit('reactionUpdate', {
           messageId,
           reactions: message.reactions
         });
@@ -435,7 +435,7 @@ const handleConnection = (io) => {
             username: socket.user.username
           });
 
-          socket.to(`server:${channel.server}`).emit('voiceChannelUpdate', {
+          socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
             channelId: socket.currentVoiceChannel,
             action: 'userLeft',
             userId: socket.userId
@@ -450,7 +450,7 @@ const handleConnection = (io) => {
       });
 
       userServers.forEach(server => {
-        socket.to(`server:${server._id}`).emit('userStatusUpdate', {
+        socket.to(`server_${server._id}`).emit('userStatusUpdate', {
           userId: socket.userId,
           status: 'offline',
           username: socket.user.username

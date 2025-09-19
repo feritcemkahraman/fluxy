@@ -212,6 +212,32 @@ const FluxyApp = () => {
   useEffect(() => {
     const handleUserStatusUpdate = (data) => {
       const { userId, status } = data;
+      console.log('🔄 User status update received:', { userId, status });
+      
+      // Update user status in all servers
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if (!server.members) return server;
+          
+          const updatedMembers = server.members.map(member => {
+            if (member.user && (member.user._id === userId || member.user.id === userId)) {
+              return {
+                ...member,
+                user: {
+                  ...member.user,
+                  status: status
+                }
+              };
+            }
+            return member;
+          });
+          
+          return {
+            ...server,
+            members: updatedMembers
+          };
+        });
+      });
       
       // Update user status in the current server's members
       setActiveServer(prevServer => {
