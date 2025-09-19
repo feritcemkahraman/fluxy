@@ -30,26 +30,6 @@ module.exports = {
               },
             },
           },
-          // Fix CSS minimizer issues with Radix UI
-          minimizer: webpackConfig.optimization.minimizer.map(minimizer => {
-            if (minimizer.constructor.name === 'CssMinimizerPlugin') {
-              return {
-                ...minimizer,
-                options: {
-                  ...minimizer.options,
-                  minimizerOptions: {
-                    preset: [
-                      'default',
-                      {
-                        calc: false, // Disable calc optimization to fix Radix UI issues
-                      },
-                    ],
-                  },
-                },
-              };
-            }
-            return minimizer;
-          }),
         };
       }
 
