@@ -165,6 +165,7 @@ const DirectMessages = ({ onChannelSelect }) => {
       
       // API'den gerçek sunucu verilerini getir
       const response = await serverAPI.discoverServers();
+      console.log('Discover API response:', response);
       
       // API response'unu uygun formata çevir
       const formattedServers = response.servers.map(server => ({
@@ -180,6 +181,7 @@ const DirectMessages = ({ onChannelSelect }) => {
         inviteCode: server.inviteCode
       }));
       
+      console.log('Formatted servers:', formattedServers);
       setDiscoverServers(formattedServers);
       
       // Fallback olarak mock data kullan eğer API'den veri gelmazse
@@ -256,6 +258,7 @@ const DirectMessages = ({ onChannelSelect }) => {
       }
     } catch (error) {
       console.error('Failed to load discover servers:', error);
+      console.error('Error details:', error.response?.data || error.message);
       
       // Hata durumunda mock data kullan
       const mockServers = [
@@ -289,6 +292,9 @@ const DirectMessages = ({ onChannelSelect }) => {
   };
 
   const getFilteredServers = () => {
+    console.log('getFilteredServers called - discoverServers:', discoverServers);
+    console.log('discoverFilter:', discoverFilter, 'discoverSearch:', discoverSearch);
+    
     let filtered = discoverServers;
     
     // Category filter
@@ -307,6 +313,7 @@ const DirectMessages = ({ onChannelSelect }) => {
       );
     }
     
+    console.log('Filtered result:', filtered);
     return filtered;
   };
 
@@ -495,7 +502,10 @@ const DirectMessages = ({ onChannelSelect }) => {
             {/* Discover Servers Button */}
             <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10 p-4">
               <Button
-                onClick={() => setShowDiscover(true)}
+                onClick={() => {
+                  setShowDiscover(true);
+                  loadDiscoverServers(); // Keşfet butonuna tıklandığında sunucuları yükle
+                }}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02]"
               >
                 <Compass className="w-5 h-5 mr-2" />
