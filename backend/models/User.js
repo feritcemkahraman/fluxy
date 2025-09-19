@@ -37,8 +37,8 @@ const userSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['online', 'idle', 'dnd', 'offline'],
-    default: 'offline'
+    enum: ['online', 'idle', 'dnd', 'invisible'],
+    default: 'online'
   },
   customStatus: {
     type: mongoose.Schema.Types.Mixed, // Can be string or object

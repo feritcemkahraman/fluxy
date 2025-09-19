@@ -218,13 +218,22 @@ router.post('/logout', auth, async (req, res) => {
 // @route   PUT /api/auth/status
 // @desc    Update user status
 // @access  Private
+// @route   PUT /api/auth/status
+// @desc    Update user status
+// @access  Private
 router.put('/status', auth, [
   body('status').isIn(['online', 'idle', 'dnd', 'invisible']).withMessage('Geçersiz durum'),
   body('customStatus').optional().isLength({ max: 128 }).withMessage('Özel durum çok uzun')
 ], async (req, res) => {
   try {
+    console.log('Status update request:', {
+      userId: req.user._id,
+      body: req.body
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ 
         message: 'Doğrulama başarısız',
         errors: errors.array()
@@ -233,14 +242,25 @@ router.put('/status', auth, [
 
     const { status, customStatus } = req.body;
     
+    console.log('Finding user...');
     const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
+    
+    console.log('Updating user status:', { oldStatus: user.status, newStatus: status });
     user.status = status;
     if (customStatus !== undefined) {
       user.customStatus = customStatus;
     }
     user.lastSeen = new Date();
+    
+    console.log('Saving user...');
     await user.save();
 
+    console.log('Status updated successfully');
     res.json({
       message: 'Durum başarıyla güncellendi',
       user: {

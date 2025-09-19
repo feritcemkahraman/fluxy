@@ -433,6 +433,7 @@ const DirectMessages = ({ onChannelSelect }) => {
             {conversations
               .filter(dm => 
                 dm.user?.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                dm.user?.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 dm.name?.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map((dm) => (
@@ -465,7 +466,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-white truncate">
-                          {dm.user?.username || dm.name}
+                          {dm.user?.displayName || dm.user?.username || dm.name}
                         </span>
                         <span className="text-xs text-gray-500">
                           {formatTime(dm.timestamp)}
@@ -587,7 +588,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium">{dm.user?.username || dm.name}</div>
+                        <div className="text-white font-medium">{dm.user?.displayName || dm.user?.username || dm.name}</div>
                         <div className="text-sm text-gray-400 truncate">{dm.lastMessage}</div>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -641,13 +642,13 @@ const DirectMessages = ({ onChannelSelect }) => {
                     <div key={request.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={null} alt={request.from.username} />
+                          <AvatarImage src={null} alt={request.from.displayName || request.from.username} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                            {request.from.username.charAt(0)}
+                            {(request.from.displayName || request.from.username).charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-white font-medium">{request.from.username}</div>
+                          <div className="text-white font-medium">{request.from.displayName || request.from.username}</div>
                           {request.message && (
                             <div className="text-sm text-gray-400">{request.message}</div>
                           )}
