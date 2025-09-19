@@ -68,8 +68,15 @@ const handleConnection = (io) => {
   io.on('connection', async (socket) => {
     console.log(`User ${socket.user.username} attempting to connect...`);
     
-    // Emit authentication success to frontend
-    socket.emit('authenticated');
+    // Emit authentication success to frontend with connection data
+    socket.emit('authenticated', {
+      connectionId: socket.id,
+      user: {
+        id: socket.user._id,
+        username: socket.user.username,
+        status: socket.user.status
+      }
+    });
     
     // Check if user already has an active connection
     const existingConnection = connectedUsers.get(socket.userId);

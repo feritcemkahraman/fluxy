@@ -77,8 +77,8 @@ class WebSocketService {
       this.socket.on('authenticated', (data) => {
         console.log('Socket authenticated:', data);
         this.isAuthenticated = true;
-        this.connectionId = data.connectionId;
-        this.emit('authenticated', data);
+        this.connectionId = data?.connectionId || this.socket.id;
+        this.emit('authenticated', data || { connectionId: this.socket.id });
       });
 
       this.socket.on('authentication_failed', (error) => {
