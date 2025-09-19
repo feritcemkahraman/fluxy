@@ -129,11 +129,12 @@ const handleConnection = (io) => {
       console.log(`User ${socket.user.username} joined server room: server_${server._id}`);
     });
 
-    // Broadcast user online status to all servers
+    // Broadcast user current status to all servers
     userServers.forEach(server => {
+      console.log(`🔄 Broadcasting user ${socket.user.username} status (${socket.user.status}) to server: ${server.name}`);
       socket.to(`server_${server._id}`).emit('userStatusUpdate', {
         userId: socket.userId,
-        status: 'online',
+        status: socket.user.status, // Use actual user status, not hardcoded 'online'
         username: socket.user.username
       });
     });
@@ -343,6 +344,7 @@ const handleConnection = (io) => {
         });
 
         userServers.forEach(server => {
+          console.log(`🔄 Socket: Broadcasting status update for user ${socket.user.username} (${socket.userId}) to server: ${server.name} (${server._id})`);
           socket.to(`server_${server._id}`).emit('userStatusUpdate', {
             userId: socket.userId,
             status,

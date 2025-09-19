@@ -136,7 +136,7 @@ export const authAPI = {
     }
   },
   getMe: () => apiCall('GET', '/auth/me'),
-  updateStatus: (statusData) => apiCall('PUT', '/auth/status', statusData),
+  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
 };
 
 // Enhanced Server API with retry
@@ -221,7 +221,7 @@ export const userSettingsAPI = {
 export const profileAPI = {
   getProfile: (userId) => apiCall('GET', `/profile/${userId}`),
   updateProfile: (profileData) => apiCall('PUT', '/profile', profileData),
-  updateStatus: (statusData) => apiCall('PUT', '/auth/status', statusData),
+  updateStatus: (statusData) => apiCall('PUT', '/profile/status', statusData),
   addBadge: (badgeData) => apiCall('POST', '/profile/badges', badgeData),
   removeBadge: (badgeId) => apiCall('DELETE', `/profile/badges/${badgeId}`),
   addConnection: (connectionData) => apiCall('POST', '/profile/connections', connectionData),

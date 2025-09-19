@@ -213,6 +213,19 @@ const FluxyApp = () => {
     const handleUserStatusUpdate = (data) => {
       const { userId, status } = data;
       console.log('🔄 User status update received:', { userId, status });
+      console.log('🔄 Current user ID:', user?._id || user?.id);
+      
+      // Convert both IDs to string for comparison
+      const currentUserId = String(user?._id || user?.id);
+      const updateUserId = String(userId);
+      
+      // Don't update status for current user - they handle their own status
+      if (updateUserId === currentUserId) {
+        console.log('🔄 Ignoring status update for current user - IDs match:', { currentUserId, updateUserId });
+        return;
+      }
+      
+      console.log('🔄 Processing status update for other user:', { currentUserId, updateUserId });
       
       // Update user status in all servers
       setServers(prevServers => {
@@ -220,7 +233,8 @@ const FluxyApp = () => {
           if (!server.members) return server;
           
           const updatedMembers = server.members.map(member => {
-            if (member.user && (member.user._id === userId || member.user.id === userId)) {
+            if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
+              console.log('🔄 Updating status for user:', member.user.username, 'from', member.user.status, 'to', status);
               return {
                 ...member,
                 user: {
@@ -244,7 +258,7 @@ const FluxyApp = () => {
         if (!prevServer || !prevServer.members) return prevServer;
         
         const updatedMembers = prevServer.members.map(member => {
-          if (member.user && (member.user._id === userId || member.user.id === userId)) {
+          if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
             return {
               ...member,
               user: {
