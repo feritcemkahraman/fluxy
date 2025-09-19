@@ -100,7 +100,7 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.login(credentials);
-      const { user, token } = response.data;
+      const { user, token } = response; // authAPI.login already returns response.data
 
       // Store in localStorage
       localStorage.setItem('token', token);
@@ -140,7 +140,7 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.register(userData);
-      const { user, token } = response.data;
+      const { user, token } = response; // authAPI.register already returns response.data
 
       // Store in localStorage
       localStorage.setItem('token', token);
