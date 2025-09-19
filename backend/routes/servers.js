@@ -309,9 +309,18 @@ router.post('/:id/join', auth, [
     .withMessage('Invalid invite code')
 ], async (req, res) => {
   try {
+    console.log('=== JOIN SERVER REQUEST START ===');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('Raw body:', req.body);
+    console.log('Body type:', typeof req.body);
+    console.log('User from auth middleware:', req.user);
+    console.log('=== JOIN SERVER REQUEST DATA ===');
+    
     console.log('Join server request:', {
       serverId: req.params.id,
-      userId: req.user._id,
+      userId: req.user?._id,
       body: req.body
     });
 
