@@ -181,7 +181,7 @@ const MemberList = ({ server, activeChannel }) => {
                       >
                         <div className="relative">
                           <Avatar className="w-8 h-8 ring-2 ring-white/10">
-                            <AvatarImage src={member.avatar} alt={member.username} />
+                            <AvatarImage src={null} alt={member.username} />
                             <AvatarFallback 
                               className="text-white text-sm font-medium"
                               style={{ backgroundColor: member.roleColor }}
@@ -237,7 +237,7 @@ const MemberList = ({ server, activeChannel }) => {
                       >
                         <div className="relative">
                           <Avatar className="w-8 h-8 ring-2 ring-white/10 grayscale">
-                            <AvatarImage src={member.avatar} alt={member.username} />
+                            <AvatarImage src={null} alt={member.username} />
                             <AvatarFallback 
                               className="text-white text-sm font-medium bg-gray-600"
                             >

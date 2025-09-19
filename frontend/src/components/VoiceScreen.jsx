@@ -330,7 +330,7 @@ const VoiceScreen = ({ channel, server, onClose }) => {
                         <div className="absolute top-0 left-0 right-0 z-10 bg-black/60 backdrop-blur-sm px-3 py-2 flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Avatar className="w-6 h-6">
-                              <AvatarImage src={user?.avatar} />
+                              <AvatarImage src={null} />
                               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
                                 {(user?.username || user?.displayName || 'U').charAt(0).toUpperCase()}
                               </AvatarFallback>
@@ -430,7 +430,7 @@ const VoiceScreen = ({ channel, server, onClose }) => {
                       }`}>
                         <Avatar className="w-full h-full">
                           <AvatarImage
-                            src={participant.user.avatar}
+                            src={null}
                             alt={participant.user.username || participant.user.displayName}
                             className="object-cover"
                           />

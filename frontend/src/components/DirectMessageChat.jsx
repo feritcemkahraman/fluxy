@@ -226,7 +226,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Avatar className="w-10 h-10 ring-2 ring-white/20">
-              <AvatarImage src={conversation.user?.avatar || conversation.icon} alt={conversation.user?.username || conversation.name} />
+              <AvatarImage src={null} alt={conversation.user?.username || conversation.name} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 {(conversation.user?.username || conversation.name).charAt(0)}
               </AvatarFallback>
@@ -333,7 +333,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
         {/* Welcome Message */}
         <div className="flex flex-col items-center justify-center py-8">
           <Avatar className="w-20 h-20 ring-4 ring-white/20 mb-4">
-            <AvatarImage src={conversation.user?.avatar || conversation.icon} alt={conversation.user?.username || conversation.name} />
+            <AvatarImage src={null} alt={conversation.user?.username || conversation.name} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
               {(conversation.user?.username || conversation.name).charAt(0)}
             </AvatarFallback>
@@ -381,7 +381,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
                     className="w-12 h-12 ring-2 ring-white/10 cursor-pointer"
                     onContextMenu={(e) => handleRightClick(e, "user", msg.author)}
                   >
-                    <AvatarImage src={msg.author.avatar} alt={msg.author.username} />
+                    <AvatarImage src={null} alt={msg.author.username} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                       {msg.author.username.charAt(0)}
                     </AvatarFallback>
@@ -429,7 +429,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
         {isTyping && (
           <div className="flex items-center space-x-4 px-4 py-2">
             <Avatar className="w-8 h-8">
-              <AvatarImage src={conversation.user?.avatar} alt={conversation.user?.username} />
+              <AvatarImage src={null} alt={conversation.user?.username} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                 {conversation.user?.username.charAt(0)}
               </AvatarFallback>

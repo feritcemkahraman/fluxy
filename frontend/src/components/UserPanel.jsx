@@ -203,7 +203,7 @@ const UserPanel = ({ user, server }) => {
                 <div className="relative">
                   <Avatar className="w-12 h-12">
                     <AvatarImage
-                      src={user.avatar || user.profilePicture}
+                      src={null} // Sadece baş harf avatarı kullan
                       alt={user.username}
                     />
                     <AvatarFallback className="bg-indigo-600 text-white text-lg font-semibold">
@@ -242,7 +242,7 @@ const UserPanel = ({ user, server }) => {
                     <div className="flex items-center space-x-3">
                       <Avatar className="w-10 h-10">
                         <AvatarImage
-                          src={user.avatar || user.profilePicture}
+                          src={null} // Sadece baş harf avatarı kullan
                           alt={user.username}
                         />
                         <AvatarFallback className="bg-indigo-600 text-white text-sm font-semibold">

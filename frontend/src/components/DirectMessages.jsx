@@ -372,7 +372,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                     {dm.type === "dm" ? (
                       <div className="relative">
                         <Avatar className="w-8 h-8 ring-1 ring-white/10">
-                          <AvatarImage src={dm.user.avatar} alt={dm.user.username} />
+                          <AvatarImage src={null} alt={dm.user.username} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                             {dm.user.username.charAt(0)}
                           </AvatarFallback>
@@ -494,7 +494,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                       {dm.type === "dm" ? (
                         <div className="relative">
                           <Avatar className="w-10 h-10">
-                            <AvatarImage src={dm.user.avatar} alt={dm.user.username} />
+                            <AvatarImage src={null} alt={dm.user.username} />
                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                               {dm.user.username.charAt(0)}
                             </AvatarFallback>
@@ -564,7 +564,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                     <div key={request.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={request.from.avatar} alt={request.from.username} />
+                          <AvatarImage src={null} alt={request.from.username} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                             {request.from.username.charAt(0)}
                           </AvatarFallback>
