@@ -30,13 +30,29 @@ module.exports = {
               },
             },
           },
+          // Fix CSS minimizer issues with Radix UI
+          minimizer: webpackConfig.optimization.minimizer.map(minimizer => {
+            if (minimizer.constructor.name === 'CssMinimizerPlugin') {
+              return {
+                ...minimizer,
+                options: {
+                  ...minimizer.options,
+                  minimizerOptions: {
+                    preset: [
+                      'default',
+                      {
+                        calc: false, // Disable calc optimization to fix Radix UI issues
+                      },
+                    ],
+                  },
+                },
+              };
+            }
+            return minimizer;
+          }),
         };
-        
-        // Memory optimization
-        webpackConfig.optimization.usedExports = true;
-        webpackConfig.optimization.sideEffects = false;
       }
-      
+
       // Disable hot reload completely if environment variable is set
       if (config.disableHotReload) {
         // Remove hot reload related plugins
