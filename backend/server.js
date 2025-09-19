@@ -17,7 +17,9 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  process.env.FRONTEND_URL
+  'https://fluxycorn.netlify.app', // Netlify frontend
+  process.env.FRONTEND_URL,
+  process.env.NGROK_URL // Ngrok URL'i için
 ].filter(Boolean);
 
 const io = new Server(server, {
@@ -28,6 +30,12 @@ const io = new Server(server, {
 
       // For development, allow all localhost origins
       if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('0.0.0.0'))) {
+        callback(null, true);
+        return;
+      }
+
+      // Allow ngrok URLs
+      if (origin && origin.includes('ngrok.io')) {
         callback(null, true);
         return;
       }
@@ -67,6 +75,11 @@ app.use(cors({
 
     // For development, allow all localhost origins
     if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true);
+    }
+
+    // Allow ngrok URLs
+    if (origin && origin.includes('ngrok.io')) {
       return callback(null, true);
     }
 

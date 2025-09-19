@@ -16,14 +16,19 @@ class WebSocketService {
     }
 
     try {
-      // Use WSS for production, WS for development
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = process.env.REACT_APP_WS_URL || `${protocol}//${window.location.host}/.netlify/functions/websocket`;
+      // Use configured WebSocket URL (ngrok backend)
+      const wsUrl = process.env.REACT_APP_WS_URL;
       
+      if (!wsUrl) {
+        console.error('REACT_APP_WS_URL is not configured');
+        return;
+      }
+      
+      console.log('Connecting to WebSocket:', wsUrl);
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected to ngrok backend');
         this.reconnectAttempts = 0;
         this.emit('connected');
         
