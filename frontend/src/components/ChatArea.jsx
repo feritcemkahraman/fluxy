@@ -365,13 +365,18 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
               const showDate = !prevDate || !currentDate ||
                 currentDate.toDateString() !== prevDate.toDateString();
 
+              // Use correct ID field (could be _id from MongoDB)
+              const getCurrentUserId = (author) => author?.id || author?._id;
+              const currentUserId = getCurrentUserId(msg.author);
+              const prevUserId = prevMessage ? getCurrentUserId(prevMessage.author) : null;
+
               const showAvatar = !prevMessage ||
-                prevMessage.author.id !== msg.author.id ||
+                prevUserId !== currentUserId ||
                 (prevDate && currentDate && (currentDate - prevDate) > 300000); // 5 minutes
 
               // Check if this message is grouped (same user, within time limit)
               const isGrouped = prevMessage && 
-                prevMessage.author.id === msg.author.id && 
+                prevUserId === currentUserId && 
                 prevDate && currentDate && 
                 (currentDate - prevDate) <= 300000;
 
