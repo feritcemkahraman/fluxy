@@ -235,10 +235,12 @@ const handleConnection = (io) => {
     socket.on('sendMessage', async (data) => {
       try {
         const { content, channelId, replyTo } = data;
+        console.log('🔔 MESSAGE RECEIVED:', { content, channelId, userId: socket.userId, username: socket.user.username });
 
         // Validate channel access
         const channel = await Channel.findById(channelId);
         if (!channel) {
+          console.log('❌ Channel not found:', channelId);
           socket.emit('error', { message: 'Channel not found' });
           return;
         }
@@ -249,6 +251,7 @@ const handleConnection = (io) => {
         );
 
         if (!isMember) {
+          console.log('❌ User not member of server:', socket.userId);
           socket.emit('error', { message: 'Access denied' });
           return;
         }
@@ -263,6 +266,7 @@ const handleConnection = (io) => {
         });
 
         await message.save();
+        console.log('✅ Message saved to DB:', message._id);
 
         // Update channel's last message
         await Channel.findByIdAndUpdate(channelId, {
@@ -275,9 +279,11 @@ const handleConnection = (io) => {
           .populate('author', 'username avatar discriminator')
           .populate('replyTo', 'content author');
 
+        console.log('✅ Message populated:', populatedMessage._id);
+
         // Broadcast to all server members
         io.to(`server_${channel.server}`).emit('newMessage', {
-          id: populatedMessage._id,
+          _id: populatedMessage._id,
           content: populatedMessage.content,
           author: populatedMessage.author,
           channel: populatedMessage.channel,
@@ -287,10 +293,10 @@ const handleConnection = (io) => {
           createdAt: populatedMessage.createdAt
         });
 
-        console.log(`Message sent by ${socket.user.username} in channel ${channelId}`);
+        console.log('🔄 Message broadcasted to server room:', `server_${channel.server}`);
 
       } catch (error) {
-        console.error('Send message error:', error);
+        console.error('❌ Send message error:', error);
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
