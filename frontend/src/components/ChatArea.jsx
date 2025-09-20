@@ -77,6 +77,11 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
       // Only add message if it belongs to the current channel
       if (newMessage.channel === channel?._id) {
+        // Fix displayName issue in real-time messages
+        if (newMessage.author && !newMessage.author.displayName && newMessage.author.username) {
+          newMessage.author.displayName = newMessage.author.username;
+        }
+        
         // Simple duplicate check by _id
         setMessages(prev => {
           const messageExists = prev.some(msg => msg._id === newMessage._id);
