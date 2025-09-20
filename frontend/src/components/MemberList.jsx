@@ -89,13 +89,7 @@ const MemberList = ({ server, activeChannel }) => {
       const currentUserId = String(currentUser?._id || currentUser?.id);
       const updateUserId = String(userId);
       
-      // Don't update status for current user - they handle their own status via AuthContext
-      if (updateUserId === currentUserId) {
-        console.log('🔄 MemberList: Ignoring status update for current user');
-        return;
-      }
-      
-      console.log('🔄 MemberList: Processing status update for other user');
+      console.log('🔄 MemberList: Processing status update for user:', username);
       
       setMembers(prev => prev.map(member => {
         // Check if this member's user ID matches the updated user
