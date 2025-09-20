@@ -25,12 +25,6 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
   });
   const [iconPreview, setIconPreview] = useState(null);
 
-  // Debug useEffect for currentStep
-  useEffect(() => {
-    // console.log('Current step changed:', currentStep);
-    // console.log('Selected template:', selectedTemplate);
-  }, [currentStep, selectedTemplate]);
-
   // Load templates and categories
   useEffect(() => {
     if (isOpen) {

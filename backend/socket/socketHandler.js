@@ -235,7 +235,6 @@ const handleConnection = (io) => {
     socket.on('sendMessage', async (data) => {
       try {
         const { content, channelId, replyTo } = data;
-        console.log('🔔 [SOCKET] MESSAGE RECEIVED:', { content, channelId, userId: socket.userId, username: socket.user?.username });
 
         // Validate channel access
         const channel = await Channel.findById(channelId);
@@ -265,15 +264,6 @@ const handleConnection = (io) => {
 
         await message.save();
 
-        // Debug user before populate
-        const rawUser = await User.findById(socket.userId);
-        console.log('🔍 Raw User from DB:', {
-          userId: rawUser._id,
-          username: rawUser.username,
-          displayName: rawUser.displayName,
-          hasDisplayName: rawUser.hasOwnProperty('displayName')
-        });
-
         // Update channel's last message
         await Channel.findByIdAndUpdate(channelId, {
           lastMessage: message._id,
@@ -284,15 +274,6 @@ const handleConnection = (io) => {
         const populatedMessage = await Message.findById(message._id)
           .populate('author', 'username displayName avatar discriminator status')
           .populate('replyTo', 'content author');
-
-        // Debug populated message
-        console.log('🔍 Populated Message Author:', {
-          authorId: populatedMessage.author._id,
-          username: populatedMessage.author.username,
-          displayName: populatedMessage.author.displayName,
-          avatar: populatedMessage.author.avatar,
-          fullAuthor: populatedMessage.author
-        });
 
         // Broadcast to all server members
         io.to(`server_${channel.server}`).emit('newMessage', {
@@ -312,12 +293,6 @@ const handleConnection = (io) => {
           replyTo: populatedMessage.replyTo,
           reactions: populatedMessage.reactions,
           createdAt: populatedMessage.createdAt
-        });
-
-        console.log('🔄 [SOCKET] Message broadcasted with author:', {
-          authorDisplayName: populatedMessage.author.displayName || populatedMessage.author.username || 'Anonymous',
-          authorUsername: populatedMessage.author.username,
-          roomName: `server_${channel.server}`
         });
 
       } catch (error) {

@@ -386,15 +386,26 @@ const DirectMessages = ({ onChannelSelect }) => {
   };
 
   const formatTime = (timestamp) => {
+    if (!timestamp) {
+      return "Unknown";
+    }
+    
+    const date = new Date(timestamp);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    
     const now = new Date();
-    const diff = now - timestamp;
+    const diff = now - date;
     
     if (diff < 1000 * 60 * 60) {
       return `${Math.floor(diff / (1000 * 60))}m ago`;
     } else if (diff < 1000 * 60 * 60 * 24) {
       return `${Math.floor(diff / (1000 * 60 * 60))}h ago`;
     } else {
-      return timestamp.toLocaleDateString();
+      return date.toLocaleDateString();
     }
   };
 
@@ -492,7 +503,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                           {dm.user?.displayName || dm.user?.username || dm.name}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatTime(dm.timestamp)}
+                          {formatTime(dm.lastActivity)}
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 truncate">{dm.lastMessage}</p>
@@ -615,7 +626,7 @@ const DirectMessages = ({ onChannelSelect }) => {
                         <div className="text-sm text-gray-400 truncate">{dm.lastMessage}</div>
                       </div>
                       <div className="text-xs text-gray-500">
-                        {formatTime(dm.timestamp)}
+                        {formatTime(dm.lastActivity)}
                       </div>
                     </div>
                   ))}

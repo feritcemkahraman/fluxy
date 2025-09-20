@@ -106,11 +106,6 @@ const FluxyApp = () => {
           connectedUsers = [userId, ...connectedUsers];
         }
 
-        console.log('🔊 Setting voice channel users:', {
-          [status.currentChannel]: connectedUsers,
-          currentChannel: status.currentChannel
-        });
-
         setVoiceChannelUsers({
           [status.currentChannel]: connectedUsers,
           currentChannel: status.currentChannel
@@ -277,18 +272,14 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
-      console.log('🔊 Voice channel update received:', { channelId, action, userId });
-      
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
         const currentUsers = prev[channelId] || [];
-        console.log('🔊 Current users in channel before update:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
-            console.log('🔊 Adding user to channel. New users:', newUsers);
             return {
               ...prev,
               [channelId]: newUsers
@@ -297,14 +288,12 @@ const FluxyApp = () => {
         } else if (action === 'userLeft') {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
-          console.log('🔊 Removing user from channel. New users:', newUsers);
           return {
             ...prev,
             [channelId]: newUsers
           };
         }
         
-        console.log('🔊 No change to voice channel users');
         return prev;
       });
     };
@@ -354,8 +343,6 @@ const FluxyApp = () => {
     };
 
     const handleChannelCreated = (channelData) => {
-      console.log('📢 Channel created:', channelData);
-      
       // Add new channel to the active server if it's the current server
       if (activeServer && (activeServer._id === channelData.server || activeServer.id === channelData.server)) {
         setActiveServer(prevServer => ({
@@ -366,8 +353,6 @@ const FluxyApp = () => {
     };
 
     const handleChannelDeleted = ({ channelId, serverId }) => {
-      console.log('📢 Channel deleted:', { channelId, serverId });
-      
       // Remove channel from the active server if it's the current server
       if (activeServer && (activeServer._id === serverId || activeServer.id === serverId)) {
         setActiveServer(prevServer => ({
@@ -395,7 +380,6 @@ const FluxyApp = () => {
 
     const handleUserProfileUpdate = (profileUpdate) => {
       const { userId, username, displayName, avatar, bio, pronouns, banner } = profileUpdate;
-      console.log('👤 User profile update received:', profileUpdate);
       
       // Update user in servers
       setServers(prevServers => {
@@ -456,7 +440,6 @@ const FluxyApp = () => {
 
     const handleRoleAssignment = (roleData) => {
       const { userId, serverId, roleId, roleName, roleColor, action } = roleData;
-      console.log('🎯 Role assignment update received:', roleData);
       
       // Update servers state
       setServers(prevServers => {
@@ -528,7 +511,6 @@ const FluxyApp = () => {
 
     const handleServerUpdate = (updateData) => {
       const { serverId, name, description, icon } = updateData;
-      console.log('🏰 Server update received:', updateData);
       
       // Update servers list
       setServers(prevServers => {
@@ -562,7 +544,6 @@ const FluxyApp = () => {
 
     const handleMemberKicked = (kickData) => {
       const { serverId, userId, kickedByUsername, kickedUser, reason } = kickData;
-      console.log('👢 Member kicked:', kickData);
       
       // Remove member from servers list
       setServers(prevServers => {
@@ -599,7 +580,6 @@ const FluxyApp = () => {
 
     const handleMemberBanned = (banData) => {
       const { serverId, userId, bannedByUsername, bannedUser, reason } = banData;
-      console.log('🔨 Member banned:', banData);
       
       // Remove member from servers list (same as kick)
       setServers(prevServers => {
@@ -636,7 +616,6 @@ const FluxyApp = () => {
 
     const handleUserKicked = (kickData) => {
       const { serverId, serverName, kickedBy, reason } = kickData;
-      console.log('😢 You were kicked from server:', kickData);
       
       // Remove server from user's server list
       setServers(prevServers => 
@@ -653,7 +632,6 @@ const FluxyApp = () => {
 
     const handleUserBanned = (banData) => {
       const { serverId, serverName, bannedBy, reason } = banData;
-      console.log('🚫 You were banned from server:', banData);
       
       // Remove server from user's server list (same as kick)
       setServers(prevServers => 
@@ -670,7 +648,6 @@ const FluxyApp = () => {
 
     const handleUserActivityUpdate = (activityData) => {
       const { userId, username, activity } = activityData;
-      console.log('🎮 User activity update received:', activityData);
       
       // Update user activity in servers
       setServers(prevServers => {
@@ -721,7 +698,6 @@ const FluxyApp = () => {
 
     const handleInviteCreated = (inviteData) => {
       const { serverId, inviteCode, createdByUsername, serverName } = inviteData;
-      console.log('📨 Invite created:', inviteData);
       
       // Update server invite code if needed
       setServers(prevServers => {
@@ -739,7 +715,6 @@ const FluxyApp = () => {
 
     const handleMemberJoinedViaInvite = (joinData) => {
       const { serverId, newMember, inviteCode, joinedAt } = joinData;
-      console.log('🎉 New member joined via invite:', joinData);
       
       // Could show notification or update UI
       // For now just log the invite usage
@@ -747,7 +722,6 @@ const FluxyApp = () => {
 
     const handleNewMemberJoined = (memberData) => {
       const { serverId, member } = memberData;
-      console.log('👋 New member joined server:', memberData);
       
       // Add new member to server members list
       setServers(prevServers => {
