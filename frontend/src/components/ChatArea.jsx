@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Hash, Users, Send, Smile, Paperclip, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { ScrollArea } from "./ui/scroll-area";
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 import { useAuth } from "../context/AuthContext";
@@ -76,17 +77,13 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
       // Only add message if it belongs to the current channel
       if (newMessage.channel === channel?._id) {
-        console.log('📥 New message received:', newMessage);
-        
         // Simple duplicate check by _id
         setMessages(prev => {
           const messageExists = prev.some(msg => msg._id === newMessage._id);
           if (messageExists) {
-            console.log('⚠️ Duplicate message detected, skipping');
             return prev;
           }
           
-          console.log('✅ Adding new message to UI');
           return [...prev, newMessage];
         });
       }
@@ -342,8 +339,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
       {/* Chat Area for Text Channels ONLY */}
       {channel?.type === "text" && (
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
-          <div className="w-full">
+        <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div className="w-full space-y-2">
             {messages.map((msg, index) => {
               const prevMessage = index > 0 ? messages[index - 1] : null;
 
