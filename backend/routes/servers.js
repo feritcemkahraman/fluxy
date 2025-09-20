@@ -437,6 +437,103 @@ router.post('/:id/join', auth, [
   }
 });
 
+// @route   POST /api/servers/join-by-invite
+// @desc    Join server using only invite code
+// @access  Private
+router.post('/join-by-invite', auth, [
+  body('inviteCode')
+    .isLength({ min: 6, max: 8 })
+    .withMessage('Invalid invite code format')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { inviteCode } = req.body;
+    
+    // Find server by invite code
+    const server = await Server.findOne({ 
+      inviteCode: inviteCode.toUpperCase()
+    }).populate('roles');
+    
+    if (!server) {
+      return res.status(404).json({ message: 'Invalid invite code' });
+    }
+
+    // Check if user is already a member
+    const existingMember = server.members.find(member => 
+      member.user.toString() === req.user._id.toString()
+    );
+
+    if (existingMember) {
+      return res.status(400).json({ message: 'You are already a member of this server' });
+    }
+
+    // Get default role
+    const defaultRole = server.roles.find(role => role.name === '@everyone');
+
+    // Add user to server
+    server.members.push({
+      user: req.user._id,
+      roles: defaultRole ? [defaultRole._id] : [],
+      joinedAt: new Date()
+    });
+
+    await server.save();
+
+    // Broadcast new member joined to all server members
+    const io = req.io || req.app.get('io');
+    if (io) {
+      io.to(`server_${server._id}`).emit('newMemberJoined', {
+        serverId: server._id,
+        member: {
+          user: {
+            _id: req.user._id,
+            username: req.user.username,
+            avatar: req.user.avatar,
+            status: req.user.status
+          },
+          roles: defaultRole ? [defaultRole._id] : [],
+          joinedAt: new Date()
+        }
+      });
+
+      // Also emit memberJoinedViaInvite for invite tracking
+      io.to(`server_${server._id}`).emit('memberJoinedViaInvite', {
+        serverId: server._id,
+        inviteCode: inviteCode,
+        member: {
+          _id: req.user._id,
+          username: req.user.username,
+          avatar: req.user.avatar,
+          discriminator: req.user.discriminator
+        },
+        inviteCode: inviteCode,
+        joinedAt: new Date()
+      });
+    }
+
+    res.json({
+      message: 'Successfully joined server',
+      server: {
+        id: server._id,
+        name: server.name,
+        icon: server.icon,
+        description: server.description
+      }
+    });
+
+  } catch (error) {
+    console.error('Join by invite error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   DELETE /api/servers/:id/leave
 // @desc    Leave server
 // @access  Private
@@ -480,22 +577,16 @@ router.delete('/:id/leave', auth, async (req, res) => {
 // @access  Private
 router.post('/:id/invite', auth, requireMember, async (req, res) => {
   try {
-    console.log('Creating invite for server:', req.params.id);
     const server = await Server.findById(req.params.id);
     
     if (!server) {
-      console.log('Server not found:', req.params.id);
       return res.status(404).json({ message: 'Server not found' });
     }
-    
-    console.log('Server found:', server.name);
 
     // Generate random invite code if not exists
     if (!server.inviteCode) {
-      console.log('Generating new invite code for server:', server.name);
       server.inviteCode = Math.random().toString(36).substr(2, 8).toUpperCase();
       await server.save();
-      console.log('Generated invite code:', server.inviteCode);
 
       // Broadcast invite creation to all server members
       try {
@@ -515,7 +606,6 @@ router.post('/:id/invite', auth, requireMember, async (req, res) => {
       }
     }
 
-    console.log('Sending response with invite code:', server.inviteCode);
     res.json({ 
       inviteCode: server.inviteCode,
       expiresAt: null // Permanent invite for now

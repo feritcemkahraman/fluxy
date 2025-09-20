@@ -173,28 +173,19 @@ const requireMember = async (req, res, next) => {
     const userId = req.user._id;
     const serverId = req.params.serverId || req.params.id || req.body.serverId;
 
-    console.log('RequireMember check - UserId:', userId, 'ServerId:', serverId);
-
     const server = await Server.findById(serverId);
     if (!server) {
-      console.log('Server not found:', serverId);
       return res.status(404).json({ error: 'Server not found' });
     }
-
-    console.log('Server found:', server.name, 'Members count:', server.members.length);
 
     const isMember = server.members.some(member => 
       member.user.toString() === userId.toString()
     );
 
-    console.log('Is member check result:', isMember);
-
     if (!isMember) {
-      console.log('User is not a member of server');
       return res.status(403).json({ error: 'You are not a member of this server' });
     }
 
-    console.log('Member check passed, proceeding to next middleware');
     next();
   } catch (error) {
     console.error('Member check error:', error);

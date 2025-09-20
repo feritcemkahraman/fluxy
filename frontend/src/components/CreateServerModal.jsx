@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { devLog } from '../utils/devLogger';
 
 const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
+  const [activeTab, setActiveTab] = useState('create'); // 'create' or 'join'
   const [currentStep, setCurrentStep] = useState('template'); // 'template', 'confirm', 'customize'
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [templates, setTemplates] = useState([]);
@@ -17,6 +18,10 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Join server state
+  const [inviteCode, setInviteCode] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -179,12 +184,43 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
     }
   };
 
+  const handleJoinServer = async () => {
+    if (!inviteCode.trim()) {
+      toast.error('Lütfen davet kodunu girin');
+      return;
+    }
+
+    setJoinLoading(true);
+    try {
+      // Backend'te invite code ile server bulup join etmek için özel endpoint kullanmalıyız
+      // Şimdilik inviteCode'dan serverId bulamayız, bu yüzden ayrı endpoint gerekli
+      const response = await serverAPI.joinServerByInvite(inviteCode.trim().toUpperCase());
+      
+      toast.success('Sunucuya başarıyla katıldınız!');
+      // onServerCreated will be handled by WebSocket
+      handleClose();
+    } catch (error) {
+      devLog.error('Join server error:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Sunucuya katılınamadı';
+      
+      toast.error(errorMessage);
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
   const handleClose = () => {
+    setActiveTab('create');
     setCurrentStep('template');
     setSelectedTemplate(null);
     setFormData({ name: '', description: '', isPublic: false });
     setIconPreview(null);
     setSearchQuery('');
+    setInviteCode('');
     onClose();
   };
 
@@ -362,16 +398,22 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
           <div className="relative flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
+                {activeTab === 'create' ? <Sparkles className="w-6 h-6 text-white" /> : <Users className="w-6 h-6 text-white" />}
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {currentStep === 'template' ? 'Sunucunu Oluştur' : 
-                   currentStep === 'confirm' ? 'Seçiminizi Onaylayın' : 'Sunucunu Özelleştir'}
+                  {activeTab === 'create' ? 
+                    (currentStep === 'template' ? 'Sunucunu Oluştur' : 
+                     currentStep === 'confirm' ? 'Seçiminizi Onaylayın' : 'Sunucunu Özelleştir') :
+                    'Sunucuya Katıl'
+                  }
                 </h2>
                 <p className="text-purple-100 text-sm mt-1">
-                  {currentStep === 'template' ? 'Topluluğuna özel bir sunucu oluştur' : 
-                   currentStep === 'confirm' ? 'Seçiminizi gözden geçirin' : 'Sunucunu kişiselleştir'}
+                  {activeTab === 'create' ?
+                    (currentStep === 'template' ? 'Topluluğuna özel bir sunucu oluştur' : 
+                     currentStep === 'confirm' ? 'Seçiminizi gözden geçirin' : 'Sunucunu kişiselleştir') :
+                    'Davet kodu ile bir sunucuya katıl'
+                  }
                 </p>
               </div>
             </div>
@@ -382,22 +424,53 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
               <X className="w-5 h-5" />
             </button>
           </div>
+          
+          {/* Tab Navigation */}
+          <div className="relative mt-6">
+            <div className="flex space-x-1 bg-white/10 backdrop-blur-md rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('create')}
+                className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  activeTab === 'create' 
+                    ? 'bg-white/20 text-white shadow-lg' 
+                    : 'text-purple-100 hover:bg-white/10'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="font-medium">Sunucu Oluştur</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('join')}
+                className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  activeTab === 'join' 
+                    ? 'bg-white/20 text-white shadow-lg' 
+                    : 'text-purple-100 hover:bg-white/10'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span className="font-medium">Davet Kodum Var</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(85vh-200px)] p-6">
-          {currentStep === 'template' ? (
-            /* Template Selection */
-            <div className="space-y-8">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
-                  <Palette className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-3xl font-bold text-white mb-2">Şablon Seç</h3>
-                  <p className="text-gray-400 text-lg">Hazır şablonlarla hızlıca başla</p>
-                </div>
-              </div>
+          {activeTab === 'create' ? (
+            /* Create Server Tab */
+            <>
+              {currentStep === 'template' ? (
+                /* Template Selection */
+                <div className="space-y-8">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
+                      <Palette className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-bold text-white mb-2">Şablon Seç</h3>
+                      <p className="text-gray-400 text-lg">Hazır şablonlarla hızlıca başla</p>
+                    </div>
+                  </div>
 
               {/* Search */}
               <div className="relative max-w-md mx-auto">
@@ -823,6 +896,59 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                 </Button>
               </div>
             </form>
+          )}
+          </>
+          ) : (
+            /* Join Server Tab */
+            <div className="space-y-8">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-bold text-white mb-2">Sunucuya Katıl</h3>
+                  <p className="text-gray-400 text-lg">Davet kodu ile bir sunucuya katıl</p>
+                </div>
+              </div>
+
+              <div className="max-w-md mx-auto space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode" className="text-white text-sm font-medium">
+                    Davet Kodu
+                  </Label>
+                  <Input
+                    id="inviteCode"
+                    type="text"
+                    placeholder="Davet kodunu girin (örn: ABC123XY)"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-purple-500"
+                    maxLength={8}
+                  />
+                  <p className="text-gray-400 text-xs">
+                    Sunucu yöneticisi tarafından verilen davet kodunu girin
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleJoinServer}
+                  disabled={!inviteCode.trim() || joinLoading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {joinLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Katılınıyor...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-5 h-5" />
+                      <span>Sunucuya Katıl</span>
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
