@@ -49,8 +49,6 @@ const handleConnection = (io) => {
   io.use(socketAuth);
 
   io.on('connection', async (socket) => {
-    console.log(`User ${socket.user.username} attempting to connect...`);
-    
     // Emit authentication success to frontend with connection data
     socket.emit('authenticated', {
       connectionId: socket.id,
@@ -73,8 +71,6 @@ const handleConnection = (io) => {
       }
     }
 
-    console.log(`User ${socket.user.username} connected successfully`);
-    
     // Store connected user - keep existing status if already connected
     const currentStatus = existingConnection ? existingConnection.status : socket.user.status || 'online';
     
@@ -99,11 +95,9 @@ const handleConnection = (io) => {
 
     // Join user to their personal room for friend notifications
     socket.join(`user_${socket.userId}`);
-    console.log(`User ${socket.user.username} joined personal room: user_${socket.userId}`);
 
     userServers.forEach(server => {
       socket.join(`server_${server._id}`);
-      console.log(`User ${socket.user.username} joined server room: server_${server._id}`);
     });
 
     // Broadcast user current status to all servers
@@ -385,7 +379,7 @@ const handleConnection = (io) => {
 
     // Handle disconnect
     socket.on('disconnect', async () => {
-    console.log(`User ${socket.user.username} disconnected`);      // Remove from connected users but keep status for potential reconnect
+      // Remove from connected users but keep status for potential reconnect
       connectedUsers.delete(socket.userId);
 
       // Leave voice channel if connected
