@@ -271,6 +271,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     if (isOpen && server?.id) {
       loadRoles();
       loadMembers();
+      setInviteLink(""); // Clear invite link when server changes
     }
   }, [isOpen, server?.id]);
 
@@ -278,6 +279,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     if (!isOpen) {
       setDeleteConfirmText("");
       setDeleteLoading(false);
+      setInviteLink(""); // Clear invite link when modal closes
     }
   }, [isOpen]);
 
