@@ -365,6 +365,17 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
               const showDate = !prevDate || !currentDate ||
                 currentDate.toDateString() !== prevDate.toDateString();
 
+              // Debug author data
+              console.log('🔍 Author debug:', {
+                msgAuthor: msg.author,
+                prevAuthor: prevMessage?.author,
+                showAvatarConditions: {
+                  noPrevMessage: !prevMessage,
+                  differentUser: prevMessage ? (prevMessage.author?.id || prevMessage.author?._id) !== (msg.author?.id || msg.author?._id) : false,
+                  timeDiff: prevDate && currentDate ? (currentDate - prevDate) : 0
+                }
+              });
+
               // Use correct ID field (could be _id from MongoDB)
               const getCurrentUserId = (author) => author?.id || author?._id;
               const currentUserId = getCurrentUserId(msg.author);
