@@ -365,15 +365,21 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
               const showDate = !prevDate || !currentDate ||
                 currentDate.toDateString() !== prevDate.toDateString();
 
-              // Debug author data
-              console.log('🔍 Author debug:', {
-                msgAuthor: msg.author,
-                prevAuthor: prevMessage?.author,
-                showAvatarConditions: {
-                  noPrevMessage: !prevMessage,
-                  differentUser: prevMessage ? (prevMessage.author?.id || prevMessage.author?._id) !== (msg.author?.id || msg.author?._id) : false,
-                  timeDiff: prevDate && currentDate ? (currentDate - prevDate) : 0
-                }
+              // Debug author data with full details
+              console.log('🔍 Full Author Details:', {
+                msgAuthor: {
+                  username: msg.author.username,
+                  displayName: msg.author.displayName,
+                  id: msg.author.id,
+                  _id: msg.author._id,
+                  fullObject: msg.author
+                },
+                prevAuthor: prevMessage ? {
+                  username: prevMessage.author.username,
+                  displayName: prevMessage.author.displayName,
+                  id: prevMessage.author.id,
+                  _id: prevMessage.author._id
+                } : null
               });
 
               // Use correct ID field (could be _id from MongoDB)
