@@ -169,8 +169,15 @@ const handleConnection = (io) => {
             avatar: socket.user.avatar
           });
 
-          // Notify server members
+          // Notify server members including the user who joined
           socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
+            channelId,
+            action: 'userJoined',
+            userId: socket.userId
+          });
+          
+          // Also notify the user who joined (for self-awareness)
+          socket.emit('voiceChannelUpdate', {
             channelId,
             action: 'userJoined',
             userId: socket.userId
@@ -207,6 +214,13 @@ const handleConnection = (io) => {
 
           // Notify server members
           socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
+            channelId,
+            action: 'userLeft',
+            userId: socket.userId
+          });
+          
+          // Also notify the user who left (for self-awareness)
+          socket.emit('voiceChannelUpdate', {
             channelId,
             action: 'userLeft',
             userId: socket.userId

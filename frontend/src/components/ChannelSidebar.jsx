@@ -264,7 +264,14 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
                               disabled={loading}
                             />
                           ) : (
-                            <span className="truncate flex-1">{channel.name}</span>
+                            <>
+                              <span className="truncate flex-1">{channel.name}</span>
+                              {connectedUsers.length > 0 && (
+                                <span className="text-xs text-gray-400 bg-gray-600/30 px-1.5 py-0.5 rounded">
+                                  {connectedUsers.length}
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </Button>

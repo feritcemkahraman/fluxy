@@ -21,7 +21,7 @@ import { voiceChatService } from "../services/voiceChat";
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const VoiceScreen = ({ channel, server, onClose }) => {
+const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   const {
@@ -49,7 +49,7 @@ const VoiceScreen = ({ channel, server, onClose }) => {
 
   // Update participants list from hook data
   useEffect(() => {
-    if (server?.members && Array.isArray(connectedUsers) && connectedUsers.length > 0) {
+    if (server?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
       // Create a Map for efficient user lookup
       const userMap = new Map();
       server.members.forEach(member => {
@@ -57,7 +57,7 @@ const VoiceScreen = ({ channel, server, onClose }) => {
       });
 
       // Build participants list
-      const participantsList = connectedUsers.map(userId => {
+      const participantsList = voiceChannelUsers.map(userId => {
         const user = userMap.get(userId);
         if (!user) {
           return null;
@@ -126,7 +126,7 @@ const VoiceScreen = ({ channel, server, onClose }) => {
         }]);
       }
     }
-  }, [server?.members, connectedUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants]);
+  }, [server?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants]);
 
   // Listen for connection events to show toast only once
   useEffect(() => {

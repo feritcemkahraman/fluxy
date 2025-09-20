@@ -272,14 +272,18 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
+      console.log('🔊 Voice channel update received:', { channelId, action, userId });
+      
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
         const currentUsers = prev[channelId] || [];
+        console.log('Current users in channel:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
+            console.log('Adding user to voice channel:', userId, 'New users:', newUsers);
             return {
               ...prev,
               [channelId]: newUsers
@@ -288,6 +292,7 @@ const FluxyApp = () => {
         } else if (action === 'userLeft') {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
+          console.log('Removing user from voice channel:', userId, 'New users:', newUsers);
           return {
             ...prev,
             [channelId]: newUsers
@@ -1007,6 +1012,7 @@ const FluxyApp = () => {
                     (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                   )}
                   server={activeServer}
+                  voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                   onClose={() => {
                     setShowVoiceScreen(false);
                   }}
