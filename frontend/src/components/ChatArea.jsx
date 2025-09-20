@@ -104,6 +104,16 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       }
     });
 
+    const unsubscribeError = on('error', (error) => {
+      console.error('Socket error:', error);
+      toast.error(error.message || 'Mesaj gönderilemedi');
+      
+      // Remove optimistic messages on error
+      setMessages(prev => prev.filter(msg => 
+        !msg._id?.startsWith('temp-')
+      ));
+    });
+
     const unsubscribeTyping = on('userTyping', (data) => {
       // Only process typing for current channel
       if (data.channelId === channel?._id && data.userId !== user?._id) {
@@ -136,6 +146,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       }
       unsubscribeAuth();
       unsubscribeNewMessage();
+      unsubscribeError();
       unsubscribeTyping();
       unsubscribeReaction();
     };
@@ -194,62 +205,48 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const currentChannelId = channel._id;
     setMessage(""); // Clear input immediately
 
-    try {
-      if (currentChannelId) {
-        // Optimistic update - add message immediately to state
-        const optimisticMessage = {
-          _id: `temp-${Date.now()}`, // Temporary ID
-          content: messageToSend,
-          author: user,
-          channel: currentChannelId,
-          server: server?._id,
-          createdAt: new Date(),
-          reactions: []
-        };
+    if (currentChannelId) {
+      // Optimistic update - add message immediately to state
+      const optimisticMessage = {
+        _id: `temp-${Date.now()}`, // Temporary ID
+        content: messageToSend,
+        author: user,
+        channel: currentChannelId,
+        server: server?._id,
+        createdAt: new Date(),
+        reactions: []
+      };
 
-        // Add optimistic message to UI immediately (only if still on same channel)
-        setMessages(prev => {
-          // Double-check we're still on the same channel
-          if (channel?._id === currentChannelId) {
-            return [...prev, optimisticMessage];
-          }
-          return prev;
-        });
+      // Add optimistic message to UI immediately (only if still on same channel)
+      setMessages(prev => {
+        // Double-check we're still on the same channel
+        if (channel?._id === currentChannelId) {
+          return [...prev, optimisticMessage];
+        }
+        return prev;
+      });
 
-        // Send via WebSocket (this will trigger socket broadcast to other users)
-        sendMessage(currentChannelId, messageToSend, server?._id);
+      // Send via WebSocket (this will trigger socket broadcast to other users)
+      sendMessage(currentChannelId, messageToSend, server?._id);
 
-        // Note: We don't send via API here to avoid duplicates
-        // The WebSocket will save to DB and broadcast to all users including us
-      } else {
-        // Fallback for mock data
-        const newMessage = {
-          id: `msg${Date.now()}`,
-          author: user || {
-            id: 'unknown',
-            username: 'Unknown User',
-            displayName: 'Unknown User',
-            avatar: '',
-            roleColor: '#6b7280'
-          },
-          content: messageToSend,
-          timestamp: new Date(),
-          reactions: []
-        };
-        setMessages(prev => [...prev, newMessage]);
-      }
-
-      // Stop typing indicator
-      if (currentChannelId) {
-        sendTyping(currentChannelId, server?._id, false);
-      }
-
-    } catch (error) {
-      toast.error('Mesaj gönderilemedi');
-      // Remove optimistic message on error (only if still on same channel)
-      setMessages(prev => prev.filter(msg => 
-        !(msg._id?.startsWith('temp-') && channel?._id === currentChannelId)
-      ));
+      // Note: We don't send via API here to avoid duplicates
+      // The WebSocket will save to DB and broadcast to all users including us
+    } else {
+      // Fallback for mock data
+      const newMessage = {
+        id: `msg${Date.now()}`,
+        author: user || {
+          id: 'unknown',
+          username: 'Unknown User',
+          displayName: 'Unknown User',
+          avatar: '',
+          roleColor: '#6b7280'
+        },
+        content: messageToSend,
+        timestamp: new Date(),
+        reactions: []
+      };
+      setMessages(prev => [...prev, newMessage]);
     }
   };
 
