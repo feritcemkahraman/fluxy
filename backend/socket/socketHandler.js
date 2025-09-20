@@ -283,7 +283,7 @@ const handleConnection = (io) => {
             _id: populatedMessage.author._id,
             id: populatedMessage.author._id,
             username: populatedMessage.author.username,
-            displayName: populatedMessage.author.displayName || populatedMessage.author.username,
+            displayName: populatedMessage.author.displayName || populatedMessage.author.username || 'Anonymous',
             avatar: populatedMessage.author.avatar,
             discriminator: populatedMessage.author.discriminator,
             status: populatedMessage.author.status

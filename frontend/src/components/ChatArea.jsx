@@ -303,7 +303,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
+    <div className="flex-1 flex flex-col h-full bg-black/20 backdrop-blur-sm">
       {/* Chat Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/30 backdrop-blur-md">
         <div className="flex items-center space-x-3">
@@ -342,7 +342,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
       {/* Chat Area for Text Channels ONLY */}
       {channel?.type === "text" && (
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           <div className="w-full">
             {messages.map((msg, index) => {
               const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -364,23 +364,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
               const showDate = !prevDate || !currentDate ||
                 currentDate.toDateString() !== prevDate.toDateString();
-
-              // Debug author data with full details
-              console.log('🔍 Full Author Details:', {
-                msgAuthor: {
-                  username: msg.author.username,
-                  displayName: msg.author.displayName,
-                  id: msg.author.id,
-                  _id: msg.author._id,
-                  fullObject: msg.author
-                },
-                prevAuthor: prevMessage ? {
-                  username: prevMessage.author.username,
-                  displayName: prevMessage.author.displayName,
-                  id: prevMessage.author.id,
-                  _id: prevMessage.author._id
-                } : null
-              });
 
               // Use correct ID field (could be _id from MongoDB)
               const getCurrentUserId = (author) => author?.id || author?._id;
