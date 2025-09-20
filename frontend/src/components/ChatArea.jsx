@@ -240,20 +240,21 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const handleTyping = (value) => {
     setMessage(value);
     
-    if (channel?._id) {
-      // Send typing indicator via WebSocket
-      sendTyping(channel._id, true);
-      
-      // Clear previous timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // Stop typing after 3 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(() => {
-        sendTyping(channel._id, false);
-      }, 3000);
-    }
+    // TODO: Implement typing indicator
+    // if (channel?._id) {
+    //   // Send typing indicator via WebSocket
+    //   sendTyping(channel._id, true);
+    //   
+    //   // Clear previous timeout
+    //   if (typingTimeoutRef.current) {
+    //     clearTimeout(typingTimeoutRef.current);
+    //   }
+    //   
+    //   // Stop typing after 3 seconds of inactivity
+    //   typingTimeoutRef.current = setTimeout(() => {
+    //     sendTyping(channel._id, false);
+    //   }, 3000);
+    // }
   };
 
   const handleReaction = async (messageId, emoji) => {
