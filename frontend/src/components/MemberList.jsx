@@ -127,9 +127,41 @@ const MemberList = ({ server, activeChannel }) => {
       }
     };
 
+    const handleNewMemberJoined = ({ serverId, member }) => {
+      if (serverId === server?._id || serverId === server?.id) {
+        // Add new member to the list
+        const newMember = {
+          id: member.user._id,
+          _id: member.user._id,
+          user: member.user,
+          username: member.user.username,
+          avatar: member.user.avatar,
+          status: member.user.status || 'online',
+          roles: member.roles,
+          joinedAt: member.joinedAt,
+          role: 'Üye',
+          roleColor: '#99AAB5'
+        };
+        
+        setMembers(prev => {
+          // Check if member already exists to avoid duplicates
+          const exists = prev.find(m => 
+            (m.id === member.user._id || m._id === member.user._id) ||
+            (m.user && (m.user._id === member.user._id || m.user.id === member.user._id))
+          );
+          
+          if (!exists) {
+            return [...prev, newMember];
+          }
+          return prev;
+        });
+      }
+    };
+
     on('userStatusUpdate', handleUserStatusUpdate);
     on('userJoinedServer', handleUserJoinedServer);
     on('userLeftServer', handleUserLeftServer);
+    on('newMemberJoined', handleNewMemberJoined);
 
     return () => {
       // Note: Socket service doesn't support cleanup yet

@@ -418,9 +418,23 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                     </div>
                   )}
                   
-                  <div className="flex space-x-3 group hover:bg-white/5 transition-colors px-3 pt-2 pb-0"
-                  onContextMenu={(e) => handleRightClick(e, "message", msg)}
-                  >
+                  {/* System Message */}
+                  {msg.isSystemMessage ? (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2 max-w-lg">
+                        <div className="text-green-400 text-sm font-medium text-center">
+                          {msg.content}
+                        </div>
+                        <div className="text-green-400/60 text-xs text-center mt-1">
+                          {formatTime(msg.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Regular Message */
+                    <div className="flex space-x-3 group hover:bg-white/5 transition-colors px-3 pt-2 pb-0"
+                    onContextMenu={(e) => handleRightClick(e, "message", msg)}
+                    >
                     {showAvatar && (
                       <Avatar 
                         className="w-10 h-10 ring-2 ring-white/10 cursor-pointer group-hover:ring-white/20 transition-all"
@@ -476,7 +490,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                         </div>
                       )}
                     </div>
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

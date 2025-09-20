@@ -10,7 +10,9 @@ const messageSchema = new mongoose.Schema({
   author: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: function() {
+      return !this.isSystemMessage;
+    }
   },
   channel: {
     type: mongoose.Schema.Types.ObjectId,
@@ -69,6 +71,17 @@ const messageSchema = new mongoose.Schema({
   },
   deletedAt: {
     type: Date
+  },
+  isSystemMessage: {
+    type: Boolean,
+    default: false
+  },
+  systemMessageType: {
+    type: String,
+    enum: ['member_join', 'member_leave', 'server_boost', 'channel_created'],
+    required: function() {
+      return this.isSystemMessage;
+    }
   }
 }, {
   timestamps: true

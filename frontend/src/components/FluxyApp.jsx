@@ -723,7 +723,16 @@ const FluxyApp = () => {
     const handleNewMemberJoined = (memberData) => {
       const { serverId, member } = memberData;
       
-      // Add new member to server members list
+      // Check if the joined member is the current user
+      const isCurrentUser = member.user._id === user?._id || member.user.id === user?.id;
+      
+      if (isCurrentUser) {
+        // Current user joined a new server - fetch updated server list
+        loadServersOnce();
+        return;
+      }
+      
+      // Add new member to server members list for other users
       setServers(prevServers => {
         return prevServers.map(server => {
           if ((server._id || server.id) === serverId) {

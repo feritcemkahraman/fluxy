@@ -518,6 +518,48 @@ router.post('/join-by-invite', auth, [
       });
     }
 
+    // Send welcome message to the first channel
+    try {
+      const Channel = require('../models/Channel');
+      const Message = require('../models/Message');
+      
+      // Find the first text channel in the server (usually general or similar)
+      const firstChannel = await Channel.findOne({ 
+        server: server._id, 
+        type: 'text' 
+      }).sort({ createdAt: 1 });
+      
+      if (firstChannel) {
+        // Create welcome message
+        const welcomeMessage = new Message({
+          content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin! 🎉`,
+          author: null, // System message
+          channel: firstChannel._id,
+          isSystemMessage: true,
+          systemMessageType: 'member_join',
+          createdAt: new Date()
+        });
+
+        await welcomeMessage.save();
+
+        // Broadcast welcome message to all channel members
+        if (io) {
+          io.to(`channel_${firstChannel._id}`).emit('newMessage', {
+            ...welcomeMessage.toObject(),
+            author: {
+              _id: null,
+              username: 'Sistem',
+              avatar: null,
+              displayName: 'Sistem'
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Welcome message error:', error);
+      // Don't fail the join process if welcome message fails
+    }
+
     res.json({
       message: 'Successfully joined server',
       server: {
