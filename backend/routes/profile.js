@@ -142,19 +142,12 @@ router.put('/', auth, [
 // Update user status
 router.put('/status', auth, async (req, res) => {
   try {
-    console.log('🚀 Profile route HIT! Method:', req.method, 'Path:', req.path);
-    console.log('🔄 Profile API: Received request body:', req.body);
-    console.log('🔄 Profile API: Headers:', req.headers);
-    
     const { status } = req.body;
     const userId = req.user._id;
-
-    console.log('🔄 Profile API: Updating status for user:', userId, 'to:', status);
 
     // Simple validation without express-validator
     const validStatuses = ['online', 'idle', 'dnd', 'invisible'];
     if (!status || !validStatuses.includes(status)) {
-      console.error('❌ Profile API: Invalid status:', status);
       return res.status(400).json({ 
         error: 'Invalid status value',
         validStatuses: validStatuses
@@ -174,8 +167,6 @@ router.put('/status', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log('✅ Profile API: Status updated successfully to:', updatedUser.status);
-
     // Emit socket event to notify all clients about status change
     const io = req.app.get('io');
     if (io) {
@@ -187,8 +178,6 @@ router.put('/status', auth, async (req, res) => {
 
         // Broadcast status update to all user's servers
         userServers.forEach(server => {
-          console.log(`🔄 Broadcasting status update for user ${updatedUser.username} (${userId}) to server: ${server.name} (${server._id})`);
-          console.log(`🔄 Status broadcast data:`, { userId: String(userId), status: updatedUser.status, username: updatedUser.username });
           io.to(`server_${server._id}`).emit('userStatusUpdate', {
             userId: String(userId), // Ensure it's a string
             status: updatedUser.status,
@@ -196,7 +185,6 @@ router.put('/status', auth, async (req, res) => {
           });
         });
 
-        console.log(`🔄 Profile API: Status update broadcasted to ${userServers.length} servers for user ${updatedUser.username}`);
       } catch (socketError) {
         console.error('❌ Profile API: Socket broadcast error:', socketError);
         // Don't fail the API call if socket broadcast fails

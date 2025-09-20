@@ -59,8 +59,6 @@ const MemberList = ({ server, activeChannel }) => {
             const memberUserId = String(member.id || member._id);
             const currentUserId = String(currentUser._id || currentUser.id);
             
-            console.log('🔍 Comparing member:', { memberUserId, currentUserId, match: memberUserId === currentUserId });
-            
             return memberUserId === currentUserId
               ? { ...member, status: currentUser.status || 'online' }
               : member;
@@ -82,14 +80,9 @@ const MemberList = ({ server, activeChannel }) => {
   // Listen for real-time member updates
   useEffect(() => {
     const handleUserStatusUpdate = ({ userId, status, username }) => {
-      console.log('🔄 MemberList: User status update received:', { userId, status, username });
-      console.log('🔄 MemberList: Current user ID:', currentUser?._id || currentUser?.id);
-      
       // Convert both IDs to string for comparison
       const currentUserId = String(currentUser?._id || currentUser?.id);
       const updateUserId = String(userId);
-      
-      console.log('🔄 MemberList: Processing status update for user:', username);
       
       setMembers(prev => prev.map(member => {
         // Check if this member's user ID matches the updated user
@@ -97,7 +90,6 @@ const MemberList = ({ server, activeChannel }) => {
         const shouldUpdate = memberUserId === updateUserId;
         
         if (shouldUpdate) {
-          console.log('🔄 MemberList: Updating status for user:', member.user?.username || member.username, 'from', member.user?.status || member.status, 'to', status);
           // Update the user's status within the member object
           if (member.user) {
             return { 

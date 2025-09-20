@@ -11,41 +11,24 @@ const voiceChannels = new Map(); // channelId -> Set of userIds
 
 const socketAuth = async (socket, next) => {
   try {
-    console.log('🔐 Socket authentication attempt...');
-    console.log('🔍 Socket handshake headers:', Object.keys(socket.handshake.headers));
-    console.log('🔍 Socket handshake auth:', socket.handshake.auth);
-
     const token = socket.handshake.auth.token;
 
     if (!token) {
-      console.log('❌ No token provided in socket handshake');
-      console.log('❌ Available auth keys:', Object.keys(socket.handshake.auth || {}));
       return next(new Error('No token provided'));
     }
 
-    console.log('🔍 Token received (first 20 chars):', token.substring(0, 20) + '...');
-    console.log('🔍 Verifying JWT token...');
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log('✅ JWT decoded successfully:', { userId: decoded.userId });
-    console.log('👤 Looking up user:', decoded.userId);
-
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
-      console.log('❌ User not found in database:', decoded.userId);
       return next(new Error('User not found'));
     }
 
-    console.log('✅ Socket authentication successful for user:', user.username);
     socket.userId = user._id.toString();
     socket.user = user;
     next();
   } catch (error) {
     console.log('❌ Socket authentication failed:', error.message);
-    console.log('❌ Error name:', error.name);
-    console.log('❌ Error stack:', error.stack);
 
     // Log more details about the error
     if (error.name === 'JsonWebTokenError') {
@@ -91,12 +74,9 @@ const handleConnection = (io) => {
     }
 
     console.log(`User ${socket.user.username} connected successfully`);
-    console.log(`📊 User current status from DB: ${socket.user.status}`);
-    console.log(`📊 Existing connection status: ${existingConnection?.status || 'none'}`);
     
     // Store connected user - keep existing status if already connected
     const currentStatus = existingConnection ? existingConnection.status : socket.user.status || 'online';
-    console.log(`📊 Final status to use: ${currentStatus}`);
     
     connectedUsers.set(socket.userId, {
       socketId: socket.id,
@@ -106,13 +86,10 @@ const handleConnection = (io) => {
 
     // Update user status to online only if they were offline
     if (socket.user.status === 'offline') {
-      console.log(`🔄 Updating user status from offline to online`);
       await User.findByIdAndUpdate(socket.userId, { 
         status: 'online',
         lastSeen: new Date()
       });
-    } else {
-      console.log(`✅ Keeping user status as: ${socket.user.status}`);
     }
 
     // Join user to their server rooms
@@ -131,8 +108,6 @@ const handleConnection = (io) => {
 
     // Broadcast user current status to all servers
     userServers.forEach(server => {
-      console.log(`🔄 Broadcasting user ${socket.user.username} status (${socket.user.status}) to server: ${server.name}`);
-      console.log(`🔄 Connection status broadcast data:`, { userId: String(socket.userId), status: socket.user.status, username: socket.user.username });
       socket.to(`server_${server._id}`).emit('userStatusUpdate', {
         userId: String(socket.userId), // Ensure it's a string
         status: socket.user.status, // Use actual user status, not hardcoded 'online'
@@ -324,7 +299,6 @@ const handleConnection = (io) => {
     socket.on('updateUserStatus', async (data) => {
       try {
         const { status } = data;
-        console.log('🔄 updateUserStatus received:', { userId: socket.userId, status });
 
         // Update user status in database
         await User.findByIdAndUpdate(socket.userId, { 
@@ -339,23 +313,7 @@ const handleConnection = (io) => {
           connectedUsers.set(socket.userId, connectedUser);
         }
 
-        // Broadcast status update to all user's servers
-        const userServers = await Server.find({
-          'members.user': socket.userId
-        });
-
         // Note: Broadcast is handled by HTTP API in profile.js to avoid duplication
-        // userServers.forEach(server => {
-        //   console.log(`🔄 Socket: Broadcasting status update for user ${socket.user.username} (${socket.userId}) to server: ${server.name} (${server._id})`);
-        //   console.log(`🔄 Socket status broadcast data:`, { userId: String(socket.userId), status, username: socket.user.username });
-        //   socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-        //     userId: String(socket.userId), // Ensure it's a string
-        //     status,
-        //     username: socket.user.username
-        //   });
-        // });
-
-        console.log(`✅ User ${socket.user.username} status updated to: ${status} (broadcast handled by HTTP API)`);
 
       } catch (error) {
         console.error('❌ Update user status error:', error);
@@ -421,10 +379,7 @@ const handleConnection = (io) => {
 
     // Handle disconnect
     socket.on('disconnect', async () => {
-      console.log(`User ${socket.user.username} disconnected`);
-      console.log(`📊 Disconnect reason - keeping status: ${connectedUsers.get(socket.userId)?.status || 'unknown'}`);
-      
-      // Remove from connected users but keep status for potential reconnect
+    console.log(`User ${socket.user.username} disconnected`);      // Remove from connected users but keep status for potential reconnect
       connectedUsers.delete(socket.userId);
 
       // Leave voice channel if connected

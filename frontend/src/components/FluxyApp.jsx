@@ -212,8 +212,6 @@ const FluxyApp = () => {
   useEffect(() => {
     const handleUserStatusUpdate = (data) => {
       const { userId, status } = data;
-      console.log('🔄 User status update received:', { userId, status });
-      console.log('🔄 Current user ID:', user?._id || user?.id);
       
       // Convert both IDs to string for comparison
       const currentUserId = String(user?._id || user?.id);
@@ -221,11 +219,8 @@ const FluxyApp = () => {
       
       // Don't update status for current user - they handle their own status via AuthContext
       if (updateUserId === currentUserId) {
-        console.log('🔄 Ignoring status update for current user - IDs match:', { currentUserId, updateUserId });
         return;
       }
-      
-      console.log('🔄 Processing status update for other user:', { currentUserId, updateUserId });
       
       // Update user status in all servers (only for other users)
       setServers(prevServers => {
@@ -235,7 +230,6 @@ const FluxyApp = () => {
           let memberUpdated = false;
           const updatedMembers = server.members.map(member => {
             if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
-              console.log('🔄 Updating status in server', server.name, 'for user:', member.user.username, 'from', member.user.status, 'to', status);
               memberUpdated = true;
               return {
                 ...member,
