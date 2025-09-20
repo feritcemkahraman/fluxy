@@ -76,29 +76,17 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
       // Only add message if it belongs to the current channel
       if (newMessage.channel === channel?._id) {
-        // Prevent duplicate messages and replace optimistic messages
+        console.log('📥 New message received:', newMessage);
+        
+        // Simple duplicate check by _id
         setMessages(prev => {
-          // Check if this is a real message replacing an optimistic one
-          const optimisticIndex = prev.findIndex(msg => 
-            msg._id?.startsWith('temp-') && 
-            msg.content === newMessage.content &&
-            msg.author?._id === newMessage.author?._id &&
-            Math.abs(new Date(msg.createdAt) - new Date(newMessage.createdAt)) < 10000 // Within 10 seconds
-          );
-
-          if (optimisticIndex !== -1) {
-            // Replace optimistic message with real one
-            const newMessages = [...prev];
-            newMessages[optimisticIndex] = newMessage;
-            return newMessages;
-          }
-
-          // Check if message already exists (prevent true duplicates)
           const messageExists = prev.some(msg => msg._id === newMessage._id);
           if (messageExists) {
+            console.log('⚠️ Duplicate message detected, skipping');
             return prev;
           }
           
+          console.log('✅ Adding new message to UI');
           return [...prev, newMessage];
         });
       }
@@ -107,11 +95,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeError = on('error', (error) => {
       console.error('Socket error:', error);
       toast.error(error.message || 'Mesaj gönderilemedi');
-      
-      // Remove optimistic messages on error
-      setMessages(prev => prev.filter(msg => 
-        !msg._id?.startsWith('temp-')
-      ));
     });
 
     const unsubscribeTyping = on('userTyping', (data) => {
@@ -206,31 +189,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     setMessage(""); // Clear input immediately
 
     if (currentChannelId) {
-      // Optimistic update - add message immediately to state
-      const optimisticMessage = {
-        _id: `temp-${Date.now()}`, // Temporary ID
-        content: messageToSend,
-        author: user,
-        channel: currentChannelId,
-        server: server?._id,
-        createdAt: new Date(),
-        reactions: []
-      };
-
-      // Add optimistic message to UI immediately (only if still on same channel)
-      setMessages(prev => {
-        // Double-check we're still on the same channel
-        if (channel?._id === currentChannelId) {
-          return [...prev, optimisticMessage];
-        }
-        return prev;
-      });
-
-      // Send via WebSocket (this will trigger socket broadcast to other users)
+      // Send via WebSocket - no optimistic update for now to debug
       sendMessage(currentChannelId, messageToSend, server?._id);
-
-      // Note: We don't send via API here to avoid duplicates
-      // The WebSocket will save to DB and broadcast to all users including us
     } else {
       // Fallback for mock data
       const newMessage = {
