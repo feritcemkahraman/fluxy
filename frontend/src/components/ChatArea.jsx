@@ -25,6 +25,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [userDisplayNames, setUserDisplayNames] = useState(new Map()); // username -> displayName mapping
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -79,9 +80,15 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       if (newMessage.channel === channel?._id) {
         console.log('🔍 Real-time message author before fix:', newMessage.author);
         
-        // Fix displayName issue in real-time messages
-        if (newMessage.author && !newMessage.author.displayName && newMessage.author.username) {
-          newMessage.author.displayName = newMessage.author.username;
+        // Fix displayName using our mapping
+        if (newMessage.author && newMessage.author.username) {
+          const correctDisplayName = userDisplayNames.get(newMessage.author.username);
+          if (correctDisplayName) {
+            newMessage.author.displayName = correctDisplayName;
+            console.log('✅ Fixed displayName using mapping:', correctDisplayName);
+          } else if (!newMessage.author.displayName) {
+            newMessage.author.displayName = newMessage.author.username;
+          }
         }
         
         console.log('🔍 Real-time message author after fix:', newMessage.author);
@@ -139,7 +146,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       unsubscribeTyping();
       unsubscribeReaction();
     };
-  }, [channel, user, on, joinChannel, leaveChannel]);
+  }, [channel, user, on, joinChannel, leaveChannel, userDisplayNames]);
 
   const loadMessages = async () => {
     if (!channel?._id) return;
@@ -150,6 +157,25 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       const response = await messageAPI.getMessages(channel._id, 1, 50);
       const newMessages = response.data.messages || [];
 
+      // Update displayName mapping from loaded messages
+      const newDisplayNames = new Map();
+      newMessages.forEach(message => {
+        if (message.author && message.author.username && message.author.displayName) {
+          // Only use displayName if it's different from username (means it's been set properly)
+          if (message.author.displayName !== message.author.username) {
+            newDisplayNames.set(message.author.username, message.author.displayName);
+          }
+        }
+      });
+      
+      // Update the mapping
+      setUserDisplayNames(prev => {
+        const updated = new Map(prev);
+        newDisplayNames.forEach((displayName, username) => {
+          updated.set(username, displayName);
+        });
+        return updated;
+      });
 
       // Prevent duplicates when loading messages and ensure they belong to current channel
       setMessages(prev => {
@@ -163,7 +189,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
         if (uniqueNewMessages.length > 0) {
         }
-
 
         return [...currentChannelMessages, ...uniqueNewMessages];
       });
@@ -424,13 +449,9 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                             className="font-semibold text-base text-white"
                           >
                             {(() => {
-                              const displayName = msg.author.displayName || msg.author.username;
-                              console.log('🎨 Rendering message from:', {
-                                msgId: msg._id,
-                                username: msg.author.username, 
-                                displayName: msg.author.displayName,
-                                finalDisplay: displayName
-                              });
+                              // Use mapping for correct displayName, fallback to author.displayName, then username
+                              const correctDisplayName = userDisplayNames.get(msg.author.username);
+                              const displayName = correctDisplayName || msg.author.displayName || msg.author.username;
                               return displayName;
                             })()}
                           </span>
