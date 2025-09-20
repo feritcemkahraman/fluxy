@@ -423,7 +423,16 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                           <span 
                             className="font-semibold text-base text-white"
                           >
-                            {msg.author.displayName || msg.author.username}
+                            {(() => {
+                              const displayName = msg.author.displayName || msg.author.username;
+                              console.log('🎨 Rendering message from:', {
+                                msgId: msg._id,
+                                username: msg.author.username, 
+                                displayName: msg.author.displayName,
+                                finalDisplay: displayName
+                              });
+                              return displayName;
+                            })()}
                           </span>
                           <span className="text-sm text-gray-500">
                             {formatTime(msg.createdAt)}
