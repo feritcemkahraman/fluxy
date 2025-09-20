@@ -154,7 +154,7 @@ export const serverAPI = {
   banMember: (serverId, userId, banData) => apiCall('POST', `/servers/${serverId}/ban/${userId}`, banData),
   unbanMember: (serverId, userId) => apiCall('DELETE', `/servers/${serverId}/ban/${userId}`),
   getBannedUsers: (serverId) => apiCall('GET', `/servers/${serverId}/bans`),
-  createInvite: (serverId) => apiCall('POST', `/servers/${serverId}/invite`),
+  createInvite: (serverId) => apiCall('POST', `/servers/${serverId}/invite`, {}),
 };
 
 // Enhanced Channel API with retry
