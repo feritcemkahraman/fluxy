@@ -235,6 +235,7 @@ const handleConnection = (io) => {
     socket.on('sendMessage', async (data) => {
       try {
         const { content, channelId, replyTo } = data;
+        console.log('🔔 [SOCKET] MESSAGE RECEIVED:', { content, channelId, userId: socket.userId, username: socket.user?.username });
 
         // Validate channel access
         const channel = await Channel.findById(channelId);
@@ -311,6 +312,12 @@ const handleConnection = (io) => {
           replyTo: populatedMessage.replyTo,
           reactions: populatedMessage.reactions,
           createdAt: populatedMessage.createdAt
+        });
+
+        console.log('🔄 [SOCKET] Message broadcasted with author:', {
+          authorDisplayName: populatedMessage.author.displayName || populatedMessage.author.username || 'Anonymous',
+          authorUsername: populatedMessage.author.username,
+          roomName: `server_${channel.server}`
         });
 
       } catch (error) {
