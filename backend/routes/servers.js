@@ -480,16 +480,22 @@ router.delete('/:id/leave', auth, async (req, res) => {
 // @access  Private
 router.post('/:id/invite', auth, requireMember, async (req, res) => {
   try {
+    console.log('Creating invite for server:', req.params.id);
     const server = await Server.findById(req.params.id);
     
     if (!server) {
+      console.log('Server not found:', req.params.id);
       return res.status(404).json({ message: 'Server not found' });
     }
+    
+    console.log('Server found:', server.name);
 
     // Generate random invite code if not exists
     if (!server.inviteCode) {
+      console.log('Generating new invite code for server:', server.name);
       server.inviteCode = Math.random().toString(36).substr(2, 8).toUpperCase();
       await server.save();
+      console.log('Generated invite code:', server.inviteCode);
 
       // Broadcast invite creation to all server members
       try {
@@ -509,6 +515,7 @@ router.post('/:id/invite', auth, requireMember, async (req, res) => {
       }
     }
 
+    console.log('Sending response with invite code:', server.inviteCode);
     res.json({ 
       inviteCode: server.inviteCode,
       expiresAt: null // Permanent invite for now

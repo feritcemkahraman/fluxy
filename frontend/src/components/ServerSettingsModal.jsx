@@ -137,10 +137,14 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const generateInviteLink = async () => {
     try {
       // This would be a server API call to generate invite
+      console.log('Generating invite for server:', server.id);
       const response = await serverAPI.createInvite(server.id);
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
       setInviteLink(response.data.inviteCode);
     } catch (error) {
-      // console.error('Failed to generate invite:', error);
+      console.error('Failed to generate invite:', error);
+      console.error('Error details:', error.response?.data);
     }
   };
 
