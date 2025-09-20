@@ -15,33 +15,6 @@ const MemberList = ({ server, activeChannel }) => {
   const { on } = useSocket();
   const { user: currentUser } = useAuth();
 
-  // Update current user's status in member list when AuthContext user changes
-  useEffect(() => {
-    if (currentUser && members.length > 0) {
-      setMembers(prev => prev.map(member => {
-        // Properly check member user ID
-        const memberUserId = member.user?._id || member.user?.id || member.id || member._id;
-        const currentUserId = currentUser._id || currentUser.id;
-        
-        if (memberUserId === currentUserId) {
-          // Update only the current user's status
-          if (member.user) {
-            return { 
-              ...member, 
-              user: { 
-                ...member.user, 
-                status: currentUser.status || 'online' 
-              } 
-            };
-          } else {
-            return { ...member, status: currentUser.status || 'online' };
-          }
-        }
-        return member;
-      }));
-    }
-  }, [currentUser?.status, members.length]);
-
   const getStatusColor = (status) => {
     switch (status) {
       case "online": return "bg-green-500";
@@ -82,11 +55,16 @@ const MemberList = ({ server, activeChannel }) => {
         
         // Update current user's status with AuthContext status
         if (currentUser) {
-          fetchedMembers = fetchedMembers.map(member => 
-            member.id === currentUser._id || member._id === currentUser._id
+          fetchedMembers = fetchedMembers.map(member => {
+            const memberUserId = String(member.id || member._id);
+            const currentUserId = String(currentUser._id || currentUser.id);
+            
+            console.log('🔍 Comparing member:', { memberUserId, currentUserId, match: memberUserId === currentUserId });
+            
+            return memberUserId === currentUserId
               ? { ...member, status: currentUser.status || 'online' }
-              : member
-          );
+              : member;
+          });
         }
         
         setMembers(fetchedMembers);
