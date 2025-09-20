@@ -187,6 +187,12 @@ handleConnection(io);
 // Make io available to routes
 app.set('io', io);
 
+// Add io to request object for routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {

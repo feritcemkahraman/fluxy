@@ -492,13 +492,21 @@ router.post('/:id/invite', auth, requireMember, async (req, res) => {
       await server.save();
 
       // Broadcast invite creation to all server members
-      req.io.to(`server_${server._id}`).emit('inviteCreated', {
-        serverId: server._id,
-        inviteCode: server.inviteCode,
-        createdBy: req.user._id,
-        createdByUsername: req.user.username,
-        serverName: server.name
-      });
+      try {
+        const io = req.io || req.app.get('io');
+        if (io) {
+          io.to(`server_${server._id}`).emit('inviteCreated', {
+            serverId: server._id,
+            inviteCode: server.inviteCode,
+            createdBy: req.user._id,
+            createdByUsername: req.user.username,
+            serverName: server.name
+          });
+        }
+      } catch (ioError) {
+        console.error('IO broadcast error:', ioError);
+        // Don't fail the request if broadcast fails
+      }
     }
 
     res.json({ 
