@@ -96,7 +96,6 @@ const FluxyApp = () => {
   useEffect(() => {
     const updateVoiceUsers = () => {
       const status = voiceChatService.getStatus();
-      console.log('🔊 updateVoiceUsers called, voiceChat status:', status);
 
       if (status.currentChannel) {
         // Add current user to connected users if not already included
@@ -105,7 +104,6 @@ const FluxyApp = () => {
         const userId = user?.id || user?._id;
         if (userId && !connectedUsers.includes(userId)) {
           connectedUsers = [userId, ...connectedUsers];
-          console.log('🔊 Added current user to voice channel users:', userId);
         }
 
         console.log('🔊 Setting voice channel users:', {

@@ -76,9 +76,25 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
       // Only add message if it belongs to the current channel
       if (newMessage.channel === channel?._id) {
-        // Prevent duplicate messages by checking if message already exists
+        // Prevent duplicate messages and replace optimistic messages
         setMessages(prev => {
-          const messageExists = prev.some(msg => msg._id === newMessage._id || msg.id === newMessage.id);
+          // Check if this is a real message replacing an optimistic one
+          const optimisticIndex = prev.findIndex(msg => 
+            msg._id?.startsWith('temp-') && 
+            msg.content === newMessage.content &&
+            msg.author?._id === newMessage.author?._id &&
+            Math.abs(new Date(msg.createdAt) - new Date(newMessage.createdAt)) < 10000 // Within 10 seconds
+          );
+
+          if (optimisticIndex !== -1) {
+            // Replace optimistic message with real one
+            const newMessages = [...prev];
+            newMessages[optimisticIndex] = newMessage;
+            return newMessages;
+          }
+
+          // Check if message already exists (prevent true duplicates)
+          const messageExists = prev.some(msg => msg._id === newMessage._id);
           if (messageExists) {
             return prev;
           }
