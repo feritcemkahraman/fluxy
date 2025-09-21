@@ -53,6 +53,11 @@ const FluxyApp = () => {
     // Initial update
     updateVoiceUsers();
 
+    // Define global function for UserPanel to toggle voice screen
+    window.toggleVoiceScreen = () => {
+      setShowVoiceScreen(prev => !prev);
+    };
+
     // Listen for voice chat events
     voiceChatService.on('connected', updateVoiceUsers);
     voiceChatService.on('disconnected', updateVoiceUsers);
@@ -64,6 +69,8 @@ const FluxyApp = () => {
       voiceChatService.off('disconnected', updateVoiceUsers);
       voiceChatService.off('user-joined', updateVoiceUsers);
       voiceChatService.off('user-left', updateVoiceUsers);
+      // Clean up global function
+      delete window.toggleVoiceScreen;
     };
   }, []);
 
@@ -1167,7 +1174,6 @@ const FluxyApp = () => {
                     channel={activeServer?.channels?.find(ch =>
                       (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                     )}
-                    server={activeServer}
                     servers={servers} // Pass servers list for fallback
                     voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                     onClose={() => {
