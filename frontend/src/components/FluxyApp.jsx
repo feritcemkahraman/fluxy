@@ -32,11 +32,24 @@ const FluxyApp = () => {
   const [showMemberList, setShowMemberList] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [voiceChannelUsers, setVoiceChannelUsers] = useState({});
+  const [voiceChannelUsers, setVoiceChannelUsers] = useState(() => {
+    // Try to restore from localStorage
+    try {
+      const saved = localStorage.getItem('voiceChannelUsers');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
 
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
+
+  // Persist voiceChannelUsers to localStorage
+  useEffect(() => {
+    localStorage.setItem('voiceChannelUsers', JSON.stringify(voiceChannelUsers));
+  }, [voiceChannelUsers]);
 
   // Update voice channel users
   useEffect(() => {
@@ -971,7 +984,7 @@ const FluxyApp = () => {
       unsubscribeChannelCreated();
       unsubscribeChannelDeleted();
     };
-  }, [on]); // on is stable from useSocket hook
+  }, []); // Empty dependency - set up listeners only once
 
   const handleServerSelect = (server) => {
     console.log('🏠 Server selected:', server);
