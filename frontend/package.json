@@ -61,8 +61,8 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "cross-env CI=false craco build",
-    "build:netlify": "cross-env CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=4096 craco build",
+    "build": "craco build",
+    "build:netlify": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject"
   },
@@ -85,7 +85,6 @@
     "@babel/preset-react": "^7.24.7",
     "@eslint/js": "9.23.0",
     "autoprefixer": "^10.4.20",
-    "cross-env": "^10.0.0",
     "eslint": "9.23.0",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
