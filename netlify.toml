@@ -8,6 +8,7 @@
   NODE_OPTIONS = "--max-old-space-size=4096"
   GENERATE_SOURCEMAP = "false"
   CI = "false"
+  DISABLE_ESLINT_PLUGIN = "true"
 
 # Build optimizations - disable some processing to reduce memory usage
 [build.processing]
