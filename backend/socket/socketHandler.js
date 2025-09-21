@@ -201,7 +201,11 @@ const handleConnection = (io) => {
           );
 
           // Send current voice channel state to the joining user
-          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => cu.user?._id || cu.user?.id || cu.user);
+          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
+            const userId = cu.user?._id || cu.user?.id || cu.user;
+            console.log(`🔍 Connected user mapping - cu.user:`, cu.user, `→ userId:`, userId);
+            return userId;
+          });
           socket.emit('voiceChannelSync', {
             channelId,
             connectedUsers: allConnectedUserIds
