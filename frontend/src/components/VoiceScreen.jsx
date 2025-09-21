@@ -49,8 +49,7 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
 
   // Update participants list from hook data
   useEffect(() => {
-    console.log('🎙️ VoiceScreen useEffect triggered:', {
-      serverMembers: server?.members?.length,
+    console.log('🎙️ VoiceScreen participants update:', {
       voiceChannelUsers,
       currentUser: currentUser?._id || currentUser?.id,
       isConnected,
@@ -66,20 +65,28 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
         const userId = member.user?._id || member.user?.id || member._id || member.id;
         const userObj = member.user || member;
         userMap.set(userId, userObj);
-        console.log('📋 Mapped user:', userId, userObj.username || userObj.displayName);
       });
-
-      console.log('🗺️ UserMap created with', userMap.size, 'users');
-      console.log('👥 Voice channel users:', voiceChannelUsers);
 
       // Build participants list
       const participantsList = voiceChannelUsers.map(userId => {
         const user = userMap.get(userId);
-        console.log('🔍 Looking up user:', userId, 'Found:', user?.username || user?.displayName);
         
         if (!user) {
-          console.warn('❌ User not found in userMap:', userId);
-          return null;
+          console.warn('❌ User not found in server members:', userId);
+          // Create a fallback user object - we'll try to fetch real data later
+          return {
+            user: {
+              _id: userId,
+              id: userId,
+              username: `User-${userId.slice(-4)}`,
+              displayName: `Loading...`,
+              isTemporary: true // Flag to indicate this is temporary data
+            },
+            isCurrentUser: userId === (currentUser?._id || currentUser?.id),
+            isSpeaking: false,
+            isMuted: false,
+            isDeafened: false
+          };
         }
 
         return {
@@ -89,23 +96,13 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
           isMuted: false,
           isDeafened: false
         };
-      }).filter(Boolean);
-
-      console.log('👥 Participants list created:', participantsList.length, 'participants');
+      }); // Remove .filter(Boolean) since we now always return an object
 
 
       // Always ensure current user is included if connected
       if (isConnected && currentUser && currentChannel === channel?._id) {
         const currentUserId = currentUser._id || currentUser.id;
         const currentUserExists = participantsList.some(p => p.isCurrentUser);
-        
-        console.log('🔍 Current user check:', {
-          currentUserId,
-          currentUserExists,
-          isConnected,
-          currentChannel,
-          channelId: channel?._id
-        });
 
         if (!currentUserExists) {
           const currentUserObj = userMap.get(currentUserId) || currentUser;
@@ -117,8 +114,6 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
             isCurrentUser: true,
             isSpeaking: false
           });
-        } else {
-          console.log('✅ Current user already in participants list');
         }
       }
 
@@ -133,10 +128,9 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
 
       // Update participants state in hook
       if (participantsList.length > 0) {
-        console.log('📝 Setting participants:', participantsList.map(p => p.user.username || p.user.displayName));
+        console.log('📝 Setting participants:', participantsList.length, 'users');
         setParticipants(participantsList);
       } else {
-        console.log('⚠️ No participants in list, checking current user...');
         // If no participants, ensure current user is still shown
         if (isConnected && currentUser && currentChannel === channel?._id) {
           console.log('➕ Adding only current user as participant');
@@ -150,12 +144,6 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
         }
       }
     } else {
-      console.log('⚠️ Conditions not met for participant list update:', {
-        hasServerMembers: !!server?.members,
-        isVoiceChannelUsersArray: Array.isArray(voiceChannelUsers),
-        voiceChannelUsersLength: voiceChannelUsers?.length
-      });
-      
       // If conditions not met but we're connected, show current user
       if (isConnected && currentUser && currentChannel === channel?._id) {
         setParticipants([{
@@ -455,7 +443,6 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
               )}
               
               <div className={`grid gap-3 ${hasScreenShares ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'}`}>
-                {console.log('🎭 Rendering participants:', participants.length, participants.map(p => ({ id: p.user._id || p.user.id, name: p.user.username || p.user.displayName, isCurrentUser: p.isCurrentUser })))}
                 {participants.map((participant) => (
                   <div
                     key={participant.user._id || participant.user.id}

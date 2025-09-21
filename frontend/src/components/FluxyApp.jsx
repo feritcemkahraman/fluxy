@@ -128,30 +128,15 @@ const FluxyApp = () => {
     // Initial update
     updateVoiceUsers();
 
-    // Handle voice chat connection - automatically show VoiceScreen when connected
-    const handleVoiceConnected = ({ channelId }) => {
-      console.log('🎙️ Voice connected event received for channel:', channelId);
-      updateVoiceUsers();
-      // Auto-open VoiceScreen when user connects to voice channel
-      setShowVoiceScreen(true);
-    };
-
-    const handleVoiceDisconnected = ({ channelId }) => {
-      console.log('🎙️ Voice disconnected event received for channel:', channelId);
-      updateVoiceUsers();
-      // Auto-close VoiceScreen when user disconnects from voice channel
-      setShowVoiceScreen(false);
-    };
-
     // Listen for voice chat events
-    voiceChatService.on('connected', handleVoiceConnected);
-    voiceChatService.on('disconnected', handleVoiceDisconnected);
+    voiceChatService.on('connected', updateVoiceUsers);
+    voiceChatService.on('disconnected', updateVoiceUsers);
     voiceChatService.on('user-joined', updateVoiceUsers);
     voiceChatService.on('user-left', updateVoiceUsers);
 
     return () => {
-      voiceChatService.off('connected', handleVoiceConnected);
-      voiceChatService.off('disconnected', handleVoiceDisconnected);
+      voiceChatService.off('connected', updateVoiceUsers);
+      voiceChatService.off('disconnected', updateVoiceUsers);
       voiceChatService.off('user-joined', updateVoiceUsers);
       voiceChatService.off('user-left', updateVoiceUsers);
     };
@@ -287,18 +272,39 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
-      console.log('🔊 Voice channel update received:', { channelId, action, userId });
       
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
         const currentUsers = prev[channelId] || [];
-        console.log('Current users in channel:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
-            console.log('Adding user to voice channel:', userId, 'New users:', newUsers);
+            console.log('🔊 User joined voice channel:', userId, 'Total users:', newUsers.length);
+            
+            // If this is a new user we don't recognize, refresh server members
+            const userInActiveServer = activeServer?.members?.some(member => 
+              (member.user?._id || member.user?.id || member._id || member.id) === userId
+            );
+            
+            if (!userInActiveServer && activeServer?._id) {
+              console.log('🔄 User not found in server members, refreshing...');
+              // Refresh server members to get latest data
+              serverAPI.getServerMembers(activeServer._id || activeServer.id).then(response => {
+                const updatedServer = {
+                  ...activeServer,
+                  members: response.data.members
+                };
+                setActiveServer(updatedServer);
+                setServers(prev => prev.map(s => 
+                  (s._id || s.id) === (activeServer._id || activeServer.id) ? updatedServer : s
+                ));
+              }).catch(error => {
+                console.warn('Failed to refresh server members:', error);
+              });
+            }
+            
             return {
               ...prev,
               [channelId]: newUsers
@@ -307,7 +313,7 @@ const FluxyApp = () => {
         } else if (action === 'userLeft') {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
-          console.log('Removing user from voice channel:', userId, 'New users:', newUsers);
+          console.log('🔊 User left voice channel:', userId, 'Total users:', newUsers.length);
           return {
             ...prev,
             [channelId]: newUsers
@@ -756,11 +762,19 @@ const FluxyApp = () => {
       setServers(prevServers => {
         return prevServers.map(server => {
           if ((server._id || server.id) === serverId) {
-            const updatedMembers = [...(server.members || []), member];
-            return {
-              ...server,
-              members: updatedMembers
-            };
+            // Check if member already exists to avoid duplicates
+            const memberExists = server.members?.some(existingMember => 
+              (existingMember.user._id || existingMember.user.id) === (member.user._id || member.user.id)
+            );
+            
+            if (!memberExists) {
+              const updatedMembers = [...(server.members || []), member];
+              console.log('👥 Adding new member to server:', member.user.username || member.user.displayName);
+              return {
+                ...server,
+                members: updatedMembers
+              };
+            }
           }
           return server;
         });
@@ -772,13 +786,25 @@ const FluxyApp = () => {
           return prevServer;
         }
         
-        const updatedMembers = [...(prevServer.members || []), member];
-        return {
-          ...prevServer,
-          members: updatedMembers
-        };
+        // Check if member already exists to avoid duplicates
+        const memberExists = prevServer.members?.some(existingMember => 
+          (existingMember.user._id || existingMember.user.id) === (member.user._id || member.user.id)
+        );
+        
+        if (!memberExists) {
+          const updatedMembers = [...(prevServer.members || []), member];
+          console.log('👥 Adding new member to active server:', member.user.username || member.user.displayName);
+          return {
+            ...prevServer,
+            members: updatedMembers
+          };
+        }
+        
+        return prevServer;
       });
-    };    const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
+    };
+
+    const unsubscribeUserStatus = on('userStatusUpdate', handleUserStatusUpdate);
     const unsubscribeUserProfile = on('userProfileUpdate', handleUserProfileUpdate);
     const unsubscribeUserActivity = on('userActivityUpdate', handleUserActivityUpdate);
     const unsubscribeRoleAssignment = on('roleAssignment', handleRoleAssignment);
@@ -1027,11 +1053,7 @@ const FluxyApp = () => {
                     (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                   )}
                   server={activeServer}
-                  voiceChannelUsers={(() => {
-                    const users = voiceChannelUsers[currentVoiceChannel] || [];
-                    console.log('🎙️ Passing voiceChannelUsers to VoiceScreen:', users);
-                    return users;
-                  })()}
+                  voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                   onClose={() => {
                     setShowVoiceScreen(false);
                   }}
