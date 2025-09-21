@@ -1135,6 +1135,12 @@ const FluxyApp = () => {
             {/* Voice Screen Overlay - Show when showVoiceScreen is true */}
             {showVoiceScreen && isVoiceConnected && currentVoiceChannel && (
               <div className="absolute inset-0 z-10">
+                {console.log('🔍 VoiceScreen props debug:', {
+                  currentVoiceChannel,
+                  voiceChannelUsersState: voiceChannelUsers,
+                  propValue: voiceChannelUsers[currentVoiceChannel],
+                  propArray: voiceChannelUsers[currentVoiceChannel] || []
+                })}
                 <VoiceScreen
                   channel={activeServer?.channels?.find(ch =>
                     (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
