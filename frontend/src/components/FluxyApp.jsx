@@ -38,7 +38,7 @@ const FluxyApp = () => {
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
 
-  // Update voice channel users - RE-ENABLED: Need both socket events and voiceChatService for complete state
+  // Update voice channel users
   useEffect(() => {
     const updateVoiceUsers = () => {
       const status = voiceChatService.getStatus();
@@ -53,11 +53,6 @@ const FluxyApp = () => {
     // Initial update
     updateVoiceUsers();
 
-    // Define global function for UserPanel to toggle voice screen
-    window.toggleVoiceScreen = () => {
-      setShowVoiceScreen(prev => !prev);
-    };
-
     // Listen for voice chat events
     voiceChatService.on('connected', updateVoiceUsers);
     voiceChatService.on('disconnected', updateVoiceUsers);
@@ -69,8 +64,6 @@ const FluxyApp = () => {
       voiceChatService.off('disconnected', updateVoiceUsers);
       voiceChatService.off('user-joined', updateVoiceUsers);
       voiceChatService.off('user-left', updateVoiceUsers);
-      // Clean up global function
-      delete window.toggleVoiceScreen;
     };
   }, []);
 
@@ -291,10 +284,6 @@ const FluxyApp = () => {
 
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
-    // Define global function for UserPanel to toggle voice screen
-    window.toggleVoiceScreen = () => {
-      setShowVoiceScreen(prev => !prev);
-    };
     const handleUserStatusUpdate = (data) => {
       const { userId, status } = data;
       
@@ -384,12 +373,6 @@ const FluxyApp = () => {
             console.log('➕ Adding user to voice channel:', userId, 'New users:', newUsers);
             console.log('🔍 User comparison - Event userId:', userId, 'Current userId:', currentUserId, 'Match:', userId === currentUserId);
             
-            // If current user joined, show voice screen
-            if (userId === currentUserId) {
-              console.log('🎙️ Current user joined voice channel, showing VoiceScreen');
-              setShowVoiceScreen(true);
-            }
-            
             const newState = {
               ...prev,
               [channelId]: newUsers
@@ -406,13 +389,6 @@ const FluxyApp = () => {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
           console.log('➖ Removing user from voice channel:', userId, 'New users:', newUsers);
-          
-          // If current user left and no users left in channel, hide voice screen
-          if (userId === currentUserId && newUsers.length === 0) {
-            console.log('🎙️ Current user left voice channel and no users left, hiding VoiceScreen');
-            setShowVoiceScreen(false);
-          }
-          
           return {
             ...prev,
             [channelId]: newUsers
@@ -946,8 +922,6 @@ const FluxyApp = () => {
       unsubscribeServerJoined();
       unsubscribeChannelCreated();
       unsubscribeChannelDeleted();
-      // Clean up global function
-      delete window.toggleVoiceScreen;
     };
   }, []); // Empty dependency - set up listeners only once
 
@@ -1008,12 +982,11 @@ const FluxyApp = () => {
         // If already connected to this channel, toggle panel
         setShowVoiceScreen(prev => !prev);
       } else {
-        // Connect to voice channel and open panel (Discord-like behavior)
+        // Connect to voice channel (first click)
         joinVoiceChannel(channelId).catch(error => {
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
         });
-        // Open panel on first click (Discord-like behavior)
-        setShowVoiceScreen(true);
+        // Don't open panel on first click, just connect
       }
     } else {
       // Regular channel selection for text channels
@@ -1160,37 +1133,21 @@ const FluxyApp = () => {
             </div>
 
             {/* Voice Screen Overlay - Show when showVoiceScreen is true */}
-            {(() => {
-              const shouldShow = showVoiceScreen && isVoiceConnected && currentVoiceChannel;
-              console.log('🔍 VoiceScreen render conditions:', {
-                showVoiceScreen,
-                isVoiceConnected,
-                currentVoiceChannel,
-                shouldShow,
-                voiceChannelUsers: voiceChannelUsers[currentVoiceChannel] || []
-              });
-              return shouldShow && (
-                <div className="absolute inset-0 z-10">
-                  {console.log('🔍 VoiceScreen props debug:', {
-                    currentVoiceChannel,
-                    voiceChannelUsersState: voiceChannelUsers,
-                    propValue: voiceChannelUsers[currentVoiceChannel],
-                    propArray: voiceChannelUsers[currentVoiceChannel] || []
-                  })}
-                  <VoiceScreen
-                    channel={activeServer?.channels?.find(ch =>
-                      (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
-                    )}
-                    server={activeServer}
-                    servers={servers} // Pass servers list for fallback
-                    voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
-                    onClose={() => {
-                      setShowVoiceScreen(false);
-                    }}
-                  />
-                </div>
-              );
-            })()}
+            {showVoiceScreen && isVoiceConnected && currentVoiceChannel && (
+              <div className="absolute inset-0 z-10">
+                <VoiceScreen
+                  channel={activeServer?.channels?.find(ch =>
+                    (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
+                  )}
+                  server={activeServer}
+                  servers={servers} // Pass servers list for fallback
+                  voiceChannelUsers={voiceChannelUsers[channel?._id || channel?.id] || []}
+                  onClose={() => {
+                    setShowVoiceScreen(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </>
       )}
