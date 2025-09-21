@@ -128,15 +128,30 @@ const FluxyApp = () => {
     // Initial update
     updateVoiceUsers();
 
+    // Handle voice chat connection - automatically show VoiceScreen when connected
+    const handleVoiceConnected = ({ channelId }) => {
+      console.log('🎙️ Voice connected event received for channel:', channelId);
+      updateVoiceUsers();
+      // Auto-open VoiceScreen when user connects to voice channel
+      setShowVoiceScreen(true);
+    };
+
+    const handleVoiceDisconnected = ({ channelId }) => {
+      console.log('🎙️ Voice disconnected event received for channel:', channelId);
+      updateVoiceUsers();
+      // Auto-close VoiceScreen when user disconnects from voice channel
+      setShowVoiceScreen(false);
+    };
+
     // Listen for voice chat events
-    voiceChatService.on('connected', updateVoiceUsers);
-    voiceChatService.on('disconnected', updateVoiceUsers);
+    voiceChatService.on('connected', handleVoiceConnected);
+    voiceChatService.on('disconnected', handleVoiceDisconnected);
     voiceChatService.on('user-joined', updateVoiceUsers);
     voiceChatService.on('user-left', updateVoiceUsers);
 
     return () => {
-      voiceChatService.off('connected', updateVoiceUsers);
-      voiceChatService.off('disconnected', updateVoiceUsers);
+      voiceChatService.off('connected', handleVoiceConnected);
+      voiceChatService.off('disconnected', handleVoiceDisconnected);
       voiceChatService.off('user-joined', updateVoiceUsers);
       voiceChatService.off('user-left', updateVoiceUsers);
     };
@@ -1012,7 +1027,11 @@ const FluxyApp = () => {
                     (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                   )}
                   server={activeServer}
-                  voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
+                  voiceChannelUsers={(() => {
+                    const users = voiceChannelUsers[currentVoiceChannel] || [];
+                    console.log('🎙️ Passing voiceChannelUsers to VoiceScreen:', users);
+                    return users;
+                  })()}
                   onClose={() => {
                     setShowVoiceScreen(false);
                   }}
