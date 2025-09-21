@@ -1008,11 +1008,12 @@ const FluxyApp = () => {
         // If already connected to this channel, toggle panel
         setShowVoiceScreen(prev => !prev);
       } else {
-        // Connect to voice channel (first click)
+        // Connect to voice channel and open panel (Discord-like behavior)
         joinVoiceChannel(channelId).catch(error => {
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
         });
-        // Don't open panel on first click, just connect
+        // Open panel on first click (Discord-like behavior)
+        setShowVoiceScreen(true);
       }
     } else {
       // Regular channel selection for text channels
@@ -1180,6 +1181,7 @@ const FluxyApp = () => {
                     channel={activeServer?.channels?.find(ch =>
                       (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                     )}
+                    server={activeServer}
                     servers={servers} // Pass servers list for fallback
                     voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                     onClose={() => {

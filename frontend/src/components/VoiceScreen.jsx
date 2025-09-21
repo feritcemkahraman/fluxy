@@ -21,14 +21,14 @@ import { voiceChatService } from "../services/voiceChat";
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose }) => {
+const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], onClose }) => {
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   
   // Find server from servers array using channel
-  const effectiveServer = servers.length > 0 && channel ? 
+  const effectiveServer = server || (servers.length > 0 && channel ? 
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
-    null;
+    null);
   
   console.log('🎙️ VoiceScreen RENDERED with props:', {
     channel: channel?.name,
@@ -37,12 +37,6 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
     voiceChannelUsers,
     voiceChannelUsersLength: voiceChannelUsers?.length,
     currentUser: currentUser?.username
-  });
-  
-  console.log('🎙️ VoiceScreen server resolution:', {
-    channelId: channel?._id || channel?.id,
-    effectiveServer: effectiveServer?.name,
-    serverMembersCount: effectiveServer?.members?.length
   });
   const {
     isConnected,
@@ -69,7 +63,7 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
 
   // Update participants list from hook data
   useEffect(() => {
-    console.log('🎙️ VoiceScreen participants update:', {
+    console.log('🎙️ VoiceScreen participants update triggered:', {
       voiceChannelUsers,
       voiceChannelUsersLength: voiceChannelUsers?.length,
       currentUser: currentUser?._id || currentUser?.id,
@@ -108,6 +102,11 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
       });
 
       console.log('📝 Setting participants:', participantsList.length, 'users');
+      console.log('👥 Participants details:', participantsList.map(p => ({
+        userId: p.user._id,
+        username: p.user.username,
+        isCurrentUser: p.isCurrentUser
+      })));
       setParticipants(participantsList);
     } else {
       console.log('❌ No voiceChannelUsers or not an array, checking fallback conditions');

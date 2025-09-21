@@ -176,31 +176,6 @@ const UserPanel = ({ user, server }) => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                {/* Voice Screen Toggle Button */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-8 h-8 p-0 text-green-400 hover:text-white hover:bg-green-600/40"
-                        onClick={() => {
-                          // FluxyApp'teki setShowVoiceScreen'i çağırmak için
-                          // Bu UserPanel'dan FluxyApp'e prop olarak geçmeli
-                          if (window.toggleVoiceScreen) {
-                            window.toggleVoiceScreen();
-                          }
-                        }}
-                      >
-                        <Volume2 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Ses Ekranını Aç/Kapat</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                
                 <Button
                   variant="ghost"
                   size="sm"
