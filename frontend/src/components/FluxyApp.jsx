@@ -1156,7 +1156,7 @@ const FluxyApp = () => {
                   )}
                   server={activeServer}
                   servers={servers} // Pass servers list for fallback
-                  voiceChannelUsers={voiceChannelUsers[channel?._id || channel?.id] || []}
+                  voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                   onClose={() => {
                     setShowVoiceScreen(false);
                   }}
