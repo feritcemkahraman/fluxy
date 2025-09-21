@@ -241,8 +241,20 @@ const FluxyApp = () => {
               });
               
               console.log('🔊 Initial voice channel users loaded:', voiceChannelUsersMap);
-              // For initial load, we can safely set the state directly
-              setVoiceChannelUsers(voiceChannelUsersMap);
+              // Merge with existing state instead of overriding socket updates
+              setVoiceChannelUsers(prev => {
+                const merged = { ...voiceChannelUsersMap };
+                // Preserve any existing socket data that might be newer
+                Object.keys(prev).forEach(channelId => {
+                  if (prev[channelId] && prev[channelId].length > 0) {
+                    // Keep socket data if it has users
+                    merged[channelId] = prev[channelId];
+                    console.log(`🔄 Keeping existing socket data for channel ${channelId}:`, prev[channelId]);
+                  }
+                });
+                console.log('🎯 Initial merged state:', merged);
+                return merged;
+              });
             }
           } catch (error) {
             console.warn('Failed to load initial voice channel users:', error);
