@@ -32,24 +32,11 @@ const FluxyApp = () => {
   const [showMemberList, setShowMemberList] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [voiceChannelUsers, setVoiceChannelUsers] = useState(() => {
-    // Try to restore from localStorage
-    try {
-      const saved = localStorage.getItem('voiceChannelUsers');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [voiceChannelUsers, setVoiceChannelUsers] = useState({});
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
 
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
-
-  // Persist voiceChannelUsers to localStorage
-  useEffect(() => {
-    localStorage.setItem('voiceChannelUsers', JSON.stringify(voiceChannelUsers));
-  }, [voiceChannelUsers]);
 
   // Update voice channel users
   useEffect(() => {
@@ -109,12 +96,12 @@ const FluxyApp = () => {
       if (activeServer?._id || activeServer?.id) {
         try {
           const serverId = activeServer._id || activeServer.id;
-          console.log('🔄 Loading voice channel users for server:', serverId);
-          // Use getChannels which includes connectedUsers for voice channels
+          console.log('🔄 Loading voice channel users for server (backend-first):', serverId);
+          
           const response = await channelAPI.getChannels(serverId);
           
           if (response.data.channels) {
-            console.log('📝 Channels response:', response.data.channels);
+            console.log('📝 Channels response from backend:', response.data.channels);
             const voiceChannelUsersMap = {};
             
             response.data.channels.forEach(channel => {
@@ -126,34 +113,20 @@ const FluxyApp = () => {
               }
             });
             
-            console.log('🔊 Loaded voice channel users:', voiceChannelUsersMap);
-            console.log('📊 Setting voiceChannelUsers state with API data');
-            // Merge with existing state instead of overriding
-            setVoiceChannelUsers(prev => {
-              const merged = { ...prev };
-              // Only update channels that came from API, preserve socket updates
-              Object.keys(voiceChannelUsersMap).forEach(channelId => {
-                // If we have socket data that's newer, keep it
-                if (!prev[channelId] || prev[channelId].length === 0) {
-                  merged[channelId] = voiceChannelUsersMap[channelId];
-                } else {
-                  console.log(`🔄 Keeping existing socket data for channel ${channelId}:`, prev[channelId]);
-                }
-              });
-              console.log('🎯 Final merged state:', merged);
-              return merged;
-            });
+            console.log('🔊 Setting voice channel users from backend:', voiceChannelUsersMap);
+            // Backend is always the source of truth - no merging, just set
+            setVoiceChannelUsers(voiceChannelUsersMap);
           }
           
         } catch (error) {
-          console.warn('Failed to load voice channel users:', error);
+          console.warn('Failed to load voice channel users from backend:', error);
         }
       }
     };
 
     loadServerMembers();
-    // loadVoiceChannelUsers(); // Temporarily disabled to test socket-only updates
-  }, [activeServer?._id, activeServer?.id]); // Only depend on server ID
+    loadVoiceChannelUsers(); // Re-enabled with proper backend-first approach
+  }, [activeServer?._id, activeServer?.id]);
 
   // Update voice channel users
   useEffect(() => {
@@ -385,18 +358,8 @@ const FluxyApp = () => {
       console.log('🏠 Active server:', activeServer?._id || activeServer?.id);
       console.log('📡 Socket connection status:', isConnected);
       
-      // If activeServer is undefined, try to find the server that contains this channel
-      let targetServer = activeServer;
-      if (!targetServer && servers?.length > 0) {
-        targetServer = servers.find(server => 
-          server.channels?.some(channel => 
-            (channel._id || channel.id) === channelId
-          )
-        );
-        console.log('🔍 Found target server for channel:', targetServer?.name || 'Not found');
-      }
-      
-      // Update voice channel users based on socket event
+      // Update voice channel users based on socket event only
+      // Backend is the source of truth, socket just applies incremental updates
       setVoiceChannelUsers(prev => {
         console.log('📊 Current voiceChannelUsers state:', prev);
         const currentUsers = prev[channelId] || [];
@@ -413,35 +376,6 @@ const FluxyApp = () => {
               [channelId]: newUsers
             };
             console.log('🔄 New voiceChannelUsers state:', newState);
-            
-            // If this is a new user we don't recognize, refresh server members
-            const userInTargetServer = targetServer?.members?.some(member => 
-              (member.user?._id || member.user?.id || member._id || member.id) === userId
-            );
-            
-            if (!userInTargetServer && targetServer?._id) {
-              console.log('🔄 User not found in server members, refreshing...');
-              // Refresh server members to get latest data
-              serverAPI.getServerMembers(targetServer._id || targetServer.id).then(response => {
-                const updatedServer = {
-                  ...targetServer,
-                  members: response.data.members
-                };
-                
-                // Update the server in the servers list
-                setServers(prev => prev.map(s => 
-                  (s._id || s.id) === (targetServer._id || targetServer.id) ? updatedServer : s
-                ));
-                
-                // If this is the active server, update it too
-                if (activeServer && (activeServer._id || activeServer.id) === (targetServer._id || targetServer.id)) {
-                  setActiveServer(updatedServer);
-                }
-              }).catch(error => {
-                console.warn('Failed to refresh server members:', error);
-              });
-            }
-            
             return newState;
           } else {
             console.log('⚠️ User already in channel:', userId);
