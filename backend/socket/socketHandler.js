@@ -177,6 +177,8 @@ const handleConnection = (io) => {
 
           // Join new voice channel
           socket.join(`voice:${channelId}`);
+          // Also ensure user is in the server room to receive voice updates
+          socket.join(`server_${channel.server}`);
           socket.currentVoiceChannel = channelId;
 
           // Add user to channel's connected users
@@ -197,6 +199,14 @@ const handleConnection = (io) => {
           console.log(`👥 Current connected users in channel ${channelId}:`, 
             updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
           );
+
+          // Send current voice channel state to the joining user
+          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => cu.user?._id || cu.user?.id || cu.user);
+          socket.emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent initial voice channel state to ${socket.user.username}:`, allConnectedUserIds);
 
           // Notify others in voice channel
           socket.to(`voice:${channelId}`).emit('userJoinedVoice', {

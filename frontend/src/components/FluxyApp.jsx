@@ -399,6 +399,16 @@ const FluxyApp = () => {
       });
     };
 
+    const handleVoiceChannelSync = (data) => {
+      const { channelId, connectedUsers } = data;
+      console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
+      
+      setVoiceChannelUsers(prev => ({
+        ...prev,
+        [channelId]: connectedUsers
+      }));
+    };
+
     const handleServerCreated = (data) => {
             devLog.log('Server created event received:', data);
       if (data.server) {
@@ -899,6 +909,7 @@ const FluxyApp = () => {
     const unsubscribeMemberJoinedViaInvite = on('memberJoinedViaInvite', handleMemberJoinedViaInvite);
     const unsubscribeNewMemberJoined = on('newMemberJoined', handleNewMemberJoined);
     const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
+    const unsubscribeVoiceSync = on('voiceChannelSync', handleVoiceChannelSync);
     const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
     const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
     const unsubscribeChannelCreated = on('channelCreated', handleChannelCreated);
@@ -918,6 +929,7 @@ const FluxyApp = () => {
       unsubscribeMemberJoinedViaInvite();
       unsubscribeNewMemberJoined();
       unsubscribeVoiceUpdate();
+      unsubscribeVoiceSync();
       unsubscribeServerCreated();
       unsubscribeServerJoined();
       unsubscribeChannelCreated();
