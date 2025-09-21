@@ -13,6 +13,7 @@ import { useVoiceChat } from "../hooks/useVoiceChat";
 import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
+import websocketService from "../services/websocket";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -351,7 +352,18 @@ const FluxyApp = () => {
       console.log('🔊 Voice channel update received:', { channelId, action, userId });
       console.log('👤 Current user ID:', user?.id || user?._id);
       console.log('🏠 Active server:', activeServer?._id || activeServer?.id);
-      console.log('📡 Socket connection status:', websocketService.socket?.connected);
+      console.log('📡 Socket connection status:', isConnected);
+      
+      // If activeServer is undefined, try to find the server that contains this channel
+      let targetServer = activeServer;
+      if (!targetServer && servers?.length > 0) {
+        targetServer = servers.find(server => 
+          server.channels?.some(channel => 
+            (channel._id || channel.id) === channelId
+          )
+        );
+        console.log('🔍 Found target server for channel:', targetServer?.name || 'Not found');
+      }
       
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
@@ -372,22 +384,28 @@ const FluxyApp = () => {
             console.log('🔄 New voiceChannelUsers state:', newState);
             
             // If this is a new user we don't recognize, refresh server members
-            const userInActiveServer = activeServer?.members?.some(member => 
+            const userInTargetServer = targetServer?.members?.some(member => 
               (member.user?._id || member.user?.id || member._id || member.id) === userId
             );
             
-            if (!userInActiveServer && activeServer?._id) {
+            if (!userInTargetServer && targetServer?._id) {
               console.log('🔄 User not found in server members, refreshing...');
               // Refresh server members to get latest data
-              serverAPI.getServerMembers(activeServer._id || activeServer.id).then(response => {
+              serverAPI.getServerMembers(targetServer._id || targetServer.id).then(response => {
                 const updatedServer = {
-                  ...activeServer,
+                  ...targetServer,
                   members: response.data.members
                 };
-                setActiveServer(updatedServer);
+                
+                // Update the server in the servers list
                 setServers(prev => prev.map(s => 
-                  (s._id || s.id) === (activeServer._id || activeServer.id) ? updatedServer : s
+                  (s._id || s.id) === (targetServer._id || targetServer.id) ? updatedServer : s
                 ));
+                
+                // If this is the active server, update it too
+                if (activeServer && (activeServer._id || activeServer.id) === (targetServer._id || targetServer.id)) {
+                  setActiveServer(updatedServer);
+                }
               }).catch(error => {
                 console.warn('Failed to refresh server members:', error);
               });
