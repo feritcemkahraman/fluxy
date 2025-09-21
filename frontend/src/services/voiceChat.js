@@ -187,8 +187,14 @@ class VoiceChatService {
         await this.leaveChannel();
       }
 
-      // Get user media
-      await this.getUserMedia();
+      // Try to get user media, but don't fail if microphone is not available
+      try {
+        await this.getUserMedia();
+        console.log('🎤 Microphone access granted');
+      } catch (error) {
+        console.warn('⚠️ Could not access microphone, joining in listen-only mode:', error.message);
+        // Continue without microphone - user can still join to listen
+      }
       
       this.currentChannel = channelId;
       this.isConnected = true;
