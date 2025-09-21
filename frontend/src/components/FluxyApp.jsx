@@ -139,7 +139,7 @@ const FluxyApp = () => {
     };
 
     loadServerMembers();
-    loadVoiceChannelUsers();
+    // loadVoiceChannelUsers(); // Temporarily disabled to test socket-only updates
   }, [activeServer?._id, activeServer?.id]); // Only depend on server ID
 
   // Update voice channel users
@@ -224,7 +224,8 @@ const FluxyApp = () => {
             setActiveChannel(firstTextChannel);
           }
           
-          // Load voice channel users for initial server
+          // Load voice channel users for initial server - DISABLED FOR TESTING
+          /*
           try {
             const channelsResponse = await channelAPI.getChannels(firstServer._id || firstServer.id);
             if (channelsResponse.data.channels) {
@@ -259,6 +260,7 @@ const FluxyApp = () => {
           } catch (error) {
             console.warn('Failed to load initial voice channel users:', error);
           }
+          */
           
           // Server join handled automatically by Socket.IO authentication
         }
