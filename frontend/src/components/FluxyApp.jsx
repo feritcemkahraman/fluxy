@@ -93,6 +93,7 @@ const FluxyApp = () => {
       if (activeServer?._id || activeServer?.id) {
         try {
           const serverId = activeServer._id || activeServer.id;
+          console.log('🔄 Loading voice channel users for server:', serverId);
           // Use getChannels which includes connectedUsers for voice channels
           const response = await channelAPI.getChannels(serverId);
           
@@ -110,7 +111,22 @@ const FluxyApp = () => {
             });
             
             console.log('🔊 Loaded voice channel users:', voiceChannelUsersMap);
-            setVoiceChannelUsers(prev => ({ ...prev, ...voiceChannelUsersMap }));
+            console.log('📊 Setting voiceChannelUsers state with API data');
+            // Merge with existing state instead of overriding
+            setVoiceChannelUsers(prev => {
+              const merged = { ...prev };
+              // Only update channels that came from API, preserve socket updates
+              Object.keys(voiceChannelUsersMap).forEach(channelId => {
+                // If we have socket data that's newer, keep it
+                if (!prev[channelId] || prev[channelId].length === 0) {
+                  merged[channelId] = voiceChannelUsersMap[channelId];
+                } else {
+                  console.log(`🔄 Keeping existing socket data for channel ${channelId}:`, prev[channelId]);
+                }
+              });
+              console.log('🎯 Final merged state:', merged);
+              return merged;
+            });
           }
           
         } catch (error) {
@@ -220,6 +236,7 @@ const FluxyApp = () => {
               });
               
               console.log('🔊 Initial voice channel users loaded:', voiceChannelUsersMap);
+              // For initial load, we can safely set the state directly
               setVoiceChannelUsers(voiceChannelUsersMap);
             }
           } catch (error) {
@@ -331,16 +348,25 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
+      console.log('🔊 Voice channel update received:', { channelId, action, userId });
       
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
+        console.log('📊 Current voiceChannelUsers state:', prev);
         const currentUsers = prev[channelId] || [];
+        console.log('👥 Current users in channel:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
-            console.log('🔊 User joined voice channel:', userId, 'Total users:', newUsers.length);
+            console.log('➕ Adding user to voice channel:', userId, 'New users:', newUsers);
+            
+            const newState = {
+              ...prev,
+              [channelId]: newUsers
+            };
+            console.log('🔄 New voiceChannelUsers state:', newState);
             
             // If this is a new user we don't recognize, refresh server members
             const userInActiveServer = activeServer?.members?.some(member => 
@@ -364,15 +390,14 @@ const FluxyApp = () => {
               });
             }
             
-            return {
-              ...prev,
-              [channelId]: newUsers
-            };
+            return newState;
+          } else {
+            console.log('⚠️ User already in channel:', userId);
           }
         } else if (action === 'userLeft') {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
-          console.log('🔊 User left voice channel:', userId, 'Total users:', newUsers.length);
+          console.log('➖ Removing user from voice channel:', userId, 'New users:', newUsers);
           return {
             ...prev,
             [channelId]: newUsers
