@@ -167,12 +167,7 @@ const handleConnection = (io) => {
               username: socket.user.username
             });
             
-            // Notify server members about leaving previous channel
-            socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
-              channelId: previousChannelId,
-              action: 'userLeft',
-              userId: socket.userId
-            });
+            // Note: voiceChannelUpdate removed - using voiceChannelSync instead
           }
 
           // Join new voice channel
@@ -181,10 +176,19 @@ const handleConnection = (io) => {
           socket.join(`server_${channel.server}`);
           socket.currentVoiceChannel = channelId;
 
-          // Add user to channel's connected users
+          // Add user to channel's connected users - first remove if exists, then add
           console.log(`💾 Adding user ${socket.user.username} to channel ${channelId} in database`);
+          
+          // First remove user if already exists to prevent duplicates
           await Channel.findByIdAndUpdate(channelId, {
-            $addToSet: {
+            $pull: {
+              connectedUsers: { user: socket.userId }
+            }
+          });
+          
+          // Then add user
+          await Channel.findByIdAndUpdate(channelId, {
+            $push: {
               connectedUsers: {
                 user: socket.userId,
                 joinedAt: new Date(),
@@ -231,7 +235,6 @@ const handleConnection = (io) => {
           // Note: No longer sending voiceChannelUpdate since voiceChannelSync provides complete state
 
           console.log(`✅ User ${socket.user.username} joined voice channel: ${channelId}`);
-          console.log(`📡 Emitted voiceChannelUpdate to server_${channel.server} - action: userJoined, userId: ${socket.userId}`);
         }
       } catch (error) {
         console.error('Join voice channel error:', error);
@@ -458,11 +461,7 @@ const handleConnection = (io) => {
             username: socket.user.username
           });
 
-          socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
-            channelId: socket.currentVoiceChannel,
-            action: 'userLeft',
-            userId: socket.userId
-          });
+          // Note: voiceChannelUpdate removed - using voiceChannelSync instead
         }
       }
 
