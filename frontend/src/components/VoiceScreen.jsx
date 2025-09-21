@@ -27,16 +27,19 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const { playVoiceLeave } = useAudio();
   
   // Find server if not provided - fallback mechanism
-  const effectiveServer = server || (servers.length > 0 && channel ? 
+  const effectiveServer = server || channel?.server || (servers.length > 0 && channel ? 
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
     null
   );
   
   console.log('🎙️ VoiceScreen server resolution:', {
     providedServer: server?.name,
+    channelServer: channel?.server?.name,
     fallbackServer: effectiveServer?.name,
+    fetchedServer: fetchedServer?.name,
+    finalServer: finalServer?.name,
     channelId: channel?._id || channel?.id,
-    serverMembersCount: effectiveServer?.members?.length
+    serverMembersCount: finalServer?.members?.length
   });
   const {
     isConnected,
@@ -58,17 +61,40 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     setParticipants
   } = useVoiceChat();
 
-  const [expandedScreenShare, setExpandedScreenShare] = useState(null);
-  const [screenShareVideos, setScreenShareVideos] = useState(new Map());
-  const [missingUsers, setMissingUsers] = useState(new Map()); // Cache for fetched user data
+  const [fetchedServer, setFetchedServer] = useState(null);
+
+  // Effect to fetch server data if not provided
+  useEffect(() => {
+    const fetchServerData = async () => {
+      if (effectiveServer) return; // Already have server data
+      
+      if (channel?.server?._id || channel?.server?.id) {
+        try {
+          console.log('🔍 Fetching server data for voice channel:', channel.server._id || channel.server.id);
+          const response = await serverAPI.getServer(channel.server._id || channel.server.id);
+          if (response.data.server) {
+            setFetchedServer(response.data.server);
+            console.log('✅ Fetched server data:', response.data.server.name);
+          }
+        } catch (error) {
+          console.warn('Failed to fetch server data:', error);
+        }
+      }
+    };
+
+    fetchServerData();
+  }, [effectiveServer, channel?.server?._id, channel?.server?.id]);
+
+  // Use fetched server if effectiveServer is not available
+  const finalServer = effectiveServer || fetchedServer;
 
   // Effect to fetch missing user data
   useEffect(() => {
     const fetchMissingUsers = async () => {
-      if (!effectiveServer?._id || !Array.isArray(voiceChannelUsers) || voiceChannelUsers.length === 0) return;
+      if (!finalServer?._id || !Array.isArray(voiceChannelUsers) || voiceChannelUsers.length === 0) return;
       
       const userMap = new Map();
-      effectiveServer.members?.forEach(member => {
+      finalServer.members?.forEach(member => {
         const userId = member.user?._id || member.user?.id || member._id || member.id;
         const userObj = member.user || member;
         userMap.set(userId, userObj);
@@ -81,7 +107,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         
         try {
           // Refresh server members to get latest data including new users
-          const response = await serverAPI.getServerMembers(effectiveServer._id || effectiveServer.id);
+          const response = await serverAPI.getServerMembers(finalServer._id || finalServer.id);
           if (response.data.members) {
             // Update the server prop would require parent component to handle
             // For now, we'll store the missing users locally
@@ -103,7 +129,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     };
 
     fetchMissingUsers();
-  }, [effectiveServer?._id, effectiveServer?.id, voiceChannelUsers, effectiveServer?.members]);
+  }, [finalServer?._id, finalServer?.id, voiceChannelUsers, finalServer?.members]);
 
   // Update participants list from hook data
   useEffect(() => {
@@ -116,9 +142,9 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       currentChannel,
       channelId: channel?._id,
       channelName: channel?.name,
-      serverMembers: effectiveServer?.members?.length,
-      serverName: effectiveServer?.name,
-      effectiveServerId: effectiveServer?._id || effectiveServer?.id
+      serverMembers: finalServer?.members?.length,
+      serverName: finalServer?.name,
+      effectiveServerId: finalServer?._id || finalServer?.id
     });
 
     // Debug: Check if voiceChannelUsers is actually an array
@@ -132,15 +158,15 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       return;
     }
 
-    if (!effectiveServer?.members) {
-      console.error('❌ No server members available:', effectiveServer);
+    if (!finalServer?.members) {
+      console.error('❌ No server members available:', finalServer);
       return;
     }
 
-    if (effectiveServer?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
+    if (finalServer?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
       // Create a Map for efficient user lookup
       const userMap = new Map();
-      effectiveServer.members.forEach(member => {
+      finalServer.members.forEach(member => {
         // Handle both nested user object and direct member object
         const userId = member.user?._id || member.user?.id || member._id || member.id;
         const userObj = member.user || member;
@@ -235,7 +261,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         }]);
       }
     }
-  }, [server?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants, missingUsers]);
+  }, [finalServer?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants, missingUsers]);
 
   // Listen for connection events to show toast only once
   useEffect(() => {
