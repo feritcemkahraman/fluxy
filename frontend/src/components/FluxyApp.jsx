@@ -354,7 +354,8 @@ const FluxyApp = () => {
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
       console.log('🔊 Voice channel update received:', { channelId, action, userId });
-      console.log('👤 Current user ID:', user?.id || user?._id);
+      const currentUserId = user?.id || user?._id;
+      console.log('👤 Current user ID:', currentUserId);
       console.log('🏠 Active server:', activeServer?._id || activeServer?.id);
       console.log('📡 Socket connection status:', isConnected);
       
@@ -370,6 +371,7 @@ const FluxyApp = () => {
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
             console.log('➕ Adding user to voice channel:', userId, 'New users:', newUsers);
+            console.log('🔍 User comparison - Event userId:', userId, 'Current userId:', currentUserId, 'Match:', userId === currentUserId);
             
             const newState = {
               ...prev,
@@ -379,6 +381,9 @@ const FluxyApp = () => {
             return newState;
           } else {
             console.log('⚠️ User already in channel:', userId);
+            console.log('🔍 Debug - Event userId:', userId, 'Current userId:', currentUserId);
+            console.log('🔍 Debug - Users in channel:', currentUsers);
+            console.log('🔍 Debug - userId in array:', currentUsers.includes(userId));
           }
         } else if (action === 'userLeft') {
           // Remove user from channel
