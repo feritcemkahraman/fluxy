@@ -125,7 +125,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         setParticipants([]);
       }
     }
-  }, [voiceChannelUsers.length, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants]);
+  }, [JSON.stringify(voiceChannelUsers), currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants]);
 
   // Listen for connection events to show toast only once
   useEffect(() => {
