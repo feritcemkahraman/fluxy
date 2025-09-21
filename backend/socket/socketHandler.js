@@ -141,12 +141,37 @@ const handleConnection = (io) => {
         const channel = await Channel.findById(channelId);
         
         if (channel && channel.type === 'voice') {
-          // Leave previous voice channel if any
-          if (socket.currentVoiceChannel) {
-            socket.leave(`voice:${socket.currentVoiceChannel}`);
-            socket.to(`voice:${socket.currentVoiceChannel}`).emit('userLeftVoice', {
+          // Check if already in this voice channel
+          if (socket.currentVoiceChannel === channelId) {
+            console.log(`⚠️ User ${socket.user.username} already in voice channel: ${channelId}`);
+            return; // Don't rejoin the same channel
+          }
+
+          // Leave previous voice channel if any (only if different)
+          if (socket.currentVoiceChannel && socket.currentVoiceChannel !== channelId) {
+            console.log(`🔄 User ${socket.user.username} leaving previous voice channel: ${socket.currentVoiceChannel}`);
+            
+            const previousChannelId = socket.currentVoiceChannel;
+            socket.leave(`voice:${previousChannelId}`);
+            
+            // Remove from previous channel's database
+            await Channel.findByIdAndUpdate(previousChannelId, {
+              $pull: {
+                connectedUsers: { user: socket.userId }
+              }
+            });
+            
+            // Notify others in previous voice channel
+            socket.to(`voice:${previousChannelId}`).emit('userLeftVoice', {
               userId: socket.userId,
               username: socket.user.username
+            });
+            
+            // Notify server members about leaving previous channel
+            socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
+              channelId: previousChannelId,
+              action: 'userLeft',
+              userId: socket.userId
             });
           }
 
@@ -155,6 +180,7 @@ const handleConnection = (io) => {
           socket.currentVoiceChannel = channelId;
 
           // Add user to channel's connected users
+          console.log(`💾 Adding user ${socket.user.username} to channel ${channelId} in database`);
           await Channel.findByIdAndUpdate(channelId, {
             $addToSet: {
               connectedUsers: {
@@ -165,6 +191,12 @@ const handleConnection = (io) => {
               }
             }
           });
+
+          // Check current connected users after update
+          const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
+          console.log(`👥 Current connected users in channel ${channelId}:`, 
+            updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
+          );
 
           // Notify others in voice channel
           socket.to(`voice:${channelId}`).emit('userJoinedVoice', {
