@@ -28,7 +28,7 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
   console.log('🎙️ VoiceScreen RENDERED with props:', {
     channel: channel?.name,
     channelId: channel?._id,
-    server: server?.name,
+    effectiveServer: effectiveServer?.name,
     voiceChannelUsers,
     voiceChannelUsersLength: voiceChannelUsers?.length,
     currentUser: currentUser?.username
@@ -307,7 +307,7 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="grid grid-cols-1 gap-4">
                   {Array.from(remoteScreenStreams.keys()).map((userId) => {
-                    const user = server?.members?.find(m => (m._id || m.id) === userId) ||
+                    const user = effectiveServer?.members?.find(m => (m._id || m.id) === userId) ||
                                  (userId === (currentUser?._id || currentUser?.id) ? currentUser : null);
                     const videoElement = screenShareVideos.get(userId);
                     const isExpanded = expandedScreenShare === userId;

@@ -38,41 +38,41 @@ const FluxyApp = () => {
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
 
-  // Update voice channel users
-  useEffect(() => {
-    const updateVoiceUsers = () => {
-      const status = voiceChatService.getStatus();
-      if (status.currentChannel) {
-        setVoiceChannelUsers(prev => ({
-          ...prev,
-          [status.currentChannel]: status.connectedUsers
-        }));
-      }
-    };
+  // REMOVED: Voice channel users update via voiceChatService - now using socket events only
+  // useEffect(() => {
+  //   const updateVoiceUsers = () => {
+  //     const status = voiceChatService.getStatus();
+  //     if (status.currentChannel) {
+  //       setVoiceChannelUsers(prev => ({
+  //         ...prev,
+  //         [status.currentChannel]: status.connectedUsers
+  //       }));
+  //     }
+  //   };
 
-    // Initial update
-    updateVoiceUsers();
+  //   // Initial update
+  //   updateVoiceUsers();
 
-    // Define global function for UserPanel to toggle voice screen
-    window.toggleVoiceScreen = () => {
-      setShowVoiceScreen(prev => !prev);
-    };
+  //   // Define global function for UserPanel to toggle voice screen
+  //   window.toggleVoiceScreen = () => {
+  //     setShowVoiceScreen(prev => !prev);
+  //   };
 
-    // Listen for voice chat events
-    voiceChatService.on('connected', updateVoiceUsers);
-    voiceChatService.on('disconnected', updateVoiceUsers);
-    voiceChatService.on('user-joined', updateVoiceUsers);
-    voiceChatService.on('user-left', updateVoiceUsers);
+  //   // Listen for voice chat events
+  //   voiceChatService.on('connected', updateVoiceUsers);
+  //   voiceChatService.on('disconnected', updateVoiceUsers);
+  //   voiceChatService.on('user-joined', updateVoiceUsers);
+  //   voiceChatService.on('user-left', updateVoiceUsers);
 
-    return () => {
-      voiceChatService.off('connected', updateVoiceUsers);
-      voiceChatService.off('disconnected', updateVoiceUsers);
-      voiceChatService.off('user-joined', updateVoiceUsers);
-      voiceChatService.off('user-left', updateVoiceUsers);
-      // Clean up global function
-      delete window.toggleVoiceScreen;
-    };
-  }, []);
+  //   return () => {
+  //     voiceChatService.off('connected', updateVoiceUsers);
+  //     voiceChatService.off('disconnected', updateVoiceUsers);
+  //     voiceChatService.off('user-joined', updateVoiceUsers);
+  //     voiceChatService.off('user-left', updateVoiceUsers);
+  //     // Clean up global function
+  //     delete window.toggleVoiceScreen;
+  //   };
+  // }, []);
 
   // Load server members when activeServer changes
   useEffect(() => {
@@ -291,6 +291,10 @@ const FluxyApp = () => {
 
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
+    // Define global function for UserPanel to toggle voice screen
+    window.toggleVoiceScreen = () => {
+      setShowVoiceScreen(prev => !prev);
+    };
     const handleUserStatusUpdate = (data) => {
       const { userId, status } = data;
       
@@ -942,6 +946,8 @@ const FluxyApp = () => {
       unsubscribeServerJoined();
       unsubscribeChannelCreated();
       unsubscribeChannelDeleted();
+      // Clean up global function
+      delete window.toggleVoiceScreen;
     };
   }, []); // Empty dependency - set up listeners only once
 
