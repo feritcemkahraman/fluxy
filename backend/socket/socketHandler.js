@@ -202,10 +202,11 @@ const handleConnection = (io) => {
 
           // Send current voice channel state to the joining user
           const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
-            const userId = cu.user?._id || cu.user?.id || cu.user;
+            const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
             console.log(`🔍 Connected user mapping - cu.user:`, cu.user, `→ userId:`, userId);
             return userId;
-          });
+          }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
+          
           socket.emit('voiceChannelSync', {
             channelId,
             connectedUsers: allConnectedUserIds
