@@ -26,6 +26,16 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   
+  // DEBUG: Log voiceChannelUsers prop
+  console.log('🎙️ VoiceScreen DEBUG - Props received:', {
+    channelId: channel?._id || channel?.id,
+    channelName: channel?.name,
+    voiceChannelUsers,
+    voiceChannelUsersType: typeof voiceChannelUsers,
+    voiceChannelUsersLength: voiceChannelUsers?.length,
+    isArray: Array.isArray(voiceChannelUsers)
+  });
+  
   // Find server if not provided - fallback mechanism
   const effectiveServer = server || channel?.server || (servers.length > 0 && channel ? 
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 

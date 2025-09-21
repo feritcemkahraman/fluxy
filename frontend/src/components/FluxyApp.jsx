@@ -402,13 +402,15 @@ const FluxyApp = () => {
     const handleVoiceChannelSync = (data) => {
       const { channelId, connectedUsers } = data;
       console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
+      console.log('🔄 DEBUG: currentVoiceChannel:', currentVoiceChannel, 'matches:', channelId === currentVoiceChannel);
       
       setVoiceChannelUsers(prev => {
-        console.log('✅ Applying voice channel sync (authoritative update)');
-        return {
+        const newState = {
           ...prev,
           [channelId]: connectedUsers
         };
+        console.log('✅ Applying voice channel sync - new state:', newState);
+        return newState;
       });
     };
 
@@ -1148,21 +1150,30 @@ const FluxyApp = () => {
             </div>
 
             {/* Voice Screen Overlay - Show when showVoiceScreen is true */}
-            {showVoiceScreen && isVoiceConnected && currentVoiceChannel && (
-              <div className="absolute inset-0 z-10">
-                <VoiceScreen
-                  channel={activeServer?.channels?.find(ch =>
-                    (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
-                  )}
-                  server={activeServer}
-                  servers={servers} // Pass servers list for fallback
-                  voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
-                  onClose={() => {
-                    setShowVoiceScreen(false);
-                  }}
-                />
-              </div>
-            )}
+            {showVoiceScreen && isVoiceConnected && currentVoiceChannel && (() => {
+              const channelUsers = voiceChannelUsers[currentVoiceChannel] || [];
+              console.log('🎙️ FluxyApp DEBUG - Passing to VoiceScreen:', {
+                currentVoiceChannel,
+                voiceChannelUsersState: voiceChannelUsers,
+                channelUsers,
+                channelUsersLength: channelUsers.length
+              });
+              return (
+                <div className="absolute inset-0 z-10">
+                  <VoiceScreen
+                    channel={activeServer?.channels?.find(ch =>
+                      (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
+                    )}
+                    server={activeServer}
+                    servers={servers} // Pass servers list for fallback
+                    voiceChannelUsers={channelUsers}
+                    onClose={() => {
+                      setShowVoiceScreen(false);
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         </>
       )}
