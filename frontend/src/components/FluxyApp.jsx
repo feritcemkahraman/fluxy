@@ -125,7 +125,7 @@ const FluxyApp = () => {
     };
 
     loadServerMembers();
-    loadVoiceChannelUsers(); // Re-enabled with proper backend-first approach
+    // loadVoiceChannelUsers(); // Removed - socket events are sufficient
   }, [activeServer?._id, activeServer?.id]);
 
   // Update voice channel users
