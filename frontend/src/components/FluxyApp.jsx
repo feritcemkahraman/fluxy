@@ -956,21 +956,26 @@ const FluxyApp = () => {
   }, [on]); // on is stable from useSocket hook
 
   const handleServerSelect = (server) => {
+    console.log('🏠 Server selected:', server);
+    
     if (server === "home") {
       setIsDirectMessages(true);
       setActiveServer(null);
       setActiveChannel(null);
       setShowVoiceScreen(false); // Hide voice screen when going to DMs
+      console.log('📱 Switched to Direct Messages');
     } else {
       setIsDirectMessages(false);
 
       // Leave previous server - handled automatically by Socket.IO
       if (activeServer && activeServer._id) {
         // Socket.IO handles server switching automatically
+        console.log('🔄 Switching from server:', activeServer.name);
       }
 
       setActiveServer(server);
       setShowVoiceScreen(false); // Hide voice screen when switching servers
+      console.log('🏠 Set active server:', server?.name, 'ID:', server?._id || server?.id);
 
       // Find first text channel instead of just first channel
       if (server.channels && server.channels.length > 0) {

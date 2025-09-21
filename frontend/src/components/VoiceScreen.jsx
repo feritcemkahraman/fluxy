@@ -96,10 +96,15 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
   useEffect(() => {
     console.log('🎙️ VoiceScreen participants update:', {
       voiceChannelUsers,
+      voiceChannelUsersLength: voiceChannelUsers?.length,
       currentUser: currentUser?._id || currentUser?.id,
+      currentUserName: currentUser?.username || currentUser?.displayName,
       isConnected,
       currentChannel,
-      channelId: channel?._id
+      channelId: channel?._id,
+      channelName: channel?.name,
+      serverMembers: server?.members?.length,
+      serverName: server?.name
     });
 
     if (server?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
