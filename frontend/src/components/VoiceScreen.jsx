@@ -26,6 +26,15 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   
+  console.log('🎙️ VoiceScreen RENDERED with props:', {
+    channel: channel?.name,
+    channelId: channel?._id,
+    server: server?.name,
+    voiceChannelUsers,
+    voiceChannelUsersLength: voiceChannelUsers?.length,
+    currentUser: currentUser?.username
+  });
+  
   // Find server if not provided - fallback mechanism
   const effectiveServer = server || (servers.length > 0 && channel ? 
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
@@ -117,22 +126,69 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       channelId: channel?._id,
       channelName: channel?.name,
       serverMembers: effectiveServer?.members?.length,
-      serverName: effectiveServer?.name
+      serverName: effectiveServer?.name,
+      effectiveServerId: effectiveServer?._id
     });
 
-    if (effectiveServer?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
-      // Create a Map for efficient user lookup
+    // If we have voiceChannelUsers, try to create participants even without server members
+    if (Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
+      console.log('✅ Creating participants from voiceChannelUsers:', voiceChannelUsers);
+      
+      // Create a Map for efficient user lookup if we have server members
       const userMap = new Map();
-      effectiveServer.members.forEach(member => {
-        // Handle both nested user object and direct member object
-        const userId = member.user?._id || member.user?.id || member._id || member.id;
-        const userObj = member.user || member;
-        userMap.set(userId, userObj);
-      });
+      if (effectiveServer?.members) {
+        effectiveServer.members.forEach(member => {
+          // Handle both nested user object and direct member object
+          const userId = member.user?._id || member.user?.id || member._id || member.id;
+          const userObj = member.user || member;
+          userMap.set(userId, userObj);
+        });
+      }
 
       // Build participants list
       const participantsList = voiceChannelUsers.map(userId => {
-        const user = userMap.get(userId) || missingUsers.get(userId);
+        const user = userLookupMap.get(userId) || missingUsers.get(userId);
+        
+        if (!user) {
+          console.warn('❌ User not found in server members or cache:', userId);
+          // Create a fallback user object - we'll try to fetch real data later
+          return {
+            user: {
+              _id: userId,
+              id: userId,
+              username: `User-${userId.slice(-4)}`,
+              displayName: `Loading...`,
+              isTemporary: true // Flag to indicate this is temporary data
+            },
+            isCurrentUser: userId === (currentUser?._id || currentUser?.id),
+            isSpeaking: false,
+            isMuted: false,
+            isDeafened: false
+          };
+        }
+
+        return {
+          user,
+          isCurrentUser: (user._id || user.id) === (currentUser?._id || currentUser?.id),
+          isSpeaking: false, // This will be updated by voice activity detection
+          isMuted: false,
+          isDeafened: false
+        };
+      }); // Remove .filter(Boolean) since we now always return an object
+      // Create a Map for efficient user lookup if we have server members
+      const userLookupMap = new Map();
+      if (effectiveServer?.members) {
+        effectiveServer.members.forEach(member => {
+          // Handle both nested user object and direct member object
+          const userId = member.user?._id || member.user?.id || member._id || member.id;
+          const userObj = member.user || member;
+          userMap.set(userId, userObj);
+        });
+      }
+
+      // Build participants list
+      const newParticipantsList = voiceChannelUsers.map(userId => {
+        const user = userLookupMap.get(userId) || missingUsers.get(userId);
         
         if (!user) {
           console.warn('❌ User not found in server members or cache:', userId);
@@ -165,12 +221,12 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       // Always ensure current user is included if connected
       if (isConnected && currentUser && currentChannel === channel?._id) {
         const currentUserId = currentUser._id || currentUser.id;
-        const currentUserExists = participantsList.some(p => p.isCurrentUser);
+        const currentUserExists = newParticipantsList.some(p => p.isCurrentUser);
 
         if (!currentUserExists) {
-          const currentUserObj = userMap.get(currentUserId) || currentUser;
+          const currentUserObj = userLookupMap.get(currentUserId) || currentUser;
           console.log('➕ Adding current user to participants:', currentUserObj.username || currentUserObj.displayName);
-          participantsList.unshift({
+          newParticipantsList.unshift({
             user: currentUserObj,
             isMuted,
             isDeafened,
@@ -181,7 +237,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       }
 
       // Sort participants: current user first, then others alphabetically
-      participantsList.sort((a, b) => {
+      newParticipantsList.sort((a, b) => {
         if (a.isCurrentUser) return -1;
         if (b.isCurrentUser) return 1;
         return (a.user.username || a.user.displayName || '').localeCompare(
@@ -190,9 +246,9 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       });
 
       // Update participants state in hook
-      if (participantsList.length > 0) {
-        console.log('📝 Setting participants:', participantsList.length, 'users');
-        setParticipants(participantsList);
+      if (newParticipantsList.length > 0) {
+        console.log('📝 Setting participants:', newParticipantsList.length, 'users');
+        setParticipants(newParticipantsList);
       } else {
         // If no participants, ensure current user is still shown
         if (isConnected && currentUser && currentChannel === channel?._id) {
@@ -207,8 +263,10 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         }
       }
     } else {
+      console.log('❌ No voiceChannelUsers or not an array, checking fallback conditions');
       // If conditions not met but we're connected, show current user
       if (isConnected && currentUser && currentChannel === channel?._id) {
+        console.log('➕ Fallback: Adding only current user as participant');
         setParticipants([{
           user: currentUser,
           isMuted,
@@ -216,6 +274,9 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
           isCurrentUser: true,
           isSpeaking: false
         }]);
+      } else {
+        console.log('❌ No participants to show');
+        setParticipants([]);
       }
     }
   }, [server?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants, missingUsers]);
