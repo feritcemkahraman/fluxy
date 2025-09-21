@@ -373,6 +373,12 @@ const FluxyApp = () => {
             console.log('➕ Adding user to voice channel:', userId, 'New users:', newUsers);
             console.log('🔍 User comparison - Event userId:', userId, 'Current userId:', currentUserId, 'Match:', userId === currentUserId);
             
+            // If current user joined, show voice screen
+            if (userId === currentUserId) {
+              console.log('🎙️ Current user joined voice channel, showing VoiceScreen');
+              setShowVoiceScreen(true);
+            }
+            
             const newState = {
               ...prev,
               [channelId]: newUsers
@@ -389,6 +395,13 @@ const FluxyApp = () => {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
           console.log('➖ Removing user from voice channel:', userId, 'New users:', newUsers);
+          
+          // If current user left and no users left in channel, hide voice screen
+          if (userId === currentUserId && newUsers.length === 0) {
+            console.log('🎙️ Current user left voice channel and no users left, hiding VoiceScreen');
+            setShowVoiceScreen(false);
+          }
+          
           return {
             ...prev,
             [channelId]: newUsers
