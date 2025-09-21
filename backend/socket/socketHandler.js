@@ -200,20 +200,28 @@ const handleConnection = (io) => {
             updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
           );
 
-          // Send current voice channel state to the joining user
+          // Send current voice channel state to ALL users in the voice channel (including the joining user)
           const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
             const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
             console.log(`🔍 Connected user mapping - cu.user:`, cu.user, `→ userId:`, userId);
             return userId;
           }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
           
+          // Send sync to ALL users in voice channel (including joining user)
+          io.to(`voice:${channelId}`).emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent voice channel sync to ALL users in voice:${channelId}:`, allConnectedUserIds);
+
+          // Also send to the joining user directly (in case they're not in the room yet)
           socket.emit('voiceChannelSync', {
             channelId,
             connectedUsers: allConnectedUserIds
           });
-          console.log(`📤 Sent initial voice channel state to ${socket.user.username}:`, allConnectedUserIds);
+          console.log(`📤 Sent direct voice channel sync to ${socket.user.username}:`, allConnectedUserIds);
 
-          // Notify others in voice channel
+          // Notify others in voice channel (legacy event for compatibility)
           socket.to(`voice:${channelId}`).emit('userJoinedVoice', {
             userId: socket.userId,
             username: socket.user.username,

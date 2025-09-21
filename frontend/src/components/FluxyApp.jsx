@@ -404,18 +404,11 @@ const FluxyApp = () => {
       console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
       
       setVoiceChannelUsers(prev => {
-        // Only use sync if we don't have any users for this channel yet
-        const currentUsers = prev[channelId] || [];
-        if (currentUsers.length === 0) {
-          console.log('✅ Applying voice channel sync (empty state)');
-          return {
-            ...prev,
-            [channelId]: connectedUsers
-          };
-        } else {
-          console.log('⚠️ Ignoring voice channel sync (state already exists):', currentUsers);
-          return prev;
-        }
+        console.log('✅ Applying voice channel sync (authoritative update)');
+        return {
+          ...prev,
+          [channelId]: connectedUsers
+        };
       });
     };
 
