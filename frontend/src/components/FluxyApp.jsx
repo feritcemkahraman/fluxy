@@ -1170,6 +1170,7 @@ const FluxyApp = () => {
                     (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
                   )}
                   server={activeServer}
+                  servers={servers} // Pass servers list for fallback
                   voiceChannelUsers={voiceChannelUsers[currentVoiceChannel] || []}
                   onClose={() => {
                     setShowVoiceScreen(false);

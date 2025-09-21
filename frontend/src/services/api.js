@@ -2,7 +2,7 @@ import axios from 'axios';
 import { handleAPIError, retryRequest } from '../utils/errorHandling';
 import { devLog } from '../utils/devLogger';
 
-const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api-placeholder.com') + '/api';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://38c54745d2d7.ngrok-free.app') + '/api';
 
 // Create axios instance with enhanced configuration
 const api = axios.create({
