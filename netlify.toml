@@ -1,25 +1,16 @@
 [build]
   base = "frontend"
   publish = "build"
-  command = "npm ci && npm run build"
+  command = "npm ci && npm run build:netlify"
 
 [build.environment]
   NODE_VERSION = "18"
+  NODE_OPTIONS = "--max-old-space-size=4096"
+  GENERATE_SOURCEMAP = "false"
 
-# Build optimizations
+# Build optimizations - disable some processing to reduce memory usage
 [build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
+  skip_processing = true
 
 # Headers for SPA routing
 [[redirects]]
