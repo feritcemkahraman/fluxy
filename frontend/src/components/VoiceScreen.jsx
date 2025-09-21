@@ -41,16 +41,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
     null
   );
-  
-  console.log('🎙️ VoiceScreen server resolution:', {
-    providedServer: server?.name,
-    channelServer: channel?.server?.name,
-    fallbackServer: effectiveServer?.name,
-    fetchedServer: fetchedServer?.name,
-    finalServer: finalServer?.name,
-    channelId: channel?._id || channel?.id,
-    serverMembersCount: finalServer?.members?.length
-  });
   const {
     isConnected,
     currentChannel,
