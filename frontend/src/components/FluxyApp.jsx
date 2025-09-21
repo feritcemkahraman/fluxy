@@ -89,7 +89,36 @@ const FluxyApp = () => {
       }
     };
 
+    const loadVoiceChannelUsers = async () => {
+      if (activeServer?._id || activeServer?.id) {
+        try {
+          const serverId = activeServer._id || activeServer.id;
+          // Use getChannels which includes connectedUsers for voice channels
+          const response = await serverAPI.getChannels(serverId);
+          
+          if (response.data.channels) {
+            const voiceChannelUsersMap = {};
+            
+            response.data.channels.forEach(channel => {
+              if (channel.type === 'voice' && channel.connectedUsers) {
+                voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
+                  cu.user?._id || cu.user?.id || cu.user
+                );
+              }
+            });
+            
+            console.log('🔊 Loaded voice channel users:', voiceChannelUsersMap);
+            setVoiceChannelUsers(prev => ({ ...prev, ...voiceChannelUsersMap }));
+          }
+          
+        } catch (error) {
+          console.warn('Failed to load voice channel users:', error);
+        }
+      }
+    };
+
     loadServerMembers();
+    loadVoiceChannelUsers();
   }, [activeServer?._id, activeServer?.id]); // Only depend on server ID
 
   // Update voice channel users
@@ -99,19 +128,24 @@ const FluxyApp = () => {
 
       if (status.currentChannel) {
         // Add current user to connected users if not already included
-        let connectedUsers = [...status.connectedUsers];
+        let connectedUsers = [...(status.connectedUsers || [])];
         
         const userId = user?.id || user?._id;
         if (userId && !connectedUsers.includes(userId)) {
           connectedUsers = [userId, ...connectedUsers];
         }
 
-        setVoiceChannelUsers({
+        setVoiceChannelUsers(prev => ({
+          ...prev, // Keep existing voice channel data from other channels
           [status.currentChannel]: connectedUsers,
           currentChannel: status.currentChannel
-        });
+        }));
       } else {
-        setVoiceChannelUsers({});
+        // When disconnected, only remove currentChannel but keep other channel data
+        setVoiceChannelUsers(prev => {
+          const { currentChannel, ...rest } = prev;
+          return rest;
+        });
       }
     };
 
@@ -165,6 +199,27 @@ const FluxyApp = () => {
           if (firstServer.channels && firstServer.channels.length > 0) {
             const firstTextChannel = firstServer.channels.find(channel => channel.type === 'text') || firstServer.channels[0];
             setActiveChannel(firstTextChannel);
+          }
+          
+          // Load voice channel users for initial server
+          try {
+            const channelsResponse = await serverAPI.getChannels(firstServer._id || firstServer.id);
+            if (channelsResponse.data.channels) {
+              const voiceChannelUsersMap = {};
+              
+              channelsResponse.data.channels.forEach(channel => {
+                if (channel.type === 'voice' && channel.connectedUsers) {
+                  voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
+                    cu.user?._id || cu.user?.id || cu.user
+                  );
+                }
+              });
+              
+              console.log('🔊 Initial voice channel users loaded:', voiceChannelUsersMap);
+              setVoiceChannelUsers(voiceChannelUsersMap);
+            }
+          } catch (error) {
+            console.warn('Failed to load initial voice channel users:', error);
           }
           
           // Server join handled automatically by Socket.IO authentication

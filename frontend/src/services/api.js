@@ -161,6 +161,8 @@ export const serverAPI = {
 // Enhanced Channel API with retry
 export const channelAPI = {
   getChannels: (serverId) => apiCall('GET', `/channels/${serverId}`),
+  getChannelDetails: (channelId) => apiCall('GET', `/channels/${channelId}/details`), // This may not exist yet
+  getChannelsWithUsers: (serverId) => apiCall('GET', `/channels/${serverId}`), // This includes connectedUsers
   createChannel: (channelData) => apiCall('POST', '/channels', channelData),
   updateChannel: (channelId, channelData) => apiCall('PUT', `/channels/${channelId}`, channelData),
   deleteChannel: (channelId) => apiCall('DELETE', `/channels/${channelId}`),
