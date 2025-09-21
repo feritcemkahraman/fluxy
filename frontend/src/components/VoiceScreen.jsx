@@ -25,6 +25,11 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   
+  // Find server from servers array using channel
+  const effectiveServer = servers.length > 0 && channel ? 
+    servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
+    null;
+  
   console.log('🎙️ VoiceScreen RENDERED with props:', {
     channel: channel?.name,
     channelId: channel?._id,
@@ -33,11 +38,6 @@ const VoiceScreen = ({ channel, servers = [], voiceChannelUsers = [], onClose })
     voiceChannelUsersLength: voiceChannelUsers?.length,
     currentUser: currentUser?.username
   });
-  
-  // Find server from servers array using channel
-  const effectiveServer = servers.length > 0 && channel ? 
-    servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
-    null;
   
   console.log('🎙️ VoiceScreen server resolution:', {
     channelId: channel?._id || channel?.id,
