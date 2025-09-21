@@ -349,6 +349,9 @@ const FluxyApp = () => {
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
       console.log('🔊 Voice channel update received:', { channelId, action, userId });
+      console.log('👤 Current user ID:', user?.id || user?._id);
+      console.log('🏠 Active server:', activeServer?._id || activeServer?.id);
+      console.log('📡 Socket connection status:', websocketService.socket?.connected);
       
       // Update voice channel users based on socket event
       setVoiceChannelUsers(prev => {
@@ -839,6 +842,13 @@ const FluxyApp = () => {
       if (isCurrentUser) {
         // Current user joined a new server - fetch updated server list
         loadServersOnce();
+        
+        // Join the new server's socket room
+        if (emit) {
+          console.log(`🏠 Joining socket room for new server: ${serverId}`);
+          emit('joinServer', serverId);
+        }
+        
         return;
       }
       

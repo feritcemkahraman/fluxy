@@ -98,6 +98,7 @@ const handleConnection = (io) => {
 
     userServers.forEach(server => {
       socket.join(`server_${server._id}`);
+      console.log(`✅ User ${socket.user.username} joined server room: server_${server._id}`);
     });
 
     // Broadcast user current status to all servers
@@ -117,7 +118,10 @@ const handleConnection = (io) => {
           member.user.toString() === socket.userId
         )) {
           socket.join(`server_${serverId}`);
-          console.log(`User ${socket.user.username} joined server: server_${serverId}`);
+          console.log(`✅ User ${socket.user.username} manually joined server room: server_${serverId}`);
+          console.log(`👥 Server room members count: ${io.sockets.adapter.rooms.get(`server_${serverId}`)?.size || 0}`);
+        } else {
+          console.log(`❌ User ${socket.user.username} not authorized for server: ${serverId}`);
         }
       } catch (error) {
         console.error('Join server error:', error);
@@ -170,6 +174,9 @@ const handleConnection = (io) => {
           });
 
           // Notify server members including the user who joined
+          console.log(`📡 Broadcasting voiceChannelUpdate to server_${channel.server}`);
+          console.log(`👥 Server room members: ${io.sockets.adapter.rooms.get(`server_${channel.server}`)?.size || 0}`);
+          
           socket.to(`server_${channel.server}`).emit('voiceChannelUpdate', {
             channelId,
             action: 'userJoined',

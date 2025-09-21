@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { voiceChatService } from "../services/voiceChat";
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
+import { serverAPI } from "../services/api";
 
 const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
   const { user: currentUser } = useAuth();
@@ -46,6 +47,50 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
 
   const [expandedScreenShare, setExpandedScreenShare] = useState(null);
   const [screenShareVideos, setScreenShareVideos] = useState(new Map());
+  const [missingUsers, setMissingUsers] = useState(new Map()); // Cache for fetched user data
+
+  // Effect to fetch missing user data
+  useEffect(() => {
+    const fetchMissingUsers = async () => {
+      if (!server?._id || !Array.isArray(voiceChannelUsers) || voiceChannelUsers.length === 0) return;
+      
+      const userMap = new Map();
+      server.members?.forEach(member => {
+        const userId = member.user?._id || member.user?.id || member._id || member.id;
+        const userObj = member.user || member;
+        userMap.set(userId, userObj);
+      });
+
+      const missingUserIds = voiceChannelUsers.filter(userId => !userMap.has(userId));
+      
+      if (missingUserIds.length > 0) {
+        console.log('🔍 Fetching missing user data for:', missingUserIds);
+        
+        try {
+          // Refresh server members to get latest data including new users
+          const response = await serverAPI.getServerMembers(server._id || server.id);
+          if (response.data.members) {
+            // Update the server prop would require parent component to handle
+            // For now, we'll store the missing users locally
+            const fetchedUsers = new Map();
+            response.data.members.forEach(member => {
+              const userId = member.user?._id || member.user?.id || member._id || member.id;
+              const userObj = member.user || member;
+              if (missingUserIds.includes(userId)) {
+                fetchedUsers.set(userId, userObj);
+              }
+            });
+            
+            setMissingUsers(prev => new Map([...prev, ...fetchedUsers]));
+          }
+        } catch (error) {
+          console.warn('Failed to fetch missing users:', error);
+        }
+      }
+    };
+
+    fetchMissingUsers();
+  }, [server?._id, server?.id, voiceChannelUsers, server?.members]);
 
   // Update participants list from hook data
   useEffect(() => {
@@ -69,10 +114,10 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
 
       // Build participants list
       const participantsList = voiceChannelUsers.map(userId => {
-        const user = userMap.get(userId);
+        const user = userMap.get(userId) || missingUsers.get(userId);
         
         if (!user) {
-          console.warn('❌ User not found in server members:', userId);
+          console.warn('❌ User not found in server members or cache:', userId);
           // Create a fallback user object - we'll try to fetch real data later
           return {
             user: {
@@ -155,7 +200,7 @@ const VoiceScreen = ({ channel, server, voiceChannelUsers = [], onClose }) => {
         }]);
       }
     }
-  }, [server?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants]);
+  }, [server?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants, missingUsers]);
 
   // Listen for connection events to show toast only once
   useEffect(() => {
