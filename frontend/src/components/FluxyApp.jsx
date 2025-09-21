@@ -42,10 +42,12 @@ const FluxyApp = () => {
   useEffect(() => {
     const updateVoiceUsers = () => {
       const status = voiceChatService.getStatus();
-      setVoiceChannelUsers({
-        [status.currentChannel]: status.connectedUsers,
-        currentChannel: status.currentChannel
-      });
+      if (status.currentChannel) {
+        setVoiceChannelUsers(prev => ({
+          ...prev,
+          [status.currentChannel]: status.connectedUsers
+        }));
+      }
     };
 
     // Initial update
@@ -156,14 +158,16 @@ const FluxyApp = () => {
 
         setVoiceChannelUsers(prev => ({
           ...prev, // Keep existing voice channel data from other channels
-          [status.currentChannel]: connectedUsers,
-          currentChannel: status.currentChannel
+          [status.currentChannel]: connectedUsers
         }));
       } else {
-        // When disconnected, only remove currentChannel but keep other channel data
+        // When disconnected, clear current channel data only
         setVoiceChannelUsers(prev => {
-          const { currentChannel, ...rest } = prev;
-          return rest;
+          const newState = { ...prev };
+          if (status.currentChannel) {
+            delete newState[status.currentChannel];
+          }
+          return newState;
         });
       }
     };
