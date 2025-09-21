@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { voiceChatService } from "../services/voiceChat";
 import { useVoiceChat } from "../hooks/useVoiceChat";
-import { serverAPI } from "../services/api";
+import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
 
@@ -94,13 +94,15 @@ const FluxyApp = () => {
         try {
           const serverId = activeServer._id || activeServer.id;
           // Use getChannels which includes connectedUsers for voice channels
-          const response = await serverAPI.getChannels(serverId);
+          const response = await channelAPI.getChannels(serverId);
           
           if (response.data.channels) {
+            console.log('📝 Channels response:', response.data.channels);
             const voiceChannelUsersMap = {};
             
             response.data.channels.forEach(channel => {
               if (channel.type === 'voice' && channel.connectedUsers) {
+                console.log(`🎙️ Voice channel ${channel.name}:`, channel.connectedUsers);
                 voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
                   cu.user?._id || cu.user?.id || cu.user
                 );
@@ -203,12 +205,14 @@ const FluxyApp = () => {
           
           // Load voice channel users for initial server
           try {
-            const channelsResponse = await serverAPI.getChannels(firstServer._id || firstServer.id);
+            const channelsResponse = await channelAPI.getChannels(firstServer._id || firstServer.id);
             if (channelsResponse.data.channels) {
+              console.log('📝 Initial channels response:', channelsResponse.data.channels);
               const voiceChannelUsersMap = {};
               
               channelsResponse.data.channels.forEach(channel => {
                 if (channel.type === 'voice' && channel.connectedUsers) {
+                  console.log(`🎙️ Initial voice channel ${channel.name}:`, channel.connectedUsers);
                   voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
                     cu.user?._id || cu.user?.id || cu.user
                   );
