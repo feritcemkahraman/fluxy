@@ -117,25 +117,8 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       channelId: channel?._id,
       channelName: channel?.name,
       serverMembers: effectiveServer?.members?.length,
-      serverName: effectiveServer?.name,
-      effectiveServerId: effectiveServer?._id || effectiveServer?.id
+      serverName: effectiveServer?.name
     });
-
-    // Debug: Check if voiceChannelUsers is actually an array
-    if (!Array.isArray(voiceChannelUsers)) {
-      console.error('❌ voiceChannelUsers is not an array:', voiceChannelUsers);
-      return;
-    }
-
-    if (voiceChannelUsers.length === 0) {
-      console.log('⚠️ voiceChannelUsers is empty array');
-      return;
-    }
-
-    if (!effectiveServer?.members) {
-      console.error('❌ No server members available:', effectiveServer);
-      return;
-    }
 
     if (effectiveServer?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
       // Create a Map for efficient user lookup
