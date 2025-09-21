@@ -189,6 +189,11 @@ class WebSocketService {
         this.emit('voiceChannelUpdate', data);
       });
 
+      // Voice channel sync
+      this.socket.on('voiceChannelSync', (data) => {
+        this.emit('voiceChannelSync', data);
+      });
+
     } catch (error) {
       console.error('Error connecting to Socket.IO:', error);
       this.handleReconnect();
