@@ -1,4 +1,5 @@
 // Optimized Voice Channel Manager
+const mongoose = require('mongoose');
 const Channel = require('../models/Channel');
 const VoiceUtils = require('../utils/voiceUtils');
 const logger = require('../utils/logger');
@@ -139,16 +140,27 @@ class VoiceChannelManager {
    */
   async updateChannelDatabase(channelId, userId, operation) {
     if (operation === 'join') {
-      // Remove user first (prevent duplicates), then add
-      await Channel.findByIdAndUpdate(channelId, {
-        $pull: { connectedUsers: { user: userId } }
-      });
-      
-      await Channel.findByIdAndUpdate(channelId, {
-        $push: { 
-          connectedUsers: VoiceUtils.createConnectedUserObject(userId)
-        }
-      });
+      // SINGLE ATOMIC OPERATION: Remove and add in one update
+      await Channel.findByIdAndUpdate(
+        channelId,
+        [
+          {
+            $set: {
+              connectedUsers: {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: "$connectedUsers",
+                      cond: { $ne: ["$$this.user", new mongoose.Types.ObjectId(userId)] }
+                    }
+                  },
+                  [VoiceUtils.createConnectedUserObject(userId)]
+                ]
+              }
+            }
+          }
+        ]
+      );
     } else if (operation === 'leave') {
       await Channel.findByIdAndUpdate(channelId, {
         $pull: { connectedUsers: { user: userId } }
