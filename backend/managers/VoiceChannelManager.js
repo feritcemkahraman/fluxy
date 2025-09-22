@@ -148,27 +148,50 @@ class VoiceChannelManager {
    */
   async updateChannelDatabase(channelId, userId, operation) {
     if (operation === 'join') {
-      // SINGLE ATOMIC OPERATION: Remove and add in one update
-      await Channel.findByIdAndUpdate(
-        channelId,
-        [
-          {
-            $set: {
-              connectedUsers: {
-                $concatArrays: [
-                  {
-                    $filter: {
-                      input: "$connectedUsers",
-                      cond: { $ne: ["$$this.user", new mongoose.Types.ObjectId(userId)] }
-                    }
-                  },
-                  [VoiceUtils.createConnectedUserObject(userId)]
-                ]
+      // DEBUG: Log the join operation details
+      console.log('🔍 JOIN OPERATION - User ID:', userId, 'Channel:', channelId);
+      
+      // Check current state before operation
+      const beforeChannel = await Channel.findById(channelId).select('connectedUsers');
+      console.log('🔍 BEFORE - Connected users:', beforeChannel?.connectedUsers?.map(cu => ({
+        userId: cu.user?.toString(),
+        joinedAt: cu.joinedAt
+      })));
+
+      // Use session for transaction-like behavior
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          // First, remove any existing entries for this user
+          await Channel.findByIdAndUpdate(
+            channelId,
+            {
+              $pull: { connectedUsers: { user: userId } }
+            },
+            { session }
+          );
+
+          // Then add the user
+          await Channel.findByIdAndUpdate(
+            channelId,
+            {
+              $push: { 
+                connectedUsers: VoiceUtils.createConnectedUserObject(userId)
               }
-            }
-          }
-        ]
-      );
+            },
+            { session }
+          );
+        });
+      } finally {
+        await session.endSession();
+      }
+
+      // DEBUG: Check state after operation
+      const afterChannel = await Channel.findById(channelId).select('connectedUsers');
+      console.log('🔍 AFTER - Connected users:', afterChannel?.connectedUsers?.map(cu => ({
+        userId: cu.user?.toString(),
+        joinedAt: cu.joinedAt
+      })));
     } else if (operation === 'leave') {
       await Channel.findByIdAndUpdate(channelId, {
         $pull: { connectedUsers: { user: userId } }
