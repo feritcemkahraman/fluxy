@@ -151,56 +151,6 @@ const handleConnection = (io) => {
       await voiceManager.leaveChannel(socket);
     });
 
-    // Handle WebRTC voice signaling
-    socket.on('voice-signal', (data) => {
-      const { signal, targetUserId, channelId, fromUserId } = data;
-
-      // Validate that both users are in the same voice channel
-      const targetSocket = connectedUsers.get(targetUserId);
-      if (!targetSocket) {
-        return; // Target user not connected
-      }
-
-      // Check if target user is in the same voice channel
-      if (targetSocket.currentVoiceChannel !== channelId) {
-        return; // Target user not in the same channel
-      }
-
-      // Check if sender is in the same voice channel
-      if (socket.currentVoiceChannel !== channelId) {
-        return; // Sender not in the channel
-      }
-
-      // Forward the signal to the target user
-      targetSocket.emit('voice-signal', {
-        signal,
-        userId: fromUserId, // Who sent the signal
-        channelId
-      });
-    });
-
-    // Handle voice mute status
-    socket.on('voice-mute', (data) => {
-      const { channelId, isMuted, userId } = data;
-
-      // Broadcast mute status to all users in the voice channel
-      io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voice-user-muted', {
-        userId,
-        isMuted
-      });
-    });
-
-    // Handle voice deafen status
-    socket.on('voice-deafen', (data) => {
-      const { channelId, isDeafened, userId } = data;
-
-      // Broadcast deafen status to all users in the voice channel
-      io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voice-user-deafened', {
-        userId,
-        isDeafened
-      });
-    });
-
     // Handle sending a message
     socket.on('sendMessage', async (data) => {
       try {

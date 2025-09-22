@@ -311,14 +311,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     }
   }, [isConnected, currentUser, currentChannel, channel?._id, participants.length, isMuted, isDeafened, setParticipants]);
 
-  // Update audio elements when deafen state changes
-  useEffect(() => {
-    const audioElements = document.querySelectorAll('audio[key^="audio-"]');
-    audioElements.forEach(audio => {
-      audio.muted = isDeafened;
-    });
-  }, [isDeafened]);
-
   const handleLeaveChannel = async () => {
     try {
       await leaveChannel();
@@ -685,25 +677,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
           </div>
         </div>
       )}
-
-      {/* Hidden audio elements for remote streams */}
-      {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
-        <audio
-          key={`audio-${userId}`}
-          ref={(audio) => {
-            if (audio && audio.srcObject !== stream) {
-              console.log('🎵 Setting up audio for user:', userId);
-              audio.srcObject = stream;
-              audio.volume = 1.0;
-              audio.muted = isDeafened;
-              audio.play().catch(err => console.warn('Audio play failed:', err));
-            }
-          }}
-          autoPlay
-          playsInline
-          style={{ display: 'none' }}
-        />
-      ))}
 
     </div>
   );

@@ -8,9 +8,7 @@ class VoiceChannelManager {
   constructor(io) {
     this.io = io;
     this.syncQueue = new Map(); // channelId -> timeout
-    this.disconnectQueue = new Map(); // userId -> timeout for delayed cleanup
     this.DEBOUNCE_MS = 100; // Configurable debounce time
-    this.DISCONNECT_DELAY_MS = 30000; // 30 seconds delay before cleanup
   }
 
   /**
@@ -68,12 +66,6 @@ class VoiceChannelManager {
       if (socket.currentVoiceChannel === channelId) {
         logger.debug(`User ${username} already in voice channel: ${channelId}`);
         return;
-      }
-
-      // Check for reconnection scenario (user has pending cleanup)
-      const wasReconnection = await this.handleReconnection(socket, channelId);
-      if (wasReconnection) {
-        return; // Reconnection handled, no need to proceed with full join
       }
 
       // Leave previous voice channel if exists
@@ -148,33 +140,27 @@ class VoiceChannelManager {
    */
   async updateChannelDatabase(channelId, userId, operation) {
     if (operation === 'join') {
-      // Use session for transaction-like behavior
-      const session = await mongoose.startSession();
-      try {
-        await session.withTransaction(async () => {
-          // First, remove any existing entries for this user
-          await Channel.findByIdAndUpdate(
-            channelId,
-            {
-              $pull: { connectedUsers: { user: userId } }
-            },
-            { session }
-          );
-
-          // Then add the user
-          await Channel.findByIdAndUpdate(
-            channelId,
-            {
-              $push: { 
-                connectedUsers: VoiceUtils.createConnectedUserObject(userId)
+      // SINGLE ATOMIC OPERATION: Remove and add in one update
+      await Channel.findByIdAndUpdate(
+        channelId,
+        [
+          {
+            $set: {
+              connectedUsers: {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: "$connectedUsers",
+                      cond: { $ne: ["$$this.user", new mongoose.Types.ObjectId(userId)] }
+                    }
+                  },
+                  [VoiceUtils.createConnectedUserObject(userId)]
+                ]
               }
-            },
-            { session }
-          );
-        });
-      } finally {
-        await session.endSession();
-      }
+            }
+          }
+        ]
+      );
     } else if (operation === 'leave') {
       await Channel.findByIdAndUpdate(channelId, {
         $pull: { connectedUsers: { user: userId } }
@@ -188,98 +174,11 @@ class VoiceChannelManager {
    */
   async handleDisconnect(socket) {
     if (socket.currentVoiceChannel) {
-      const userId = socket.userId;
-      const username = socket.user.username;
-      const channelId = socket.currentVoiceChannel;
-
-      // Cancel any existing reconnect grace period for this user
-      if (this.disconnectQueue.has(userId)) {
-        clearTimeout(this.disconnectQueue.get(userId));
-      }
-
-      // Set a delayed cleanup - user has 30 seconds to reconnect
-      const cleanupTimeout = setTimeout(async () => {
-        try {
-          // Check if user has reconnected by checking if they're in any socket rooms
-          const socketsInRoom = await this.io.in(VoiceUtils.createVoiceRoomName(channelId)).fetchSockets();
-          const userStillConnected = socketsInRoom.some(s => s.userId === userId);
-
-          if (!userStillConnected) {
-            // User hasn't reconnected, proceed with cleanup
-            logger.voice('DISCONNECT_CLEANUP', username, channelId, []);
-            await this.cleanupUserFromChannel(userId, channelId);
-          } else {
-            logger.voice('DISCONNECT_CANCELLED', username, channelId, ['User reconnected']);
-          }
-        } catch (error) {
-          logger.error('Disconnect cleanup error:', error);
-        } finally {
-          this.disconnectQueue.delete(userId);
-        }
-      }, this.DISCONNECT_DELAY_MS);
-
-      this.disconnectQueue.set(userId, cleanupTimeout);
-      logger.voice('DISCONNECT_QUEUED', username, channelId, [`Cleanup in ${this.DISCONNECT_DELAY_MS/1000}s`]);
+      await this.leaveChannel(socket, true);
     }
 
     // Clear any pending sync operations for this user
     // Note: We keep channel-based debouncing as it's more efficient
-  }
-
-  /**
-   * Clean up user from voice channel (delayed cleanup)
-   * @param {string} userId - User ID
-   * @param {string} channelId - Channel ID
-   */
-  async cleanupUserFromChannel(userId, channelId) {
-    try {
-      // Remove from database
-      await Channel.findByIdAndUpdate(channelId, {
-        $pull: { connectedUsers: { user: userId } }
-      });
-
-      // Get updated channel info and sync
-      const channel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-      if (channel) {
-        const connectedUserIds = VoiceUtils.extractUserIds(channel.connectedUsers);
-        this.debouncedSync(channelId, connectedUserIds, channel.server);
-      }
-    } catch (error) {
-      logger.error('User cleanup error:', error);
-    }
-  }
-
-  /**
-   * Handle user reconnection - cancel delayed cleanup
-   * @param {Object} socket - Socket instance
-   * @param {string} channelId - Channel ID to rejoin
-   */
-  async handleReconnection(socket, channelId) {
-    const userId = socket.userId;
-    
-    // Cancel delayed cleanup if user is reconnecting
-    if (this.disconnectQueue.has(userId)) {
-      clearTimeout(this.disconnectQueue.get(userId));
-      this.disconnectQueue.delete(userId);
-      
-      // Update socket state for rejoining
-      socket.join(VoiceUtils.createVoiceRoomName(channelId));
-      const channel = await Channel.findById(channelId);
-      if (channel) {
-        socket.join(VoiceUtils.createServerRoomName(channel.server));
-        socket.currentVoiceChannel = channelId;
-        
-        logger.voice('RECONNECTED', socket.user.username, channelId, ['Grace period cancelled']);
-        
-        // Sync current state to make sure UI is updated
-        const connectedUserIds = VoiceUtils.extractUserIds(channel.connectedUsers);
-        this.debouncedSync(channelId, connectedUserIds, channel.server);
-      }
-      
-      return true; // Indicate successful reconnection
-    }
-    
-    return false; // No pending cleanup, proceed with normal join
   }
 }
 
