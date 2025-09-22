@@ -3,11 +3,12 @@ const User = require('../models/User');
 const Server = require('../models/Server');
 const Channel = require('../models/Channel');
 const Message = require('../models/Message');
+const VoiceChannelManager = require('../managers/VoiceChannelManager');
 
 // Store connected users
 const connectedUsers = new Map();
-// Store voice channel users
-const voiceChannels = new Map(); // channelId -> Set of userIds
+// Voice channel manager instance
+let voiceManager;
 
 const socketAuth = async (socket, next) => {
   try {
@@ -47,6 +48,11 @@ const socketAuth = async (socket, next) => {
 
 const handleConnection = (io) => {
   io.use(socketAuth);
+
+  // Initialize voice channel manager
+  if (!voiceManager) {
+    voiceManager = new VoiceChannelManager(io);
+  }
 
   io.on('connection', async (socket) => {
     // Emit authentication success to frontend with connection data
@@ -134,176 +140,15 @@ const handleConnection = (io) => {
       console.log(`User ${socket.user.username} left server: ${serverId}`);
     });
 
-    // Handle joining a voice channel
+    // Handle joining a voice channel - OPTIMIZED
     socket.on('joinVoiceChannel', async (data) => {
-      try {
-        const { channelId } = data;
-        const channel = await Channel.findById(channelId);
-        
-        if (channel && channel.type === 'voice') {
-          // Check if already in this voice channel
-          if (socket.currentVoiceChannel === channelId) {
-            console.log(`⚠️ User ${socket.user.username} already in voice channel: ${channelId}`);
-            return; // Don't rejoin the same channel
-          }
-
-          // Leave previous voice channel if any (only if different)
-          if (socket.currentVoiceChannel && socket.currentVoiceChannel !== channelId) {
-            console.log(`🔄 User ${socket.user.username} leaving previous voice channel: ${socket.currentVoiceChannel}`);
-            
-            const previousChannelId = socket.currentVoiceChannel;
-            socket.leave(`voice:${previousChannelId}`);
-            
-            // Remove from previous channel's database
-            await Channel.findByIdAndUpdate(previousChannelId, {
-              $pull: {
-                connectedUsers: { user: socket.userId }
-              }
-            });
-            
-            // Notify others in previous voice channel
-            socket.to(`voice:${previousChannelId}`).emit('userLeftVoice', {
-              userId: socket.userId,
-              username: socket.user.username
-            });
-            
-            // Note: voiceChannelUpdate removed - using voiceChannelSync instead
-          }
-
-          // Join new voice channel
-          socket.join(`voice:${channelId}`);
-          // Also ensure user is in the server room to receive voice updates
-          socket.join(`server_${channel.server}`);
-          socket.currentVoiceChannel = channelId;
-
-          // Add user to channel's connected users - first remove if exists, then add
-          console.log(`💾 Adding user ${socket.user.username} to channel ${channelId} in database`);
-          
-          // First remove user if already exists to prevent duplicates
-          await Channel.findByIdAndUpdate(channelId, {
-            $pull: {
-              connectedUsers: { user: socket.userId }
-            }
-          });
-          
-          // Then add user
-          await Channel.findByIdAndUpdate(channelId, {
-            $push: {
-              connectedUsers: {
-                user: socket.userId,
-                joinedAt: new Date(),
-                isMuted: false,
-                isDeafened: false
-              }
-            }
-          });
-
-          // Check current connected users after update
-          const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-          console.log(`👥 Current connected users in channel ${channelId}:`, 
-            updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
-          );
-
-          // Send current voice channel state to ALL users in the voice channel (including the joining user)
-          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
-            const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
-            console.log(`🔍 Connected user mapping - cu.user:`, cu.user, `→ userId:`, userId);
-            return userId;
-          }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
-          
-          // Send sync to ALL users in voice channel AND all server members
-          io.to(`voice:${channelId}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync to users in voice:${channelId}:`, allConnectedUserIds);
-
-          // ALSO send to ALL server members (ensures first user visibility)
-          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync to ALL server members in server_${channel.server}:`, allConnectedUserIds);
-
-          // Also send to the joining user directly (in case they're not in the room yet)
-          socket.emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent direct voice channel sync to ${socket.user.username}:`, allConnectedUserIds);
-
-          // Notify others in voice channel (legacy event for compatibility)
-          socket.to(`voice:${channelId}`).emit('userJoinedVoice', {
-            userId: socket.userId,
-            username: socket.user.username,
-            avatar: socket.user.avatar
-          });
-
-          // Note: No longer sending voiceChannelUpdate since voiceChannelSync provides complete state
-
-          console.log(`✅ User ${socket.user.username} joined voice channel: ${channelId}`);
-        }
-      } catch (error) {
-        console.error('Join voice channel error:', error);
-      }
+      const { channelId } = data;
+      await voiceManager.joinChannel(socket, channelId);
     });
 
-    // Handle leaving a voice channel
+    // Handle leaving a voice channel - OPTIMIZED
     socket.on('leaveVoiceChannel', async () => {
-      if (socket.currentVoiceChannel) {
-        const channelId = socket.currentVoiceChannel;
-        
-        try {
-          // Remove user from channel's connected users
-          await Channel.findByIdAndUpdate(channelId, {
-            $pull: {
-              connectedUsers: { user: socket.userId }
-            }
-          });
-
-          // Get updated channel with remaining users
-          const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-          console.log(`👥 Remaining users in channel ${channelId}:`, 
-            updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
-          );
-
-          // Send updated voice channel state to ALL users in the voice channel
-          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
-            const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
-            return userId;
-          }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
-          
-          // Send sync to users still in voice channel
-          io.to(`voice:${channelId}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync after user left to voice:${channelId}:`, allConnectedUserIds);
-
-          // ALSO send to ALL server members (ensures leave visibility)
-          const channel = await Channel.findById(channelId);
-          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync after user left to server_${channel.server}:`, allConnectedUserIds);
-
-          // Notify others in voice channel (legacy event for compatibility)
-          socket.to(`voice:${channelId}`).emit('userLeftVoice', {
-            userId: socket.userId,
-            username: socket.user.username
-          });
-
-          console.log(`✅ User ${socket.user.username} left voice channel: ${channelId}`);
-
-          socket.leave(`voice:${channelId}`);
-          socket.currentVoiceChannel = null;
-
-          console.log(`User ${socket.user.username} left voice channel: ${channelId}`);
-        } catch (error) {
-          console.error('Leave voice channel error:', error);
-        }
-      }
+      await voiceManager.leaveChannel(socket);
     });
 
     // Handle sending a message
@@ -458,70 +303,30 @@ const handleConnection = (io) => {
       }
     });
 
-    // Handle disconnect
+    // Handle disconnect - OPTIMIZED
     socket.on('disconnect', async () => {
       // Remove from connected users but keep status for potential reconnect
       connectedUsers.delete(socket.userId);
 
-      // Leave voice channel if connected
-      if (socket.currentVoiceChannel) {
-        const channelId = socket.currentVoiceChannel;
-        
-        // Remove from database
-        const channel = await Channel.findByIdAndUpdate(channelId, {
-          $pull: { connectedUsers: { user: socket.userId } }
-        });
-
-        if (channel) {
-          // Get updated channel with remaining users
-          const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-          console.log(`👥 Remaining users after disconnect in channel ${channelId}:`, 
-            updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
-          );
-
-          // Send updated voice channel state
-          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
-            const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
-            return userId;
-          }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
-          
-          // Send sync to users still in voice channel
-          io.to(`voice:${channelId}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync after disconnect to voice:${channelId}:`, allConnectedUserIds);
-
-          // ALSO send to ALL server members
-          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
-            channelId,
-            connectedUsers: allConnectedUserIds
-          });
-          console.log(`📤 Sent voice channel sync after disconnect to server_${channel.server}:`, allConnectedUserIds);
-
-          // Legacy event
-          socket.to(`voice:${channelId}`).emit('userLeftVoice', {
-            userId: socket.userId,
-            username: socket.user.username
-          });
-          
-          console.log(`✅ User ${socket.user.username} disconnected and removed from voice channel: ${channelId}`);
-        }
-      }
+      // Handle voice channel cleanup through manager
+      await voiceManager.handleDisconnect(socket);
 
       // Broadcast offline status but DON'T update database
-      // Keep the user's status in DB as it was
-      const userServers = await Server.find({
-        'members.user': socket.userId
-      });
-
-      userServers.forEach(server => {
-        socket.to(`server_${server._id}`).emit('userStatusUpdate', {
-          userId: String(socket.userId), // Ensure it's a string
-          status: 'offline',
-          username: socket.user.username
+      try {
+        const userServers = await Server.find({
+          'members.user': socket.userId
         });
-      });
+
+        userServers.forEach(server => {
+          socket.to(`server_${server._id}`).emit('userStatusUpdate', {
+            userId: String(socket.userId),
+            status: 'offline',
+            username: socket.user.username
+          });
+        });
+      } catch (error) {
+        console.error('❌ Disconnect cleanup error:', error);
+      }
     });
   });
 };

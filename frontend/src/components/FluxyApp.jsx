@@ -14,6 +14,7 @@ import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
+import { voiceStateManager } from "../services/voiceStateManager";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -399,20 +400,14 @@ const FluxyApp = () => {
       });
     };
 
-    const handleVoiceChannelSync = (data) => {
+    // OPTIMIZED: Voice channel sync handler with state manager
+    const handleVoiceChannelSync = useCallback((data) => {
       const { channelId, connectedUsers } = data;
       console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
-      console.log('🔄 DEBUG: currentVoiceChannel:', currentVoiceChannel, 'matches:', channelId === currentVoiceChannel);
       
-      setVoiceChannelUsers(prev => {
-        const newState = {
-          ...prev,
-          [channelId]: connectedUsers
-        };
-        console.log('✅ Applying voice channel sync - new state:', newState);
-        return newState;
-      });
-    };
+      // Use optimized state manager instead of direct setState
+      voiceStateManager.updateChannel(channelId, connectedUsers);
+    }, []);
 
     const handleServerCreated = (data) => {
             devLog.log('Server created event received:', data);
@@ -942,6 +937,19 @@ const FluxyApp = () => {
     };
   }, []); // Empty dependency - set up listeners only once
 
+  // OPTIMIZED: Subscribe to voice state manager updates
+  useEffect(() => {
+    const unsubscribe = voiceStateManager.subscribe((newVoiceState) => {
+      console.log('🔄 Voice state manager update:', newVoiceState);
+      setVoiceChannelUsers(newVoiceState);
+    });
+
+    // Load initial state
+    setVoiceChannelUsers(voiceStateManager.getAllChannels());
+
+    return unsubscribe;
+  }, []);
+
   const handleServerSelect = (server) => {
     console.log('🏠 Server selected:', server);
     
@@ -977,7 +985,7 @@ const FluxyApp = () => {
     }
   };
 
-  const handleChannelSelect = (channel) => {
+  const handleChannelSelect = async (channel) => {
     // Special handling for voice channels
     if (channel.type === 'voice') {
       const channelId = channel._id || channel.id;
@@ -999,11 +1007,16 @@ const FluxyApp = () => {
         // If already connected to this channel, toggle panel
         setShowVoiceScreen(prev => !prev);
       } else {
-        // Connect to voice channel (first click)
-        joinVoiceChannel(channelId).catch(error => {
+        // Connect to voice channel and show panel immediately
+        try {
+          setShowVoiceScreen(true); // Show panel immediately
+          await joinVoiceChannel(channelId);
+          console.log('✅ Voice channel joined successfully:', channelId);
+        } catch (error) {
+          console.error('❌ Voice channel join failed:', error);
+          setShowVoiceScreen(false); // Hide panel if join failed
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
-        });
-        // Don't open panel on first click, just connect
+        }
       }
     } else {
       // Regular channel selection for text channels
@@ -1150,20 +1163,32 @@ const FluxyApp = () => {
             </div>
 
             {/* Voice Screen Overlay - Show when showVoiceScreen is true */}
-            {showVoiceScreen && isVoiceConnected && currentVoiceChannel && (() => {
-              const channelUsers = voiceChannelUsers[currentVoiceChannel] || [];
+            {showVoiceScreen && (() => {
+              // Find the voice channel that should be displayed
+              const voiceChannel = activeServer?.channels?.find(ch =>
+                ch.type === 'voice' && ((currentVoiceChannel && (ch._id || ch.id) === currentVoiceChannel) || 
+                                       (!currentVoiceChannel && ch.type === 'voice'))
+              );
+              
+              if (!voiceChannel) {
+                console.warn('No voice channel found for VoiceScreen');
+                return null;
+              }
+
+              const channelUsers = voiceChannelUsers[voiceChannel._id || voiceChannel.id] || [];
               console.log('🎙️ FluxyApp DEBUG - Passing to VoiceScreen:', {
+                voiceChannelId: voiceChannel._id || voiceChannel.id,
                 currentVoiceChannel,
                 voiceChannelUsersState: voiceChannelUsers,
                 channelUsers,
-                channelUsersLength: channelUsers.length
+                channelUsersLength: channelUsers.length,
+                isVoiceConnected
               });
+              
               return (
                 <div className="absolute inset-0 z-10">
                   <VoiceScreen
-                    channel={activeServer?.channels?.find(ch =>
-                      (ch._id || ch.id) === currentVoiceChannel && ch.type === 'voice'
-                    )}
+                    channel={voiceChannel}
                     server={activeServer}
                     servers={servers} // Pass servers list for fallback
                     voiceChannelUsers={channelUsers}

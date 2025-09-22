@@ -62,6 +62,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   } = useVoiceChat();
 
   const [fetchedServer, setFetchedServer] = useState(null);
+  const [missingUsers, setMissingUsers] = useState(new Map()); // Add missing state
 
   // Effect to fetch server data if not provided
   useEffect(() => {
