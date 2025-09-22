@@ -148,16 +148,6 @@ class VoiceChannelManager {
    */
   async updateChannelDatabase(channelId, userId, operation) {
     if (operation === 'join') {
-      // DEBUG: Log the join operation details
-      console.log('🔍 JOIN OPERATION - User ID:', userId, 'Channel:', channelId);
-      
-      // Check current state before operation
-      const beforeChannel = await Channel.findById(channelId).select('connectedUsers');
-      console.log('🔍 BEFORE - Connected users:', beforeChannel?.connectedUsers?.map(cu => ({
-        userId: cu.user?.toString(),
-        joinedAt: cu.joinedAt
-      })));
-
       // Use session for transaction-like behavior
       const session = await mongoose.startSession();
       try {
@@ -185,13 +175,6 @@ class VoiceChannelManager {
       } finally {
         await session.endSession();
       }
-
-      // DEBUG: Check state after operation
-      const afterChannel = await Channel.findById(channelId).select('connectedUsers');
-      console.log('🔍 AFTER - Connected users:', afterChannel?.connectedUsers?.map(cu => ({
-        userId: cu.user?.toString(),
-        joinedAt: cu.joinedAt
-      })));
     } else if (operation === 'leave') {
       await Channel.findByIdAndUpdate(channelId, {
         $pull: { connectedUsers: { user: userId } }

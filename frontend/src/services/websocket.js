@@ -317,14 +317,47 @@ class WebSocketService {
     this.socket.emit('leaveVoiceChannel', { channelId });
   }
 
-  // Update user status
-  updateStatus(status) {
+  // Send WebRTC voice signal
+  sendVoiceSignal(signal, targetUserId, channelId, fromUserId) {
     if (!this.isAuthenticated || !this.socket) {
       console.error('Socket not authenticated or connected');
       return;
     }
 
-    this.socket.emit('updateUserStatus', { status });
+    this.socket.emit('voice-signal', {
+      signal,
+      targetUserId,
+      channelId,
+      fromUserId
+    });
+  }
+
+  // Send voice mute status
+  sendVoiceMuteStatus(channelId, isMuted, userId) {
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
+    }
+
+    this.socket.emit('voice-mute', {
+      channelId,
+      isMuted,
+      userId
+    });
+  }
+
+  // Send voice deafen status
+  sendVoiceDeafenStatus(channelId, isDeafened, userId) {
+    if (!this.isAuthenticated || !this.socket) {
+      console.error('Socket not authenticated or connected');
+      return;
+    }
+
+    this.socket.emit('voice-deafen', {
+      channelId,
+      isDeafened,
+      userId
+    });
   }
 
   // Event listener management
