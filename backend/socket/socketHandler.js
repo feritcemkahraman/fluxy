@@ -211,12 +211,19 @@ const handleConnection = (io) => {
             return userId;
           }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
           
-          // Send sync to ALL users in voice channel (including joining user)
+          // Send sync to ALL users in voice channel AND all server members
           io.to(`voice:${channelId}`).emit('voiceChannelSync', {
             channelId,
             connectedUsers: allConnectedUserIds
           });
-          console.log(`📤 Sent voice channel sync to ALL users in voice:${channelId}:`, allConnectedUserIds);
+          console.log(`📤 Sent voice channel sync to users in voice:${channelId}:`, allConnectedUserIds);
+
+          // ALSO send to ALL server members (ensures first user visibility)
+          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent voice channel sync to ALL server members in server_${channel.server}:`, allConnectedUserIds);
 
           // Also send to the joining user directly (in case they're not in the room yet)
           socket.emit('voiceChannelSync', {
@@ -266,12 +273,20 @@ const handleConnection = (io) => {
             return userId;
           }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
           
-          // Send sync to ALL users still in voice channel
+          // Send sync to users still in voice channel
           io.to(`voice:${channelId}`).emit('voiceChannelSync', {
             channelId,
             connectedUsers: allConnectedUserIds
           });
           console.log(`📤 Sent voice channel sync after user left to voice:${channelId}:`, allConnectedUserIds);
+
+          // ALSO send to ALL server members (ensures leave visibility)
+          const channel = await Channel.findById(channelId);
+          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent voice channel sync after user left to server_${channel.server}:`, allConnectedUserIds);
 
           // Notify others in voice channel (legacy event for compatibility)
           socket.to(`voice:${channelId}`).emit('userLeftVoice', {
