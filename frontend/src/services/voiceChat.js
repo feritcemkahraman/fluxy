@@ -27,6 +27,8 @@ class VoiceChatService {
   }
 
   setupSocketListeners() {
+    console.log('🔧 Setting up VoiceChat socket listeners...');
+    
     socketService.on('userJoinedVoice', this.handleUserJoined.bind(this));
     socketService.on('userLeftVoice', this.handleUserLeft.bind(this));
     socketService.on('voice-signal', this.handleSignal.bind(this));
@@ -35,6 +37,8 @@ class VoiceChatService {
     socketService.on('screen-share-started', this.handleScreenShareStarted.bind(this));
     socketService.on('screen-share-stopped', this.handleScreenShareStopped.bind(this));
     socketService.on('screen-signal', this.handleScreenSignal.bind(this));
+    
+    console.log('✅ VoiceChat socket listeners set up');
   }
 
   // Event listener management
@@ -288,7 +292,19 @@ class VoiceChatService {
 
   // Handle new user joining
   handleUserJoined({ userId, channelId }) {
-    if (channelId !== this.currentChannel || !this.localStream) return;
+    console.log(`👤 User joined voice: ${userId} in channel: ${channelId}`);
+    
+    if (channelId !== this.currentChannel) {
+      console.log(`❌ Channel mismatch: current=${this.currentChannel}, joined=${channelId}`);
+      return;
+    }
+    
+    if (!this.localStream) {
+      console.log(`❌ No local stream available for peer connection`);
+      return;
+    }
+
+    console.log(`🤝 Creating peer connection as initiator for user: ${userId}`);
 
     // Create peer connection (initiator)
     const peer = new Peer({
@@ -315,11 +331,18 @@ class VoiceChatService {
 
   // Handle WebRTC signaling
   handleSignal({ signal, userId, channelId }) {
-    if (channelId !== this.currentChannel) return;
+    console.log(`📡 Received signal from user: ${userId} in channel: ${channelId}`);
+    
+    if (channelId !== this.currentChannel) {
+      console.log(`❌ Signal channel mismatch: current=${this.currentChannel}, signal=${channelId}`);
+      return;
+    }
 
     let peer = this.peers.get(userId);
 
     if (!peer && this.localStream) {
+      console.log(`🤝 Creating peer connection as receiver for user: ${userId}`);
+      
       // Create peer connection (not initiator)
       peer = new Peer({
         initiator: false,
@@ -332,30 +355,38 @@ class VoiceChatService {
     }
 
     if (peer) {
+      console.log(`📤 Sending signal to peer: ${userId}`);
       peer.signal(signal);
+    } else {
+      console.log(`❌ No peer found for user: ${userId}`);
     }
   }
 
   // Setup peer connection events
   setupPeerEvents(peer, userId) {
     peer.on('signal', (signal) => {
+      console.log(`📡 Sending signal to user: ${userId}`);
       socketService.sendVoiceSignal(signal, userId, this.currentChannel, this.currentUserId);
     });
 
     peer.on('stream', (remoteStream) => {
+      console.log(`🎧 Received remote stream from user: ${userId}`);
       this.emit('remote-stream', { userId, stream: remoteStream });
     });
 
     peer.on('error', (error) => {
+      console.error(`❌ Peer error for user ${userId}:`, error);
       this.emit('peer-error', { userId, error });
     });
 
     peer.on('close', () => {
+      console.log(`🔌 Peer connection closed for user: ${userId}`);
       this.peers.delete(userId);
       this.emit('peer-disconnected', { userId });
     });
 
     peer.on('connect', () => {
+      console.log(`✅ Peer connected to user: ${userId}`);
     });
   }
 

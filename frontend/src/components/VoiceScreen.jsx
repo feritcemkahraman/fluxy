@@ -54,6 +54,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const [fetchedServer, setFetchedServer] = useState(null);
   const [missingUsers, setMissingUsers] = useState(new Map()); // Add missing state
   const [screenShareVideos, setScreenShareVideos] = useState(new Map()); // Add missing state for screen sharing
+  const [audioElements, setAudioElements] = useState(new Map()); // Add missing state for audio elements
 
   // Effect to fetch server data if not provided
   useEffect(() => {
@@ -261,17 +262,67 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       });
     };
 
+    // CRITICAL: Listen for remote streams for voice chat
+    const handleRemoteStream = ({ userId, stream }) => {
+      console.log(`🎧 Received remote stream from user: ${userId}`);
+      // The useVoiceChat hook will handle this and update remoteStreams state
+    };
+
     voiceChatService.on('speaking-changed', handleSpeakingChanged);
+    voiceChatService.on('remote-stream', handleRemoteStream);
 
     return () => {
       voiceChatService.off('connected', handleVoiceConnected);
       voiceChatService.off('disconnected', handleVoiceDisconnected);
       voiceChatService.off('speaking-changed', handleSpeakingChanged);
+      voiceChatService.off('remote-stream', handleRemoteStream);
     };
   }, [channel, currentUser, participants, setParticipants]);
 
   // Get current user's screen sharing status
   const isCurrentUserScreenSharing = screenSharingUsers.includes(currentUser?._id || currentUser?.id);
+
+  // Handle remote audio streams - CRITICAL FOR VOICE CHAT
+  useEffect(() => {
+    const newAudioElements = new Map();
+    
+    remoteStreams.forEach((stream, userId) => {
+      console.log(`🔊 Creating audio element for user: ${userId}`);
+      
+      const audioElement = document.createElement('audio');
+      audioElement.srcObject = stream;
+      audioElement.autoplay = true;
+      audioElement.playsInline = true;
+      audioElement.muted = false;
+      audioElement.volume = 1.0;
+      
+      // Add to DOM to ensure playback
+      audioElement.style.display = 'none';
+      document.body.appendChild(audioElement);
+      
+      // Handle audio play promise
+      audioElement.play().catch(error => {
+        console.warn('Audio autoplay failed:', error);
+        // User interaction required for autoplay
+      });
+      
+      newAudioElements.set(userId, audioElement);
+    });
+    
+    setAudioElements(newAudioElements);
+    
+    // Cleanup old audio elements
+    return () => {
+      audioElements.forEach(audio => {
+        if (audio.srcObject) {
+          audio.srcObject.getTracks().forEach(track => track.stop());
+        }
+        if (audio.parentNode) {
+          audio.parentNode.removeChild(audio);
+        }
+      });
+    };
+  }, [remoteStreams]);
 
   // Handle remote screen streams
   useEffect(() => {
@@ -310,6 +361,21 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       }]);
     }
   }, [isConnected, currentUser, currentChannel, channel?._id, participants.length, isMuted, isDeafened, setParticipants]);
+
+  // Cleanup audio elements on component unmount
+  useEffect(() => {
+    return () => {
+      // Clean up all audio elements when component unmounts
+      audioElements.forEach(audio => {
+        if (audio.srcObject) {
+          audio.srcObject.getTracks().forEach(track => track.stop());
+        }
+        if (audio.parentNode) {
+          audio.parentNode.removeChild(audio);
+        }
+      });
+    };
+  }, []);
 
   const handleLeaveChannel = async () => {
     try {
