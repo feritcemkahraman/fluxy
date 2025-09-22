@@ -199,7 +199,16 @@ class VoiceChatService {
       this.currentChannel = channelId;
       this.isConnected = true;
 
-      socketService.joinVoiceChannel(channelId);
+      // Wait for socket authentication before joining
+      try {
+        await socketService.joinVoiceChannel(channelId);
+        console.log('✅ Voice channel join request sent');
+      } catch (socketError) {
+        console.error('❌ Failed to join voice channel:', socketError.message);
+        this.isConnected = false;
+        this.currentChannel = null;
+        throw new Error(`Voice channel join failed: ${socketError.message}`);
+      }
       
       this.emit('connected', { channelId });
       return true;

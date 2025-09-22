@@ -266,13 +266,47 @@ class WebSocketService {
     }
   }
 
-  // Join voice channel
-  joinVoiceChannel(channelId) {
-    if (!this.isAuthenticated || !this.socket) {
-      console.error('Socket not authenticated or connected');
-      return;
+  // Wait for authentication
+  async waitForAuthentication(timeout = 5000) {
+    if (this.isAuthenticated) {
+      return Promise.resolve();
     }
 
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('Authentication timeout'));
+      }, timeout);
+
+      const handleAuth = () => {
+        clearTimeout(timer);
+        this.off('authenticated', handleAuth);
+        this.off('authentication_failed', handleAuthFailed);
+        resolve();
+      };
+
+      const handleAuthFailed = (error) => {
+        clearTimeout(timer);
+        this.off('authenticated', handleAuth);
+        this.off('authentication_failed', handleAuthFailed);
+        reject(new Error(`Authentication failed: ${error}`));
+      };
+
+      this.on('authenticated', handleAuth);
+      this.on('authentication_failed', handleAuthFailed);
+    });
+  }
+
+  // Join voice channel
+  async joinVoiceChannel(channelId) {
+    // Wait for authentication first
+    try {
+      await this.waitForAuthentication();
+    } catch (error) {
+      console.error('Failed to authenticate before joining voice channel:', error.message);
+      throw new Error('Socket not authenticated or connected');
+    }
+
+    console.log('🔊 Joining voice channel:', channelId);
     this.socket.emit('joinVoiceChannel', { channelId });
   }
 

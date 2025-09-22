@@ -63,6 +63,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
   const [fetchedServer, setFetchedServer] = useState(null);
   const [missingUsers, setMissingUsers] = useState(new Map()); // Add missing state
+  const [screenShareVideos, setScreenShareVideos] = useState(new Map()); // Add missing state for screen sharing
 
   // Effect to fetch server data if not provided
   useEffect(() => {
