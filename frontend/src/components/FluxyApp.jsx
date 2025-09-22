@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import ServerSidebar from "./ServerSidebar";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatArea from "./ChatArea";
@@ -401,13 +401,13 @@ const FluxyApp = () => {
     };
 
     // OPTIMIZED: Voice channel sync handler with state manager
-    const handleVoiceChannelSync = useCallback((data) => {
+    const handleVoiceChannelSync = (data) => {
       const { channelId, connectedUsers } = data;
       console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
       
       // Use optimized state manager instead of direct setState
       voiceStateManager.updateChannel(channelId, connectedUsers);
-    }, []);
+    };
 
     const handleServerCreated = (data) => {
             devLog.log('Server created event received:', data);
