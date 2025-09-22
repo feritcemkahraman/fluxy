@@ -300,7 +300,7 @@ class VoiceChatService {
   handleUserJoined({ userId, channelId }) {
     if (channelId !== this.currentChannel || !this.localStream) return;
 
-    // Create peer connection (initiator)
+    // I am the initiator - create peer and send offer
     const peer = new Peer({
       initiator: true,
       trickle: false,
@@ -310,6 +310,7 @@ class VoiceChatService {
     this.setupPeerEvents(peer, userId);
     this.peers.set(userId, peer);
 
+    console.log('🎯 Creating initiator peer for user:', userId);
     this.emit('user-joined', { userId, channelId });
   }
 
@@ -320,6 +321,7 @@ class VoiceChatService {
       this.peers.delete(userId);
     }
 
+    console.log('👋 User left, destroyed peer:', userId);
     this.emit('user-left', { userId, channelId });
   }
 
@@ -330,7 +332,7 @@ class VoiceChatService {
     let peer = this.peers.get(userId);
 
     if (!peer && this.localStream) {
-      // Create peer connection (not initiator)
+      // I'm the receiver - create peer as non-initiator
       peer = new Peer({
         initiator: false,
         trickle: false,
@@ -339,9 +341,12 @@ class VoiceChatService {
 
       this.setupPeerEvents(peer, userId);
       this.peers.set(userId, peer);
+
+      console.log('📡 Creating receiver peer for user:', userId);
     }
 
     if (peer) {
+      console.log('📡 Signaling peer for user:', userId, 'Signal type:', signal.type);
       peer.signal(signal);
     }
   }
@@ -349,23 +354,29 @@ class VoiceChatService {
   // Setup peer connection events
   setupPeerEvents(peer, userId) {
     peer.on('signal', (signal) => {
+      console.log('📤 Sending signal to user:', userId, 'Type:', signal.type);
       socketService.sendVoiceSignal(signal, userId, this.currentChannel, this.currentUserId);
     });
 
     peer.on('stream', (remoteStream) => {
+      console.log('🎵 Received remote stream from user:', userId);
       this.emit('remote-stream', { userId, stream: remoteStream });
     });
 
     peer.on('error', (error) => {
+      console.error('❌ Peer error for user:', userId, error);
       this.emit('peer-error', { userId, error });
     });
 
     peer.on('close', () => {
+      console.log('🔌 Peer connection closed for user:', userId);
       this.peers.delete(userId);
       this.emit('peer-disconnected', { userId });
     });
 
     peer.on('connect', () => {
+      console.log('✅ Peer connection established with user:', userId);
+      this.emit('peer-connected', { userId });
     });
   }
 
