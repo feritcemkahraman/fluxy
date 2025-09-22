@@ -85,6 +85,13 @@ class VoiceChannelManager {
       const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
       const connectedUserIds = VoiceUtils.extractUserIds(updatedChannel.connectedUsers);
 
+      // Notify other users in the channel about new user joining
+      socket.to(VoiceUtils.createVoiceRoomName(channelId)).emit('userJoinedVoice', {
+        userId,
+        channelId,
+        username
+      });
+
       // Debounced sync to prevent spam
       this.debouncedSync(channelId, connectedUserIds, channel.server);
 
@@ -111,6 +118,13 @@ class VoiceChannelManager {
 
       // Update database
       await this.updateChannelDatabase(channelId, userId, 'leave');
+
+      // Notify other users in the channel about user leaving
+      socket.to(VoiceUtils.createVoiceRoomName(channelId)).emit('userLeftVoice', {
+        userId,
+        channelId,
+        username
+      });
 
       // Update socket state
       socket.leave(VoiceUtils.createVoiceRoomName(channelId));

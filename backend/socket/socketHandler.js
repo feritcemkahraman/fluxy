@@ -151,6 +151,87 @@ const handleConnection = (io) => {
       await voiceManager.leaveChannel(socket);
     });
 
+    // WebRTC Voice Signaling - CRITICAL FOR VOICE CHAT
+    socket.on('voice-signal', (data) => {
+      const { signal, targetUserId, channelId, fromUserId } = data;
+      
+      // Forward signal to target user
+      const targetConnection = connectedUsers.get(targetUserId);
+      if (targetConnection) {
+        const targetSocket = io.sockets.sockets.get(targetConnection.socketId);
+        if (targetSocket) {
+          targetSocket.emit('voice-signal', {
+            signal,
+            userId: fromUserId,
+            channelId
+          });
+        }
+      }
+    });
+
+    // Voice mute status
+    socket.on('voice-mute-status', (data) => {
+      const { channelId, isMuted, userId } = data;
+      
+      // Broadcast to voice channel
+      socket.to(`voice:${channelId}`).emit('voice-user-muted', {
+        userId,
+        isMuted,
+        channelId
+      });
+    });
+
+    // Voice deafen status
+    socket.on('voice-deafen-status', (data) => {
+      const { channelId, isDeafened, userId } = data;
+      
+      // Broadcast to voice channel
+      socket.to(`voice:${channelId}`).emit('voice-user-deafened', {
+        userId,
+        isDeafened,
+        channelId
+      });
+    });
+
+    // Screen sharing events
+    socket.on('start-screen-share', (data) => {
+      const { channelId, userId } = data;
+      
+      // Broadcast to voice channel
+      socket.to(`voice:${channelId}`).emit('screen-share-started', {
+        userId,
+        channelId
+      });
+    });
+
+    socket.on('stop-screen-share', (data) => {
+      const { channelId, userId } = data;
+      
+      // Broadcast to voice channel
+      socket.to(`voice:${channelId}`).emit('screen-share-stopped', {
+        userId,
+        channelId
+      });
+    });
+
+    // Screen sharing signaling
+    socket.on('screen-signal', (data) => {
+      const { signal, targetUserId, channelId, fromUserId } = data;
+      
+      // Forward signal to target user
+      const targetConnection = connectedUsers.get(targetUserId);
+      if (targetConnection) {
+        const targetSocket = io.sockets.sockets.get(targetConnection.socketId);
+        if (targetSocket) {
+          targetSocket.emit('screen-signal', {
+            signal,
+            userId: fromUserId,
+            channelId
+          });
+        }
+      }
+    });
+
     // Handle sending a message
     socket.on('sendMessage', async (data) => {
       try {

@@ -64,21 +64,48 @@ class VoiceChatService {
   // Get user media (microphone)
   async getUserMedia() {
     try {
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Bu tarayıcı mikrofon erişimini desteklemiyor. Lütfen modern bir tarayıcı kullanın.');
+      }
+
+      console.log('🎤 Mikrofon erişimi isteniyor...');
+      
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          sampleRate: 48000,
+          channelCount: 1
         },
         video: false
       });
+
+      console.log('✅ Mikrofon erişimi başarılı');
 
       // Start voice activity detection
       this.startVoiceActivityDetection();
 
       return this.localStream;
     } catch (error) {
-      throw new Error('Could not access microphone. Please check permissions.');
+      console.error('❌ Mikrofon erişim hatası:', error);
+      
+      let errorMessage = 'Mikrofon erişimi başarısız.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Mikrofon izni reddedildi. Lütfen tarayıcı ayarlarından mikrofon iznini etkinleştirin.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'Mikrofon bulunamadı. Lütfen mikrofonunuzun bağlı olduğundan emin olun.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Mikrofon başka bir uygulama tarafından kullanılıyor olabilir.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = 'Mikrofon ayarları desteklenmiyor.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage = 'Güvenlik nedeniyle mikrofon erişimi engellendi. HTTPS bağlantısı gerekli olabilir.';
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 

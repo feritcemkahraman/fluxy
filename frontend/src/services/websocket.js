@@ -194,6 +194,40 @@ class WebSocketService {
         this.emit('voiceChannelSync', data);
       });
 
+      // WebRTC Voice Events - CRITICAL FOR VOICE CHAT
+      this.socket.on('userJoinedVoice', (data) => {
+        this.emit('userJoinedVoice', data);
+      });
+
+      this.socket.on('userLeftVoice', (data) => {
+        this.emit('userLeftVoice', data);
+      });
+
+      this.socket.on('voice-signal', (data) => {
+        this.emit('voice-signal', data);
+      });
+
+      this.socket.on('voice-user-muted', (data) => {
+        this.emit('voice-user-muted', data);
+      });
+
+      this.socket.on('voice-user-deafened', (data) => {
+        this.emit('voice-user-deafened', data);
+      });
+
+      // Screen Sharing Events
+      this.socket.on('screen-share-started', (data) => {
+        this.emit('screen-share-started', data);
+      });
+
+      this.socket.on('screen-share-stopped', (data) => {
+        this.emit('screen-share-stopped', data);
+      });
+
+      this.socket.on('screen-signal', (data) => {
+        this.emit('screen-signal', data);
+      });
+
     } catch (error) {
       console.error('Error connecting to Socket.IO:', error);
       this.handleReconnect();
@@ -322,6 +356,68 @@ class WebSocketService {
     }
 
     this.socket.emit('updateUserStatus', { status });
+  }
+
+  // WebRTC Voice Signaling Methods - CRITICAL FOR VOICE CHAT
+  sendVoiceSignal(signal, targetUserId, channelId, fromUserId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('voice-signal', {
+      signal,
+      targetUserId,
+      channelId,
+      fromUserId
+    });
+  }
+
+  sendVoiceMuteStatus(channelId, isMuted, userId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('voice-mute-status', {
+      channelId,
+      isMuted,
+      userId
+    });
+  }
+
+  sendVoiceDeafenStatus(channelId, isDeafened, userId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('voice-deafen-status', {
+      channelId,
+      isDeafened,
+      userId
+    });
+  }
+
+  // Screen Sharing Signaling
+  startScreenShare(channelId, userId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('start-screen-share', {
+      channelId,
+      userId
+    });
+  }
+
+  stopScreenShare(channelId, userId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('stop-screen-share', {
+      channelId,
+      userId
+    });
+  }
+
+  sendScreenSignal(signal, targetUserId, channelId, fromUserId) {
+    if (!this.socket) return;
+    
+    this.socket.emit('screen-signal', {
+      signal,
+      targetUserId,
+      channelId,
+      fromUserId
+    });
   }
 
   // Event listener management
