@@ -26,6 +26,34 @@ class VoiceChatService {
     this.setupSocketListeners();
   }
 
+  // Restore voice channel state after reconnection
+  restoreVoiceChannelState() {
+    try {
+      const savedState = localStorage.getItem('voiceChannelState');
+      if (savedState) {
+        const { channelId, timestamp } = JSON.parse(savedState);
+        
+        // Check if state is recent (within 5 minutes)
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        if (timestamp > fiveMinutesAgo) {
+          console.log('🔄 Restoring voice channel state:', channelId);
+          
+          // Attempt to rejoin the channel
+          this.joinChannel(channelId).catch(error => {
+            console.error('❌ Failed to restore voice channel:', error);
+            localStorage.removeItem('voiceChannelState');
+          });
+        } else {
+          // State is too old, remove it
+          localStorage.removeItem('voiceChannelState');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error restoring voice channel state:', error);
+      localStorage.removeItem('voiceChannelState');
+    }
+  }
+
   setupSocketListeners() {
     socketService.on('userJoinedVoice', this.handleUserJoined.bind(this));
     socketService.on('userLeftVoice', this.handleUserLeft.bind(this));
@@ -199,6 +227,12 @@ class VoiceChatService {
       this.currentChannel = channelId;
       this.isConnected = true;
 
+      // Save to localStorage for reconnection
+      localStorage.setItem('voiceChannelState', JSON.stringify({
+        channelId,
+        timestamp: Date.now()
+      }));
+
       // Wait for socket authentication before joining
       try {
         await socketService.joinVoiceChannel(channelId);
@@ -255,6 +289,9 @@ class VoiceChatService {
     const leftChannel = this.currentChannel;
     this.currentChannel = null;
     this.isConnected = false;
+
+    // Clear localStorage
+    localStorage.removeItem('voiceChannelState');
 
     this.emit('disconnected', { channelId: leftChannel });
   }

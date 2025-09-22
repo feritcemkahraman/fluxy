@@ -80,6 +80,9 @@ class WebSocketService {
         this.isAuthenticated = true;
         this.connectionId = data?.connectionId || this.socket.id;
         this.emit('authenticated', data || { connectionId: this.socket.id });
+        
+        // Trigger voice channel restoration after authentication
+        this.emit('ready_for_voice_restore');
       });
 
       this.socket.on('authentication_failed', (error) => {

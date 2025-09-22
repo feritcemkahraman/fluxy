@@ -182,6 +182,21 @@ const FluxyApp = () => {
     };
   }, [user]);
 
+  // Voice channel restoration after reconnection
+  useEffect(() => {
+    const handleVoiceRestore = () => {
+      if (voiceChatService.restoreVoiceChannelState) {
+        voiceChatService.restoreVoiceChannelState();
+      }
+    };
+
+    websocketService.on('ready_for_voice_restore', handleVoiceRestore);
+
+    return () => {
+      websocketService.off('ready_for_voice_restore', handleVoiceRestore);
+    };
+  }, []);
+
   // Load user's servers on component mount - only once
   useEffect(() => {
     let isMounted = true;
