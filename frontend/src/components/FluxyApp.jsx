@@ -97,30 +97,26 @@ const FluxyApp = () => {
       if (activeServer?._id || activeServer?.id) {
         try {
           const serverId = activeServer._id || activeServer.id;
-          console.log('🔄 Loading voice channel users for server (backend-first):', serverId);
           
           const response = await channelAPI.getChannels(serverId);
           
           if (response.data.channels) {
-            console.log('📝 Channels response from backend:', response.data.channels);
             const voiceChannelUsersMap = {};
             
             response.data.channels.forEach(channel => {
               if (channel.type === 'voice' && channel.connectedUsers) {
-                console.log(`🎙️ Voice channel ${channel.name}:`, channel.connectedUsers);
                 voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
                   cu.user?._id || cu.user?.id || cu.user
                 );
               }
             });
             
-            console.log('🔊 Setting voice channel users from backend:', voiceChannelUsersMap);
             // Backend is always the source of truth - no merging, just set
             setVoiceChannelUsers(voiceChannelUsersMap);
           }
           
         } catch (error) {
-          console.warn('Failed to load voice channel users from backend:', error);
+          // Silent fail for production
         }
       }
     };
@@ -210,44 +206,6 @@ const FluxyApp = () => {
             const firstTextChannel = firstServer.channels.find(channel => channel.type === 'text') || firstServer.channels[0];
             setActiveChannel(firstTextChannel);
           }
-          
-          // Load voice channel users for initial server - DISABLED FOR TESTING
-          /*
-          try {
-            const channelsResponse = await channelAPI.getChannels(firstServer._id || firstServer.id);
-            if (channelsResponse.data.channels) {
-              console.log('📝 Initial channels response:', channelsResponse.data.channels);
-              const voiceChannelUsersMap = {};
-              
-              channelsResponse.data.channels.forEach(channel => {
-                if (channel.type === 'voice' && channel.connectedUsers) {
-                  console.log(`🎙️ Initial voice channel ${channel.name}:`, channel.connectedUsers);
-                  voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
-                    cu.user?._id || cu.user?.id || cu.user
-                  );
-                }
-              });
-              
-              console.log('🔊 Initial voice channel users loaded:', voiceChannelUsersMap);
-              // Merge with existing state instead of overriding socket updates
-              setVoiceChannelUsers(prev => {
-                const merged = { ...voiceChannelUsersMap };
-                // Preserve any existing socket data that might be newer
-                Object.keys(prev).forEach(channelId => {
-                  if (prev[channelId] && prev[channelId].length > 0) {
-                    // Keep socket data if it has users
-                    merged[channelId] = prev[channelId];
-                    console.log(`🔄 Keeping existing socket data for channel ${channelId}:`, prev[channelId]);
-                  }
-                });
-                console.log('🎯 Initial merged state:', merged);
-                return merged;
-              });
-            }
-          } catch (error) {
-            console.warn('Failed to load initial voice channel users:', error);
-          }
-          */
           
           // Server join handled automatically by Socket.IO authentication
         }
@@ -354,42 +312,27 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       const { channelId, action, userId } = data;
-      console.log('🔊 Voice channel update received:', { channelId, action, userId });
       const currentUserId = user?.id || user?._id;
-      console.log('👤 Current user ID:', currentUserId);
-      console.log('🏠 Active server:', activeServer?._id || activeServer?.id);
-      console.log('📡 Socket connection status:', isConnected);
       
       // Update voice channel users based on socket event only
       // Backend is the source of truth, socket just applies incremental updates
       setVoiceChannelUsers(prev => {
-        console.log('📊 Current voiceChannelUsers state:', prev);
         const currentUsers = prev[channelId] || [];
-        console.log('👥 Current users in channel:', currentUsers);
         
         if (action === 'userJoined') {
           // Add user if not already in channel
           if (!currentUsers.includes(userId)) {
             const newUsers = [...currentUsers, userId];
-            console.log('➕ Adding user to voice channel:', userId, 'New users:', newUsers);
-            console.log('🔍 User comparison - Event userId:', userId, 'Current userId:', currentUserId, 'Match:', userId === currentUserId);
             
             const newState = {
               ...prev,
               [channelId]: newUsers
             };
-            console.log('🔄 New voiceChannelUsers state:', newState);
             return newState;
-          } else {
-            console.log('⚠️ User already in channel:', userId);
-            console.log('🔍 Debug - Event userId:', userId, 'Current userId:', currentUserId);
-            console.log('🔍 Debug - Users in channel:', currentUsers);
-            console.log('🔍 Debug - userId in array:', currentUsers.includes(userId));
           }
         } else if (action === 'userLeft') {
           // Remove user from channel
           const newUsers = currentUsers.filter(id => id !== userId);
-          console.log('➖ Removing user from voice channel:', userId, 'New users:', newUsers);
           return {
             ...prev,
             [channelId]: newUsers
@@ -403,7 +346,6 @@ const FluxyApp = () => {
     // OPTIMIZED: Voice channel sync handler with state manager
     const handleVoiceChannelSync = (data) => {
       const { channelId, connectedUsers } = data;
-      console.log('🔄 Voice channel sync received:', { channelId, connectedUsers });
       
       // Use optimized state manager instead of direct setState
       voiceStateManager.updateChannel(channelId, connectedUsers);
@@ -843,7 +785,6 @@ const FluxyApp = () => {
         
         // Join the new server's socket room
         if (emit) {
-          console.log(`🏠 Joining socket room for new server: ${serverId}`);
           emit('joinServer', serverId);
         }
         
@@ -861,7 +802,6 @@ const FluxyApp = () => {
             
             if (!memberExists) {
               const updatedMembers = [...(server.members || []), member];
-              console.log('👥 Adding new member to server:', member.user.username || member.user.displayName);
               return {
                 ...server,
                 members: updatedMembers
@@ -885,7 +825,6 @@ const FluxyApp = () => {
         
         if (!memberExists) {
           const updatedMembers = [...(prevServer.members || []), member];
-          console.log('👥 Adding new member to active server:', member.user.username || member.user.displayName);
           return {
             ...prevServer,
             members: updatedMembers
@@ -940,7 +879,6 @@ const FluxyApp = () => {
   // OPTIMIZED: Subscribe to voice state manager updates
   useEffect(() => {
     const unsubscribe = voiceStateManager.subscribe((newVoiceState) => {
-      console.log('🔄 Voice state manager update:', newVoiceState);
       setVoiceChannelUsers(newVoiceState);
     });
 
@@ -951,26 +889,21 @@ const FluxyApp = () => {
   }, []);
 
   const handleServerSelect = (server) => {
-    console.log('🏠 Server selected:', server);
-    
     if (server === "home") {
       setIsDirectMessages(true);
       setActiveServer(null);
       setActiveChannel(null);
       setShowVoiceScreen(false); // Hide voice screen when going to DMs
-      console.log('📱 Switched to Direct Messages');
     } else {
       setIsDirectMessages(false);
 
       // Leave previous server - handled automatically by Socket.IO
       if (activeServer && activeServer._id) {
         // Socket.IO handles server switching automatically
-        console.log('🔄 Switching from server:', activeServer.name);
       }
 
       setActiveServer(server);
       setShowVoiceScreen(false); // Hide voice screen when switching servers
-      console.log('🏠 Set active server:', server?.name, 'ID:', server?._id || server?.id);
 
       // Find first text channel instead of just first channel
       if (server.channels && server.channels.length > 0) {
@@ -1007,14 +940,11 @@ const FluxyApp = () => {
         // If already connected to this channel, toggle panel
         setShowVoiceScreen(prev => !prev);
       } else {
-        // Connect to voice channel and show panel immediately
+        // Connect to voice channel (first click) - DON'T show panel yet
         try {
-          setShowVoiceScreen(true); // Show panel immediately
           await joinVoiceChannel(channelId);
-          console.log('✅ Voice channel joined successfully:', channelId);
+          // Panel will be shown on second click when user is already connected
         } catch (error) {
-          console.error('❌ Voice channel join failed:', error);
-          setShowVoiceScreen(false); // Hide panel if join failed
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
         }
       }
@@ -1171,19 +1101,10 @@ const FluxyApp = () => {
               );
               
               if (!voiceChannel) {
-                console.warn('No voice channel found for VoiceScreen');
                 return null;
               }
 
               const channelUsers = voiceChannelUsers[voiceChannel._id || voiceChannel.id] || [];
-              console.log('🎙️ FluxyApp DEBUG - Passing to VoiceScreen:', {
-                voiceChannelId: voiceChannel._id || voiceChannel.id,
-                currentVoiceChannel,
-                voiceChannelUsersState: voiceChannelUsers,
-                channelUsers,
-                channelUsersLength: channelUsers.length,
-                isVoiceConnected
-              });
               
               return (
                 <div className="absolute inset-0 z-10">

@@ -16,7 +16,6 @@ class VoiceStateManager {
     // Prevent unnecessary updates
     const currentUsers = this.channelUsers.get(channelId) || [];
     if (this.arraysEqual(currentUsers, users)) {
-      console.log('🔄 Voice state unchanged, skipping update');
       return;
     }
 
@@ -30,8 +29,6 @@ class VoiceStateManager {
       this.channelUsers.set(channelId, [...users]); // Clone array
       this.notifySubscribers();
       this.updateQueue.delete(channelId);
-      
-      console.log(`🔄 Voice state updated for channel ${channelId}:`, users);
     }, this.DEBOUNCE_MS);
 
     this.updateQueue.set(channelId, timeout);
@@ -45,7 +42,6 @@ class VoiceStateManager {
     if (this.channelUsers.has(channelId)) {
       this.channelUsers.delete(channelId);
       this.notifySubscribers();
-      console.log(`🗑️ Removed channel ${channelId} from voice state`);
     }
   }
 
@@ -112,7 +108,6 @@ class VoiceStateManager {
     this.updateQueue.forEach(timeout => clearTimeout(timeout));
     this.updateQueue.clear();
     this.notifySubscribers();
-    console.log('🧹 Voice state cleared');
   }
 
   /**

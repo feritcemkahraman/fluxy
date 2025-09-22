@@ -26,16 +26,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const { user: currentUser } = useAuth();
   const { playVoiceLeave } = useAudio();
   
-  // DEBUG: Log voiceChannelUsers prop
-  console.log('🎙️ VoiceScreen DEBUG - Props received:', {
-    channelId: channel?._id || channel?.id,
-    channelName: channel?.name,
-    voiceChannelUsers,
-    voiceChannelUsersType: typeof voiceChannelUsers,
-    voiceChannelUsersLength: voiceChannelUsers?.length,
-    isArray: Array.isArray(voiceChannelUsers)
-  });
-  
   // Find server if not provided - fallback mechanism
   const effectiveServer = server || channel?.server || (servers.length > 0 && channel ? 
     servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
@@ -72,14 +62,12 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       
       if (channel?.server?._id || channel?.server?.id) {
         try {
-          console.log('🔍 Fetching server data for voice channel:', channel.server._id || channel.server.id);
           const response = await serverAPI.getServer(channel.server._id || channel.server.id);
           if (response.data.server) {
             setFetchedServer(response.data.server);
-            console.log('✅ Fetched server data:', response.data.server.name);
           }
         } catch (error) {
-          console.warn('Failed to fetch server data:', error);
+          // Silent fail for production
         }
       }
     };
@@ -105,8 +93,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       const missingUserIds = voiceChannelUsers.filter(userId => !userMap.has(userId));
       
       if (missingUserIds.length > 0) {
-        console.log('🔍 Fetching missing user data for:', missingUserIds);
-        
         try {
           // Refresh server members to get latest data including new users
           const response = await serverAPI.getServerMembers(finalServer._id || finalServer.id);
@@ -125,7 +111,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
             setMissingUsers(prev => new Map([...prev, ...fetchedUsers]));
           }
         } catch (error) {
-          console.warn('Failed to fetch missing users:', error);
+          // Silent fail for production
         }
       }
     };
@@ -135,37 +121,17 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
   // Update participants list from hook data
   useEffect(() => {
-    console.log('🎙️ VoiceScreen participants update:', {
-      voiceChannelUsers,
-      voiceChannelUsersLength: voiceChannelUsers?.length,
-      currentUser: currentUser?._id || currentUser?.id,
-      currentUserName: currentUser?.username || currentUser?.displayName,
-      isConnected,
-      currentChannel,
-      channelId: channel?._id,
-      channelName: channel?.name,
-      serverMembers: finalServer?.members?.length,
-      serverName: finalServer?.name,
-      effectiveServerId: finalServer?._id || finalServer?.id
-    });
-
     // Debug: Check if voiceChannelUsers is actually an array
     if (!Array.isArray(voiceChannelUsers)) {
-      console.error('❌ voiceChannelUsers is not an array:', voiceChannelUsers);
-      return;
-    }
-
-    if (voiceChannelUsers.length === 0) {
-      console.log('⚠️ voiceChannelUsers is empty array');
       return;
     }
 
     if (!finalServer?.members) {
-      console.error('❌ No server members available:', finalServer);
       return;
     }
 
-    if (finalServer?.members && Array.isArray(voiceChannelUsers) && voiceChannelUsers.length > 0) {
+    // Allow processing even with 0 users for proper current user display
+    if (finalServer?.members && Array.isArray(voiceChannelUsers)) {
       // Create a Map for efficient user lookup
       const userMap = new Map();
       finalServer.members.forEach(member => {
@@ -180,7 +146,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         const user = userMap.get(userId) || missingUsers.get(userId);
         
         if (!user) {
-          console.warn('❌ User not found in server members or cache:', userId);
           // Create a fallback user object - we'll try to fetch real data later
           return {
             user: {
@@ -214,7 +179,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
         if (!currentUserExists) {
           const currentUserObj = userMap.get(currentUserId) || currentUser;
-          console.log('➕ Adding current user to participants:', currentUserObj.username || currentUserObj.displayName);
           participantsList.unshift({
             user: currentUserObj,
             isMuted,
@@ -236,12 +200,10 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
       // Update participants state in hook
       if (participantsList.length > 0) {
-        console.log('📝 Setting participants:', participantsList.length, 'users');
         setParticipants(participantsList);
       } else {
         // If no participants, ensure current user is still shown
         if (isConnected && currentUser && currentChannel === channel?._id) {
-          console.log('➕ Adding only current user as participant');
           setParticipants([{
             user: currentUser,
             isMuted,
@@ -335,6 +297,19 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       });
     };
   }, [remoteScreenStreams]);
+
+  // Fallback effect: Ensure current user is always shown if connected and no participants
+  useEffect(() => {
+    if (isConnected && currentUser && currentChannel === channel?._id && participants.length === 0) {
+      setParticipants([{
+        user: currentUser,
+        isMuted,
+        isDeafened,
+        isCurrentUser: true,
+        isSpeaking: false
+      }]);
+    }
+  }, [isConnected, currentUser, currentChannel, channel?._id, participants.length, isMuted, isDeafened, setParticipants]);
 
   const handleLeaveChannel = async () => {
     try {

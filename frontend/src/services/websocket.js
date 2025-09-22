@@ -202,13 +202,11 @@ class WebSocketService {
 
   handleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached');
       this.emit('max_reconnect_attempts_reached');
       return;
     }
 
     this.reconnectAttempts++;
-    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
     
     setTimeout(() => {
       if (this.socket) {
@@ -306,7 +304,6 @@ class WebSocketService {
       throw new Error('Socket not authenticated or connected');
     }
 
-    console.log('🔊 Joining voice channel:', channelId);
     this.socket.emit('joinVoiceChannel', { channelId });
   }
 
