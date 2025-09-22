@@ -465,18 +465,47 @@ const handleConnection = (io) => {
 
       // Leave voice channel if connected
       if (socket.currentVoiceChannel) {
-        // Leave voice channel  
-        const channel = await Channel.findByIdAndUpdate(socket.currentVoiceChannel, {
+        const channelId = socket.currentVoiceChannel;
+        
+        // Remove from database
+        const channel = await Channel.findByIdAndUpdate(channelId, {
           $pull: { connectedUsers: { user: socket.userId } }
         });
 
         if (channel) {
-          socket.to(`voice:${socket.currentVoiceChannel}`).emit('userLeftVoice', {
+          // Get updated channel with remaining users
+          const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
+          console.log(`👥 Remaining users after disconnect in channel ${channelId}:`, 
+            updatedChannel.connectedUsers.map(cu => cu.user?.username || cu.user).join(', ')
+          );
+
+          // Send updated voice channel state
+          const allConnectedUserIds = updatedChannel.connectedUsers.map(cu => {
+            const userId = cu.user?._id?.toString() || cu.user?.id?.toString() || cu.user?.toString();
+            return userId;
+          }).filter((userId, index, array) => array.indexOf(userId) === index); // Remove duplicates
+          
+          // Send sync to users still in voice channel
+          io.to(`voice:${channelId}`).emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent voice channel sync after disconnect to voice:${channelId}:`, allConnectedUserIds);
+
+          // ALSO send to ALL server members
+          io.to(`server_${channel.server}`).emit('voiceChannelSync', {
+            channelId,
+            connectedUsers: allConnectedUserIds
+          });
+          console.log(`📤 Sent voice channel sync after disconnect to server_${channel.server}:`, allConnectedUserIds);
+
+          // Legacy event
+          socket.to(`voice:${channelId}`).emit('userLeftVoice', {
             userId: socket.userId,
             username: socket.user.username
           });
-
-          // Note: voiceChannelUpdate removed - using voiceChannelSync instead
+          
+          console.log(`✅ User ${socket.user.username} disconnected and removed from voice channel: ${channelId}`);
         }
       }
 
