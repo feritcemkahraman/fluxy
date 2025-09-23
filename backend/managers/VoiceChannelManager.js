@@ -149,32 +149,26 @@ class VoiceChannelManager {
    * @param {string} operation - 'join' or 'leave'
    */
   async updateChannelDatabase(channelId, userId, operation) {
+    const channel = await Channel.findById(channelId);
+    if (!channel) return;
+
     if (operation === 'join') {
-      // SINGLE ATOMIC OPERATION: Remove and add in one update
-      await Channel.findByIdAndUpdate(
-        channelId,
-        [
-          {
-            $set: {
-              connectedUsers: {
-                $concatArrays: [
-                  {
-                    $filter: {
-                      input: "$connectedUsers",
-                      cond: { $ne: ["$$this.user", new mongoose.Types.ObjectId(userId)] }
-                    }
-                  },
-                  [VoiceUtils.createConnectedUserObject(userId)]
-                ]
-              }
-            }
-          }
-        ]
+      // Remove existing user entry if any
+      channel.connectedUsers = channel.connectedUsers.filter(cu => 
+        cu.user.toString() !== userId
       );
+      
+      // Add new user entry
+      channel.connectedUsers.push(VoiceUtils.createConnectedUserObject(userId));
+      
+      await channel.save();
     } else if (operation === 'leave') {
-      await Channel.findByIdAndUpdate(channelId, {
-        $pull: { connectedUsers: { user: userId } }
-      });
+      // Remove user entry
+      channel.connectedUsers = channel.connectedUsers.filter(cu => 
+        cu.user.toString() !== userId
+      );
+      
+      await channel.save();
     }
   }
 
