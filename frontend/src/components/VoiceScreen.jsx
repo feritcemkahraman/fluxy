@@ -22,15 +22,13 @@ import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 import { serverAPI } from "../services/api";
 
-const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], onClose }) => {
-  const { user: currentUser } = useAuth();
-  const { playVoiceLeave } = useAudio();
-  
-  // Find server if not provided - fallback mechanism
-  const effectiveServer = server || channel?.server || (servers.length > 0 && channel ? 
-    servers.find(s => s.channels?.some(ch => (ch._id || ch.id) === (channel._id || channel.id))) : 
-    null
-  );
+const VoiceScreen = ({
+  channel,
+  onClose,
+  currentUser,
+  server
+}) => {
+  // REMOVE ALL LOCAL PARTICIPANTS LOGIC - Use only from hook
   const {
     isConnected,
     currentChannel,
@@ -40,193 +38,21 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     remoteStreams,
     remoteScreenStreams,
     screenSharingUsers,
-    participants,
+    participants, // ONLY use from hook
     error,
-    isLoading,
     joinChannel,
     leaveChannel,
     toggleMute,
     toggleDeafen,
-    clearError,
-    setParticipants
+    clearError
   } = useVoiceChat();
+  
+  // Remove all local state related to participants
+  const [screenShareVideos, setScreenShareVideos] = useState(new Map());
+  const [audioElements, setAudioElements] = useState(new Map());
 
-  const [fetchedServer, setFetchedServer] = useState(null);
-  const [missingUsers, setMissingUsers] = useState(new Map()); // Add missing state
-  const [screenShareVideos, setScreenShareVideos] = useState(new Map()); // Add missing state for screen sharing
-  const [audioElements, setAudioElements] = useState(new Map()); // Add missing state for audio elements
-
-  // Effect to fetch server data if not provided
-  useEffect(() => {
-    const fetchServerData = async () => {
-      if (effectiveServer) return; // Already have server data
-      
-      if (channel?.server?._id || channel?.server?.id) {
-        try {
-          const response = await serverAPI.getServer(channel.server._id || channel.server.id);
-          if (response.data.server) {
-            setFetchedServer(response.data.server);
-          }
-        } catch (error) {
-          // Silent fail for production
-        }
-      }
-    };
-
-    fetchServerData();
-  }, [effectiveServer, channel?.server?._id, channel?.server?.id]);
-
-  // Use fetched server if effectiveServer is not available
-  const finalServer = effectiveServer || fetchedServer;
-
-  // Effect to fetch missing user data
-  useEffect(() => {
-    const fetchMissingUsers = async () => {
-      if (!finalServer?._id || !Array.isArray(voiceChannelUsers) || voiceChannelUsers.length === 0) return;
-      
-      const userMap = new Map();
-      finalServer.members?.forEach(member => {
-        const userId = member.user?._id || member.user?.id || member._id || member.id;
-        const userObj = member.user || member;
-        userMap.set(userId, userObj);
-      });
-
-      const missingUserIds = voiceChannelUsers.filter(userId => !userMap.has(userId));
-      
-      if (missingUserIds.length > 0) {
-        try {
-          // Refresh server members to get latest data including new users
-          const response = await serverAPI.getServerMembers(finalServer._id || finalServer.id);
-          if (response.data.members) {
-            // Update the server prop would require parent component to handle
-            // For now, we'll store the missing users locally
-            const fetchedUsers = new Map();
-            response.data.members.forEach(member => {
-              const userId = member.user?._id || member.user?.id || member._id || member.id;
-              const userObj = member.user || member;
-              if (missingUserIds.includes(userId)) {
-                fetchedUsers.set(userId, userObj);
-              }
-            });
-            
-            setMissingUsers(prev => new Map([...prev, ...fetchedUsers]));
-          }
-        } catch (error) {
-          // Silent fail for production
-        }
-      }
-    };
-
-    fetchMissingUsers();
-  }, [finalServer?._id, finalServer?.id, voiceChannelUsers, finalServer?.members]);
-
-  // Update participants list from hook data
-  useEffect(() => {
-    // Debug: Check if voiceChannelUsers is actually an array
-    if (!Array.isArray(voiceChannelUsers)) {
-      return;
-    }
-
-    if (!finalServer?.members) {
-      return;
-    }
-
-    // Allow processing even with 0 users for proper current user display
-    if (finalServer?.members && Array.isArray(voiceChannelUsers)) {
-      // Create a Map for efficient user lookup
-      const userMap = new Map();
-      finalServer.members.forEach(member => {
-        // Handle both nested user object and direct member object
-        const userId = member.user?._id || member.user?.id || member._id || member.id;
-        const userObj = member.user || member;
-        userMap.set(userId, userObj);
-      });
-
-      // Build participants list
-      const participantsList = voiceChannelUsers.map(userId => {
-        const user = userMap.get(userId) || missingUsers.get(userId);
-        
-        if (!user) {
-          // Create a fallback user object - we'll try to fetch real data later
-          return {
-            user: {
-              _id: userId,
-              id: userId,
-              username: `User-${userId.slice(-4)}`,
-              displayName: `Loading...`,
-              isTemporary: true // Flag to indicate this is temporary data
-            },
-            isCurrentUser: userId === (currentUser?._id || currentUser?.id),
-            isSpeaking: false,
-            isMuted: false,
-            isDeafened: false
-          };
-        }
-
-        return {
-          user,
-          isCurrentUser: (user._id || user.id) === (currentUser?._id || currentUser?.id),
-          isSpeaking: false, // This will be updated by voice activity detection
-          isMuted: false,
-          isDeafened: false
-        };
-      }); // Remove .filter(Boolean) since we now always return an object
-
-
-      // Always ensure current user is included if connected
-      if (isConnected && currentUser && currentChannel === channel?._id) {
-        const currentUserId = currentUser._id || currentUser.id;
-        const currentUserExists = participantsList.some(p => p.isCurrentUser);
-
-        if (!currentUserExists) {
-          const currentUserObj = userMap.get(currentUserId) || currentUser;
-          participantsList.unshift({
-            user: currentUserObj,
-            isMuted,
-            isDeafened,
-            isCurrentUser: true,
-            isSpeaking: false
-          });
-        }
-      }
-
-      // Sort participants: current user first, then others alphabetically
-      participantsList.sort((a, b) => {
-        if (a.isCurrentUser) return -1;
-        if (b.isCurrentUser) return 1;
-        return (a.user.username || a.user.displayName || '').localeCompare(
-          b.user.username || b.user.displayName || ''
-        );
-      });
-
-      // Update participants state in hook
-      if (participantsList.length > 0) {
-        setParticipants(participantsList);
-      } else {
-        // If no participants, ensure current user is still shown
-        if (isConnected && currentUser && currentChannel === channel?._id) {
-          setParticipants([{
-            user: currentUser,
-            isMuted,
-            isDeafened,
-            isCurrentUser: true,
-            isSpeaking: false
-          }]);
-        }
-      }
-    } else {
-      // If conditions not met but we're connected, show current user
-      if (isConnected && currentUser && currentChannel === channel?._id) {
-        setParticipants([{
-          user: currentUser,
-          isMuted,
-          isDeafened,
-          isCurrentUser: true,
-          isSpeaking: false
-        }]);
-      }
-    }
-  }, [finalServer?.members, voiceChannelUsers, currentUser, isConnected, currentChannel, channel?._id, isMuted, isDeafened, setParticipants, missingUsers]);
+  // Remove all complex participants logic - handled by useVoiceChat hook
+  // All participants management is now in the hook
 
   // Listen for connection events to show toast only once
   useEffect(() => {
@@ -248,82 +74,37 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         voiceChatService.currentUserId = userId;
     }
 
-    // Listen to voiceChatService events directly
+    // Listen to voiceChatService events directly for connection toasts
     voiceChatService.on('connected', handleVoiceConnected);
     voiceChatService.on('disconnected', handleVoiceDisconnected);
-
-    // CRITICAL: Listen for userJoinedVoice event from voiceChatService
-    const handleUserJoinedVoice = ({ userId, channelId, username }) => {
-      console.log(`🎯 VOICE SCREEN: handleUserJoinedVoice called:`, { userId, channelId, username });
-      
-      // Add user to participants if not already present
-      setParticipants(prev => {
-        const existingIndex = prev.findIndex(p => (p.user._id || p.user.id) === userId);
-        if (existingIndex >= 0) {
-          return prev; // Already exists
-        }
-        
-        // Create new participant
-        const newParticipant = {
-          user: { _id: userId, username: username || 'Unknown', displayName: username || 'Unknown' },
-          isMuted: false,
-          isDeafened: false,
-          isCurrentUser: (currentUser?._id || currentUser?.id) === userId,
-          isSpeaking: false
-        };
-        
-        console.log(`➕ Adding participant to UI:`, newParticipant);
-        return [...prev, newParticipant];
-      });
-    };
-
-    const handleUserLeftVoice = ({ userId, channelId }) => {
-      console.log(`👋 User left voice from voiceChatService: ${userId}`);
-      
-      // Remove user from participants
-      setParticipants(prev => prev.filter(p => (p.user._id || p.user.id) !== userId));
-    };
-
-    voiceChatService.on('userJoinedVoice', handleUserJoinedVoice);
-    voiceChatService.on('userLeftVoice', handleUserLeftVoice);
-
-    const handleSpeakingChanged = ({ userId, isSpeaking }) => {
-      setParticipants(prev => {
-        const updated = prev.map(participant => {
-          const isMatch = participant.user._id === userId || participant.user.id === userId;
-          return isMatch ? { ...participant, isSpeaking } : participant;
-        });
-        return updated;
-      });
-    };
-
-    // CRITICAL: Listen for remote streams for voice chat
-    const handleRemoteStream = ({ userId, stream }) => {
-      console.log(`🎧 Received remote stream from user: ${userId}`);
-      // The useVoiceChat hook will handle this and update remoteStreams state
-    };
-
-    voiceChatService.on('speaking-changed', handleSpeakingChanged);
-    voiceChatService.on('remote-stream', handleRemoteStream);
 
     return () => {
       voiceChatService.off('connected', handleVoiceConnected);
       voiceChatService.off('disconnected', handleVoiceDisconnected);
-      voiceChatService.off('userJoinedVoice', handleUserJoinedVoice);
-      voiceChatService.off('userLeftVoice', handleUserLeftVoice);
-      voiceChatService.off('speaking-changed', handleSpeakingChanged);
-      voiceChatService.off('remote-stream', handleRemoteStream);
     };
-  }, [channel, currentUser, participants, setParticipants]);
+  }, [channel, currentUser]);
 
   // Get current user's screen sharing status
   const isCurrentUserScreenSharing = screenSharingUsers.includes(currentUser?._id || currentUser?.id);
 
-  // Handle remote audio streams - CRITICAL FOR VOICE CHAT
+  // Handle remote audio streams - CRITICAL FOR VOICE CHAT - FIXED DEPENDENCY
   useEffect(() => {
+    const currentUserIds = Array.from(remoteStreams.keys()).sort();
+    
+    // Only recreate audio elements if user list actually changed
     const newAudioElements = new Map();
     
-    remoteStreams.forEach((stream, userId) => {
+    currentUserIds.forEach((userId) => {
+      const stream = remoteStreams.get(userId);
+      if (!stream) return;
+      
+      // Reuse existing audio element if possible
+      const existingAudio = audioElements.get(userId);
+      if (existingAudio && existingAudio.srcObject === stream) {
+        newAudioElements.set(userId, existingAudio);
+        return;
+      }
+      
       console.log(`🔊 Creating audio element for user: ${userId}`);
       
       const audioElement = document.createElement('audio');
@@ -337,10 +118,12 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       audioElement.style.display = 'none';
       document.body.appendChild(audioElement);
       
-      // Handle audio play promise
+      // Handle audio play promise with better error handling
       audioElement.play().catch(error => {
-        console.warn('Audio autoplay failed:', error);
-        // User interaction required for autoplay
+        if (error.name !== 'AbortError') {
+          console.warn('Audio autoplay failed:', error);
+        }
+        // AbortError is expected when element is removed, don't log
       });
       
       newAudioElements.set(userId, audioElement);
@@ -348,18 +131,25 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     
     setAudioElements(newAudioElements);
     
-    // Cleanup old audio elements
+    // Cleanup function - only remove elements that are no longer needed
     return () => {
-      audioElements.forEach(audio => {
-        if (audio.srcObject) {
-          audio.srcObject.getTracks().forEach(track => track.stop());
-        }
-        if (audio.parentNode) {
-          audio.parentNode.removeChild(audio);
+      const newUserIds = new Set(currentUserIds);
+      audioElements.forEach((audio, userId) => {
+        if (!newUserIds.has(userId)) {
+          // Only remove if user is no longer in the stream
+          try {
+            audio.pause();
+            audio.srcObject = null;
+            if (audio.parentNode) {
+              audio.parentNode.removeChild(audio);
+            }
+          } catch (error) {
+            // Ignore cleanup errors
+          }
         }
       });
     };
-  }, [remoteStreams, audioElements]);
+  }, [remoteStreams]); // Only depend on remoteStreams, not audioElements
 
   // Handle remote screen streams
   useEffect(() => {
@@ -386,18 +176,18 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     };
   }, [remoteScreenStreams]);
 
-  // Fallback effect: Ensure current user is always shown if connected and no participants
-  useEffect(() => {
-    if (isConnected && currentUser && currentChannel === channel?._id && participants.length === 0) {
-      setParticipants([{
-        user: currentUser,
-        isMuted,
-        isDeafened,
-        isCurrentUser: true,
-        isSpeaking: false
-      }]);
-    }
-  }, [isConnected, currentUser, currentChannel, channel?._id, participants.length, isMuted, isDeafened, setParticipants]);
+  // REMOVE: Fallback effect - participants are now managed by useVoiceChat hook
+  // useEffect(() => {
+  //   if (isConnected && currentUser && currentChannel === channel?._id && participants.length === 0) {
+  //     setParticipants([{
+  //       user: currentUser,
+  //       isMuted,
+  //       isDeafened,
+  //       isCurrentUser: true,
+  //       isSpeaking: false
+  //     }]);
+  //   }
+  // }, [isConnected, currentUser, currentChannel, channel?._id, participants.length, isMuted, isDeafened, setParticipants]);
 
   // Cleanup audio elements on component unmount
   useEffect(() => {
