@@ -142,12 +142,13 @@ const handleConnection = (io) => {
 
     // Handle joining a voice channel - OPTIMIZED
     socket.on('joinVoiceChannel', async (data) => {
-      const { channelId } = data;
-      await voiceManager.joinChannel(socket, channelId);
+      console.log(`🔊 JOIN REQUEST: ${socket.user.username} | Channel: ${data.channelId}`);
+      await voiceManager.joinChannel(socket, data.channelId);
     });
 
     // Handle leaving a voice channel - OPTIMIZED
     socket.on('leaveVoiceChannel', async () => {
+      console.log(`🔇 LEAVE REQUEST: ${socket.user.username}`);
       await voiceManager.leaveChannel(socket);
     });
 

@@ -412,6 +412,11 @@ class VoiceChatService {
             console.log(`🤐 Speaking stopped (level: ${this.vadState.smoothedLevel.toFixed(1)} dB)`);
           }
         }
+        
+        // Debug: Log level periodically
+        if (this.frameCount % 100 === 0) {
+          console.log(`🎤 VAD Level: ${this.vadState.smoothedLevel.toFixed(1)} dB | Speaking: ${this.vadState.isSpeaking} | Muted: ${this.isMuted}`);
+        }
 
         // Continue monitoring
         requestAnimationFrame(checkAdvancedVoiceActivity);
