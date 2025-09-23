@@ -12,7 +12,7 @@ import { channelAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreated, onServerUpdate, voiceChannelUsers }) => {
+const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreated, onServerUpdate }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
@@ -229,8 +229,6 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
             <CollapsibleContent key="voice-channels" className="space-y-1">
               {voiceChannels.map((channel) => {
                 const channelId = channel._id || channel.id;
-                const connectedUsers = voiceChannelUsers?.[channelId] || [];
-                const currentUserInChannel = voiceChannelUsers?.currentChannel === channelId;
 
                 return (
                   <div key={channelId} className="space-y-1">
@@ -266,11 +264,6 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
                           ) : (
                             <>
                               <span className="truncate flex-1">{channel.name}</span>
-                              {connectedUsers.length > 0 && (
-                                <span className="text-xs text-gray-400 bg-gray-600/30 px-1.5 py-0.5 rounded">
-                                  {connectedUsers.length}
-                                </span>
-                              )}
                             </>
                           )}
                         </div>
@@ -305,68 +298,6 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
                         </div>
                       )}
                     </div>
-
-                    {/* Connected Users */}
-                    {connectedUsers.length > 0 && (
-                      <div className="ml-6 space-y-1">
-                        {connectedUsers.map((userId) => {
-                          // Find user in server members
-                          // Server members have nested user objects: member.user._id
-                          const memberData = server?.members?.find(member =>
-                            (member?.user?._id || member?.user?.id || member?.id || member?._id) === userId
-                          );
-                          
-                          const user = memberData?.user || memberData;
-
-                          if (!user) {
-                            return (
-                              <div
-                                key={userId}
-                                className="flex items-center space-x-2 px-3 py-1 rounded-md hover:bg-white/5 transition-colors group"
-                              >
-                                <div className="relative">
-                                  <Avatar className="w-5 h-5 ring-1 ring-white/20">
-                                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                                      U
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  {/* Speaking indicator */}
-                                  {currentUserInChannel && (
-                                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-gray-800" />
-                                  )}
-                                </div>
-                                <span className="text-xs text-gray-300 truncate group-hover:text-gray-200">
-                                  Loading... ({userId})
-                                </span>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div
-                              key={userId}
-                              className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors group"
-                            >
-                              <div className="relative">
-                                <Avatar className="w-8 h-8 ring-1 ring-white/20">
-                                  <AvatarImage
-                                    src={user.avatar}
-                                    alt={user.displayName || user.username}
-                                  />
-                                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                                    {(user.displayName || user.username)?.charAt(0)?.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </div>
-
-                              <span className="text-sm text-gray-200 truncate group-hover:text-white font-medium">
-                                {user.displayName || user.username}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
                 );
               })}

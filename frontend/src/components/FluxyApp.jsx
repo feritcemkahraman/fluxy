@@ -905,7 +905,6 @@ const FluxyApp = () => {
             onChannelSelect={handleChannelSelect}
             onChannelCreated={handleChannelCreated}
             onServerUpdate={handleServerUpdate}
-            voiceChannelUsers={voiceChannelUsers}
           />
 
           {/* Main Content Area */}
@@ -942,15 +941,12 @@ const FluxyApp = () => {
                 return null;
               }
 
-              const channelUsers = voiceChannelUsers[voiceChannel._id || voiceChannel.id] || [];
-              
               return (
                 <div className="absolute inset-0 z-10">
                   <VoiceScreen
                     channel={voiceChannel}
                     server={activeServer}
                     servers={servers} // Pass servers list for fallback
-                    voiceChannelUsers={channelUsers}
                     onClose={() => {
                       setShowVoiceScreen(false);
                     }}
