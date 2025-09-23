@@ -85,14 +85,14 @@ class VoiceChannelManager {
       const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
       const remainingUserIds = VoiceUtils.extractUserIds(updatedChannel?.connectedUsers) || [];
 
-      // Emit sync event to remaining users in the channel
+      // Emit sync event to all users in the channel including the new user
       this.io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voiceChannelSync', {
         channelId,
         users: remainingUserIds,
         userDetails: updatedChannel?.connectedUsers || []
       });
 
-      console.log(`🔇 LEAVE: ${socket.user.username} | Channel: ${channelId} | Remaining: [${remainingUserIds.join(', ')}]`);
+      console.log(`🔊 SYNC: ${socket.user.username} | Channel: ${channelId} | Users: [${remainingUserIds.join(', ')}]`);
 
       return true;
 
