@@ -619,8 +619,8 @@ class VoiceChatService {
   }
 
   // Handle new user joining
-  handleUserJoined({ userId, channelId }) {
-    console.log(`👤 User joined voice: ${userId} in channel: ${channelId}`);
+  handleUserJoined({ userId, channelId, username }) {
+    console.log(`👤 User joined voice: ${userId} (${username}) in channel: ${channelId}`);
     
     if (channelId !== this.currentChannel) {
       console.log(`❌ Channel mismatch: current=${this.currentChannel}, joined=${channelId}`);
@@ -645,15 +645,23 @@ class VoiceChatService {
     this.setupPeerEvents(peer, userId);
     this.peers.set(userId, peer);
 
+    // CRITICAL: Emit event for UI updates
+    this.emit('userJoinedVoice', { userId, channelId, username });
+
     this.emit('user-joined', { userId, channelId });
   }
 
   // Handle user leaving
   handleUserLeft({ userId, channelId }) {
+    console.log(`👋 User left voice: ${userId}`);
+    
     if (this.peers.has(userId)) {
       this.peers.get(userId).destroy();
       this.peers.delete(userId);
     }
+
+    // CRITICAL: Emit event for UI updates
+    this.emit('userLeftVoice', { userId, channelId });
 
     this.emit('user-left', { userId, channelId });
   }

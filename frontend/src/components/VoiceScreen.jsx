@@ -252,6 +252,40 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     voiceChatService.on('connected', handleVoiceConnected);
     voiceChatService.on('disconnected', handleVoiceDisconnected);
 
+    // CRITICAL: Listen for userJoinedVoice event from voiceChatService
+    const handleUserJoinedVoice = ({ userId, channelId, username }) => {
+      console.log(`👤 User joined voice from voiceChatService: ${userId} (${username})`);
+      
+      // Add user to participants if not already present
+      setParticipants(prev => {
+        const existingIndex = prev.findIndex(p => (p.user._id || p.user.id) === userId);
+        if (existingIndex >= 0) {
+          return prev; // Already exists
+        }
+        
+        // Create new participant
+        const newParticipant = {
+          user: { _id: userId, username: username || 'Unknown', displayName: username || 'Unknown' },
+          isMuted: false,
+          isDeafened: false,
+          isCurrentUser: (currentUser?._id || currentUser?.id) === userId,
+          isSpeaking: false
+        };
+        
+        return [...prev, newParticipant];
+      });
+    };
+
+    const handleUserLeftVoice = ({ userId, channelId }) => {
+      console.log(`👋 User left voice from voiceChatService: ${userId}`);
+      
+      // Remove user from participants
+      setParticipants(prev => prev.filter(p => (p.user._id || p.user.id) !== userId));
+    };
+
+    voiceChatService.on('userJoinedVoice', handleUserJoinedVoice);
+    voiceChatService.on('userLeftVoice', handleUserLeftVoice);
+
     const handleSpeakingChanged = ({ userId, isSpeaking }) => {
       setParticipants(prev => {
         const updated = prev.map(participant => {
@@ -274,6 +308,8 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     return () => {
       voiceChatService.off('connected', handleVoiceConnected);
       voiceChatService.off('disconnected', handleVoiceDisconnected);
+      voiceChatService.off('userJoinedVoice', handleUserJoinedVoice);
+      voiceChatService.off('userLeftVoice', handleUserLeftVoice);
       voiceChatService.off('speaking-changed', handleSpeakingChanged);
       voiceChatService.off('remote-stream', handleRemoteStream);
     };
