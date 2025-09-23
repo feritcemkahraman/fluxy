@@ -184,11 +184,6 @@ class WebSocketService {
         this.emit('user_left_server', data);
       });
 
-      // Voice channel updates
-      this.socket.on('voiceChannelUpdate', (data) => {
-        this.emit('voiceChannelUpdate', data);
-      });
-
       // Voice channel sync
       this.socket.on('voiceChannelSync', (data) => {
         this.emit('voiceChannelSync', data);

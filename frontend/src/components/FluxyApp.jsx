@@ -345,10 +345,10 @@ const FluxyApp = () => {
 
     // OPTIMIZED: Voice channel sync handler with state manager
     const handleVoiceChannelSync = (data) => {
-      const { channelId, connectedUsers } = data;
+      const { channelId, users } = data;
       
       // Use optimized state manager instead of direct setState
-      voiceStateManager.updateChannel(channelId, connectedUsers);
+      voiceStateManager.updateChannel(channelId, users || []);
     };
 
     const handleServerCreated = (data) => {
