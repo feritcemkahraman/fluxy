@@ -152,8 +152,6 @@ export const useVoiceChat = () => {
     voiceChatService.on('error', handleError);
     voiceChatService.on('userJoinedVoice', handleUserJoinedVoice);
     voiceChatService.on('userLeftVoice', handleUserLeftVoice);
-    voiceChatService.on('user-joined', handleUserJoined);
-    voiceChatService.on('user-left', handleUserLeft);
     voiceChatService.on('remote-stream', handleRemoteStream);
     voiceChatService.on('remote-screen-stream', handleRemoteScreenStream);
     voiceChatService.on('user-started-screen-share', handleUserStartedScreenShare);
@@ -172,8 +170,6 @@ export const useVoiceChat = () => {
       voiceChatService.off('error', handleError);
       voiceChatService.off('userJoinedVoice', handleUserJoinedVoice);
       voiceChatService.off('userLeftVoice', handleUserLeftVoice);
-      voiceChatService.off('user-joined', handleUserJoined);
-      voiceChatService.off('user-left', handleUserLeft);
       voiceChatService.off('remote-stream', handleRemoteStream);
       voiceChatService.off('remote-screen-stream', handleRemoteScreenStream);
       voiceChatService.off('user-started-screen-share', handleUserStartedScreenShare);
