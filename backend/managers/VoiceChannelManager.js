@@ -89,7 +89,7 @@ class VoiceChannelManager {
       socket.to(VoiceUtils.createVoiceRoomName(channelId)).emit('userJoinedVoice', {
         userId,
         channelId,
-        username
+        username: username || 'Unknown User'
       });
 
       // Debounced sync to prevent spam

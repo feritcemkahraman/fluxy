@@ -645,8 +645,9 @@ class VoiceChatService {
     this.setupPeerEvents(peer, userId);
     this.peers.set(userId, peer);
 
-    // CRITICAL: Emit event for UI updates
-    this.emit('userJoinedVoice', { userId, channelId, username });
+    // CRITICAL: Emit event for UI updates - username ile birlikte
+    console.log(`📢 EMITTING userJoinedVoice:`, { userId, channelId, username: username || 'Unknown' });
+    this.emit('userJoinedVoice', { userId, channelId, username: username || 'Unknown' });
 
     this.emit('user-joined', { userId, channelId });
   }

@@ -254,7 +254,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
     // CRITICAL: Listen for userJoinedVoice event from voiceChatService
     const handleUserJoinedVoice = ({ userId, channelId, username }) => {
-      console.log(`👤 User joined voice from voiceChatService: ${userId} (${username})`);
+      console.log(`🎯 VOICE SCREEN: handleUserJoinedVoice called:`, { userId, channelId, username });
       
       // Add user to participants if not already present
       setParticipants(prev => {
@@ -272,6 +272,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
           isSpeaking: false
         };
         
+        console.log(`➕ Adding participant to UI:`, newParticipant);
         return [...prev, newParticipant];
       });
     };
