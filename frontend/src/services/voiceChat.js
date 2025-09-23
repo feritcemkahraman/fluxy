@@ -65,7 +65,7 @@ class VoiceChatService {
     }
   }
 
-  // Get user media (microphone)
+  // Discord-like Enhanced Audio Processing
   async getUserMedia() {
     try {
       // Check if browser supports getUserMedia
@@ -75,18 +75,37 @@ class VoiceChatService {
 
       console.log('🎤 Mikrofon erişimi isteniyor...');
       
-      this.localStream = await navigator.mediaDevices.getUserMedia({
+      // Get raw audio stream first
+      const rawStream = await navigator.mediaDevices.getUserMedia({
         audio: {
+          // Discord-like audio constraints
           echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          noiseSuppression: false, // We'll handle this ourselves
+          autoGainControl: false,  // We'll handle this ourselves
           sampleRate: 48000,
-          channelCount: 1
+          channelCount: 1,
+          
+          // Advanced Chrome constraints
+          googEchoCancellation: true,
+          googEchoCancellation2: true,
+          googAutoGainControl: false, // Disabled for custom processing
+          googNoiseSuppression: false, // Disabled for custom processing
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true,
+          googAudioMirroring: false,
+          
+          // Latency optimization
+          latency: 0.01 // 10ms target latency
         },
         video: false
       });
 
-      console.log('✅ Mikrofon erişimi başarılı');
+      console.log('✅ Raw mikrofon erişimi başarılı');
+
+      // Apply Discord-like audio processing
+      this.localStream = await this.setupAdvancedAudioProcessing(rawStream);
+      
+      console.log('🎛️ Advanced audio processing applied');
 
       // Start voice activity detection
       this.startVoiceActivityDetection();
@@ -113,7 +132,138 @@ class VoiceChatService {
     }
   }
 
-  // Start voice activity detection
+  // Setup Discord-like advanced audio processing chain
+  async setupAdvancedAudioProcessing(inputStream) {
+    try {
+      // Create AudioContext
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+          sampleRate: 48000,
+          latencyHint: 'interactive'
+        });
+      }
+
+      // Resume context if suspended
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+
+      console.log('🎛️ Setting up Discord-like audio processing chain...');
+
+      // Create source from input stream
+      const source = this.audioContext.createMediaStreamSource(inputStream);
+      
+      // 1. High-pass filter (remove low-frequency noise)
+      const highPassFilter = this.audioContext.createBiquadFilter();
+      highPassFilter.type = 'highpass';
+      highPassFilter.frequency.setValueAtTime(80, this.audioContext.currentTime); // Discord uses ~80Hz
+      highPassFilter.Q.setValueAtTime(0.7, this.audioContext.currentTime);
+
+      // 2. Setup Noise Suppression AudioWorklet
+      let noiseSuppressionNode = null;
+      try {
+        await this.audioContext.audioWorklet.addModule('/noise-suppression-processor.js');
+        noiseSuppressionNode = new AudioWorkletNode(this.audioContext, 'noise-suppression-processor');
+        
+        // Listen for level updates from noise suppression
+        noiseSuppressionNode.port.onmessage = (event) => {
+          if (event.data.type === 'level') {
+            this.noiseSuppressionLevel = event.data.level;
+          }
+        };
+        
+        console.log('🔇 Noise suppression AudioWorklet loaded');
+      } catch (error) {
+        console.warn('⚠️ Noise suppression AudioWorklet not supported');
+      }
+
+      // 3. Setup Automatic Gain Control AudioWorklet
+      let agcNode = null;
+      try {
+        await this.audioContext.audioWorklet.addModule('/agc-processor.js');
+        agcNode = new AudioWorkletNode(this.audioContext, 'agc-processor');
+        
+        // Listen for AGC status updates
+        agcNode.port.onmessage = (event) => {
+          if (event.data.type === 'status') {
+            this.agcStatus = {
+              currentGain: event.data.currentGain,
+              targetGain: event.data.targetGain,
+              peakLevel: event.data.peakLevel,
+              averageLevel: event.data.averageLevel
+            };
+          }
+        };
+        
+        console.log('🎚️ AGC AudioWorklet loaded');
+      } catch (error) {
+        console.warn('⚠️ AGC AudioWorklet not supported');
+      }
+
+      // 3. Compressor (Discord-like dynamic range compression)
+      const compressor = this.audioContext.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-24, this.audioContext.currentTime);
+      compressor.knee.setValueAtTime(30, this.audioContext.currentTime);
+      compressor.ratio.setValueAtTime(8, this.audioContext.currentTime);
+      compressor.attack.setValueAtTime(0.003, this.audioContext.currentTime);
+      compressor.release.setValueAtTime(0.1, this.audioContext.currentTime);
+
+      // 4. Gain node for final level adjustment
+      const gainNode = this.audioContext.createGain();
+      gainNode.gain.setValueAtTime(1.0, this.audioContext.currentTime);
+
+      // 5. Create destination for processed stream
+      const destination = this.audioContext.createMediaStreamDestination();
+
+      // Connect the Discord-like processing chain
+      let currentNode = source;
+      
+      // 1. High-pass filter
+      currentNode.connect(highPassFilter);
+      currentNode = highPassFilter;
+      
+      // 2. Noise suppression (if available)
+      if (noiseSuppressionNode) {
+        currentNode.connect(noiseSuppressionNode);
+        currentNode = noiseSuppressionNode;
+      }
+      
+      // 3. AGC (if available)
+      if (agcNode) {
+        currentNode.connect(agcNode);
+        currentNode = agcNode;
+      }
+      
+      // 4. Compressor (final dynamics control)
+      currentNode.connect(compressor);
+      currentNode = compressor;
+      
+      // 5. Final gain adjustment
+      currentNode.connect(gainNode);
+      gainNode.connect(destination);
+
+      // Store references for cleanup
+      this.audioProcessingNodes = {
+        source,
+        highPassFilter,
+        noiseSuppressionNode,
+        agcNode,
+        compressor,
+        gainNode,
+        destination
+      };
+
+      console.log('✅ Discord-like audio processing chain established');
+      
+      return destination.stream;
+    } catch (error) {
+      console.error('❌ Advanced audio processing failed:', error);
+      console.log('🔄 Falling back to raw stream');
+      return inputStream; // Fallback to raw stream
+    }
+  }
+
+  // Discord-like Advanced Voice Activity Detection
   startVoiceActivityDetection() {
     try {
       if (!this.localStream) return;
@@ -123,18 +273,163 @@ class VoiceChatService {
       this.analyser = this.audioContext.createAnalyser();
       this.microphone = this.audioContext.createMediaStreamSource(this.localStream);
 
-      // Configure analyser
-      this.analyser.fftSize = 256;
+      // Discord-optimized settings
+      this.analyser.fftSize = 512;  // Discord uses 512 for better frequency resolution
       this.analyser.smoothingTimeConstant = 0.8;
+      this.analyser.minDecibels = -90;
+      this.analyser.maxDecibels = -10;
       this.microphone.connect(this.analyser);
 
-      // Start monitoring
-      this.monitorAudioLevel();
+      // Advanced VAD parameters (Discord-like)
+      this.vadConfig = {
+        speakingThreshold: -45,      // dB - Discord threshold
+        silenceThreshold: -55,       // dB - Hysteresis for stability
+        hangTime: 250,               // ms - How long to keep "speaking" after silence
+        triggerTime: 40,             // ms - How long speaking before triggering
+        smoothingFactor: 0.8,        // Smoothing for level calculation
+        speechFreqMin: 300,          // Hz - Speech frequency range
+        speechFreqMax: 3400,         // Hz - Speech frequency range
+      };
+
+      // VAD state machine
+      this.vadState = {
+        isSpeaking: false,
+        lastSpeakTime: 0,
+        lastSilenceTime: 0,
+        consecutiveSpeaking: 0,
+        consecutiveSilence: 0,
+        smoothedLevel: -100,
+        levelHistory: []
+      };
+
+      console.log('🎤 Advanced VAD initialized with Discord-like settings');
+      
+      // Start advanced monitoring
+      this.monitorAdvancedVoiceActivity();
     } catch (error) {
+      console.error('❌ Advanced VAD initialization failed:', error);
+      // Fallback to basic VAD
+      this.startBasicVoiceActivityDetection();
     }
   }
 
-  // Monitor audio level continuously
+  // Fallback basic VAD
+  startBasicVoiceActivityDetection() {
+    this.analyser.fftSize = 256;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.microphone.connect(this.analyser);
+    this.monitorAudioLevel();
+  }
+
+  // Discord-like Advanced Voice Activity Monitoring
+  monitorAdvancedVoiceActivity() {
+    if (!this.analyser || !this.vadConfig) {
+      return;
+    }
+
+    const bufferLength = this.analyser.frequencyBinCount;
+    const frequencyData = new Float32Array(bufferLength);
+    const sampleRate = this.audioContext.sampleRate;
+
+    const checkAdvancedVoiceActivity = () => {
+      if (!this.analyser || !this.vadConfig) {
+        return;
+      }
+
+      try {
+        this.analyser.getFloatFrequencyData(frequencyData);
+
+        // Calculate weighted RMS focusing on speech frequencies (300-3400 Hz)
+        let weightedSum = 0;
+        let totalWeight = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          const frequency = (i * sampleRate) / (2 * bufferLength);
+          let weight = 1;
+          
+          // Boost speech frequencies (Discord approach)
+          if (frequency >= this.vadConfig.speechFreqMin && frequency <= this.vadConfig.speechFreqMax) {
+            weight = 2.5; // Higher weight for speech frequencies
+          } else if (frequency < 100 || frequency > 8000) {
+            weight = 0.1; // Lower weight for non-speech frequencies
+          }
+          
+          const linearValue = Math.pow(10, frequencyData[i] / 10);
+          weightedSum += linearValue * weight;
+          totalWeight += weight;
+        }
+
+        // Calculate current level in dB
+        const currentLevel = totalWeight > 0 ? 
+          10 * Math.log10(weightedSum / totalWeight) : -100;
+
+        // Smooth the level (Discord-like smoothing)
+        this.vadState.smoothedLevel = 
+          this.vadConfig.smoothingFactor * this.vadState.smoothedLevel + 
+          (1 - this.vadConfig.smoothingFactor) * currentLevel;
+
+        // Update level history for adaptive thresholding
+        this.vadState.levelHistory.push(this.vadState.smoothedLevel);
+        if (this.vadState.levelHistory.length > 50) {
+          this.vadState.levelHistory.shift();
+        }
+
+        const now = Date.now();
+
+        // State machine for voice activity detection
+        if (this.vadState.smoothedLevel > this.vadConfig.speakingThreshold) {
+          // Potential speech detected
+          this.vadState.consecutiveSpeaking++;
+          this.vadState.consecutiveSilence = 0;
+          this.vadState.lastSpeakTime = now;
+          
+          // Trigger speaking state if threshold met
+          if (!this.vadState.isSpeaking && 
+              this.vadState.consecutiveSpeaking >= Math.ceil(this.vadConfig.triggerTime / 16)) {
+            this.vadState.isSpeaking = true;
+            this.emitSpeakingState(true);
+            console.log(`🗣️ Speaking started (level: ${this.vadState.smoothedLevel.toFixed(1)} dB)`);
+          }
+        } else if (this.vadState.smoothedLevel < this.vadConfig.silenceThreshold) {
+          // Silence detected
+          this.vadState.consecutiveSilence++;
+          this.vadState.consecutiveSpeaking = 0;
+          this.vadState.lastSilenceTime = now;
+          
+          // Stop speaking state if hang time exceeded
+          if (this.vadState.isSpeaking && 
+              (now - this.vadState.lastSpeakTime) > this.vadConfig.hangTime) {
+            this.vadState.isSpeaking = false;
+            this.emitSpeakingState(false);
+            console.log(`🤐 Speaking stopped (level: ${this.vadState.smoothedLevel.toFixed(1)} dB)`);
+          }
+        }
+
+        // Continue monitoring
+        requestAnimationFrame(checkAdvancedVoiceActivity);
+      } catch (error) {
+        console.error('❌ Advanced VAD monitoring error:', error);
+        // Fallback to basic monitoring
+        this.monitorAudioLevel();
+      }
+    };
+
+    checkAdvancedVoiceActivity();
+  }
+
+  // Emit speaking state change
+  emitSpeakingState(isSpeaking) {
+    if (this.isConnected && !this.isMuted) {
+      this.isSpeaking = isSpeaking;
+      this.emit('speaking-changed', {
+        userId: this.currentUserId,
+        isSpeaking,
+        level: this.vadState?.smoothedLevel || 0
+      });
+    }
+  }
+
+  // Fallback: Basic audio level monitoring
   monitorAudioLevel() {
     if (!this.analyser) {
       return;
@@ -148,9 +443,6 @@ class VoiceChatService {
         return;
       }
 
-      // Don't stop monitoring if not connected, just don't emit events
-      // This allows monitoring to continue even when reconnecting
-
       try {
         this.analyser.getByteFrequencyData(dataArray);
 
@@ -161,10 +453,6 @@ class VoiceChatService {
         }
         const average = sum / bufferLength;
         const volume = average / 255; // Normalize to 0-1
-
-        // Debug every 100 frames to avoid spam
-        if (Math.random() < 0.01) {
-        }
 
         // Only emit speaking events if connected
         if (this.isConnected) {
@@ -191,12 +479,9 @@ class VoiceChatService {
     checkAudioLevel();
   }
 
-  // Stop voice activity detection
+  // Stop voice activity detection and cleanup audio processing
   stopVoiceActivityDetection() {
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
+    // Cleanup VAD
     if (this.silenceTimeout) {
       clearTimeout(this.silenceTimeout);
       this.silenceTimeout = null;
@@ -204,6 +489,33 @@ class VoiceChatService {
     this.analyser = null;
     this.microphone = null;
     this.isSpeaking = false;
+    this.vadState = null;
+    this.vadConfig = null;
+    
+    // Cleanup audio processing nodes
+    if (this.audioProcessingNodes) {
+      try {
+        // Disconnect all nodes
+        Object.values(this.audioProcessingNodes).forEach(node => {
+          if (node && typeof node.disconnect === 'function') {
+            node.disconnect();
+          }
+        });
+        
+        console.log('🧹 Audio processing nodes cleaned up');
+      } catch (error) {
+        console.warn('⚠️ Error during audio processing cleanup:', error);
+      }
+      
+      this.audioProcessingNodes = null;
+    }
+    
+    // Close AudioContext (but keep it for potential reuse)
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      // Don't close immediately, might be reused
+      // this.audioContext.close();
+      console.log('🎛️ AudioContext suspended for potential reuse');
+    }
   }
 
   // Join voice channel
@@ -366,6 +678,13 @@ class VoiceChatService {
   setupPeerEvents(peer, userId) {
     peer.on('signal', (signal) => {
       console.log(`📡 Sending signal to user: ${userId}`);
+      
+      // Discord-like Opus codec prioritization
+      if (signal.type === 'offer' || signal.type === 'answer') {
+        signal.sdp = this.prioritizeOpusCodec(signal.sdp);
+        console.log(`🎵 Opus codec prioritized for user: ${userId}`);
+      }
+      
       socketService.sendVoiceSignal(signal, userId, this.currentChannel, this.currentUserId);
     });
 
@@ -568,12 +887,62 @@ class VoiceChatService {
     }
   }
 
+  // Discord-like Opus codec prioritization
+  prioritizeOpusCodec(sdp) {
+    // Find Opus codec in SDP and move it to the front
+    const lines = sdp.split('\n');
+    let audioMLine = '';
+    let opusPayloadType = null;
+    
+    // Find audio m-line and Opus payload type
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Find audio m-line
+      if (line.startsWith('m=audio')) {
+        audioMLine = line;
+      }
+      
+      // Find Opus codec
+      if (line.includes('opus/48000/2')) {
+        const match = line.match(/a=rtpmap:(\d+) opus\/48000\/2/);
+        if (match) {
+          opusPayloadType = match[1];
+        }
+      }
+    }
+    
+    // Prioritize Opus if found
+    if (audioMLine && opusPayloadType) {
+      const parts = audioMLine.split(' ');
+      if (parts.length > 3) {
+        const payloadTypes = parts.slice(3);
+        
+        // Remove Opus from current position
+        const filteredTypes = payloadTypes.filter(type => type !== opusPayloadType);
+        
+        // Add Opus at the beginning
+        const prioritizedTypes = [opusPayloadType, ...filteredTypes];
+        
+        // Reconstruct m-line
+        const newMLine = `${parts[0]} ${parts[1]} ${parts[2]} ${prioritizedTypes.join(' ')}`;
+        
+        // Replace in SDP
+        sdp = sdp.replace(audioMLine, newMLine);
+        
+        console.log(`🎵 Opus codec (${opusPayloadType}) prioritized in SDP`);
+      }
+    }
+    
+    return sdp;
+  }
+
   // Set current user ID
   setCurrentUserId(userId) {
     this.currentUserId = userId;
   }
 
-  // Get current status
+  // Get current status with Discord-like audio processing info
   getStatus() {
     const peerUserIds = Array.from(this.peers.keys());
 
@@ -590,7 +959,45 @@ class VoiceChatService {
       isDeafened: this.isDeafened,
       isScreenSharing: this.isScreenSharing,
       connectedUsers: allConnectedUsers,
-      screenSharingUsers: Array.from(this.screenPeers.keys())
+      screenSharingUsers: Array.from(this.screenPeers.keys()),
+      
+      // Discord-like audio processing status
+      audioProcessing: {
+        hasAdvancedProcessing: !!this.audioProcessingNodes,
+        noiseSuppressionLevel: this.noiseSuppressionLevel || null,
+        agcStatus: this.agcStatus || null,
+        vadConfig: this.vadConfig || null,
+        vadState: this.vadState ? {
+          isSpeaking: this.vadState.isSpeaking,
+          smoothedLevel: this.vadState.smoothedLevel
+        } : null
+      }
+    };
+  }
+
+  // Debug method for Discord-like audio processing
+  getAudioProcessingDebugInfo() {
+    return {
+      audioContext: {
+        state: this.audioContext?.state,
+        sampleRate: this.audioContext?.sampleRate,
+        currentTime: this.audioContext?.currentTime
+      },
+      processing: {
+        hasNoiseSuppressionNode: !!this.audioProcessingNodes?.noiseSuppressionNode,
+        hasAGCNode: !!this.audioProcessingNodes?.agcNode,
+        noiseSuppressionLevel: this.noiseSuppressionLevel,
+        agcStatus: this.agcStatus
+      },
+      vad: {
+        config: this.vadConfig,
+        state: this.vadState,
+        isSpeaking: this.isSpeaking
+      },
+      peers: {
+        count: this.peers.size,
+        userIds: Array.from(this.peers.keys())
+      }
     };
   }
 
