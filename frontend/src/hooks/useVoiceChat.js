@@ -32,11 +32,10 @@ export const useVoiceChat = () => {
     // Set up event listeners
     const handleConnected = ({ channelId }) => {
       setIsConnected(true);
-      setCurrentChannel(channelId);
       setIsLoading(false);
       setError(null);
       
-      // Don't add current user here - wait for voiceChannelSync event
+      // Current channel is set by voiceChannelSync event
     };
 
     const handleDisconnected = ({ channelId }) => {
@@ -68,19 +67,23 @@ export const useVoiceChat = () => {
     const handleVoiceChannelSync = ({ channelId, users, userDetails }) => {
       console.log('🎯 HOOK: handleVoiceChannelSync:', { channelId, users, userDetails });
       
+      // Set current channel only if not connected yet (join scenario)
+      if (!isConnected) {
+        setCurrentChannel(channelId);
+      }
+      
       const currentUserId = voiceChatService.currentUserId;
       const safeUsers = users || [];
-      
       const participantsList = safeUsers.map(userId => {
-        const userDetail = userDetails?.find(u => (u._id || u.id) === userId);
+        const userDetail = userDetails?.find(u => (u.user?._id || u.user?.id) === userId);
         const isCurrentUser = currentUserId === userId;
         
         return {
           user: {
             _id: userId,
             id: userId,
-            username: isCurrentUser ? 'You' : (userDetail?.username || 'Unknown'),
-            displayName: isCurrentUser ? 'You' : (userDetail?.username || 'Unknown')
+            username: isCurrentUser ? 'You' : (userDetail?.user?.username || 'Unknown'),
+            displayName: isCurrentUser ? 'You' : (userDetail?.user?.username || 'Unknown')
           },
           isMuted: false,
           isDeafened: false,
