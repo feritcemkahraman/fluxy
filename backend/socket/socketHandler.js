@@ -141,13 +141,13 @@ const handleConnection = (io) => {
     });
 
     // Handle joining a voice channel - OPTIMIZED
-    socket.on('joinVoiceChannel', async (data) => {
+    socket.on('join-voice-channel', async (data) => {
       console.log(`🔊 JOIN REQUEST: ${socket.user.username} | Channel: ${data.channelId}`);
       await voiceManager.joinChannel(socket, data.channelId);
     });
 
     // Handle leaving a voice channel - OPTIMIZED
-    socket.on('leaveVoiceChannel', async () => {
+    socket.on('leave-voice-channel', async () => {
       console.log(`🔇 LEAVE REQUEST: ${socket.user.username}`);
       await voiceManager.leaveChannel(socket);
     });
