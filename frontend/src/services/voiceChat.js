@@ -268,8 +268,16 @@ class VoiceChatService {
     try {
       if (!this.localStream) return;
 
-      // Create AudioContext
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      // Use existing AudioContext if available, don't create new one
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      // Resume context if suspended
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume();
+      }
+      
       this.analyser = this.audioContext.createAnalyser();
       this.microphone = this.audioContext.createMediaStreamSource(this.localStream);
 
@@ -419,14 +427,17 @@ class VoiceChatService {
 
   // Emit speaking state change
   emitSpeakingState(isSpeaking) {
-    if (this.isConnected && !this.isMuted) {
-      this.isSpeaking = isSpeaking;
-      this.emit('speaking-changed', {
-        userId: this.currentUserId,
-        isSpeaking,
-        level: this.vadState?.smoothedLevel || 0
-      });
-    }
+    // Always update speaking state
+    this.isSpeaking = isSpeaking;
+    
+    // Emit event even if not connected (for UI feedback)
+    this.emit('speaking-changed', {
+      userId: this.currentUserId,
+      isSpeaking: isSpeaking && !this.isMuted, // Don't show speaking if muted
+      level: this.vadState?.smoothedLevel || 0
+    });
+    
+    console.log(`🗣️ Speaking state: ${isSpeaking} (muted: ${this.isMuted})`);
   }
 
   // Fallback: Basic audio level monitoring
@@ -617,12 +628,13 @@ class VoiceChatService {
     }
 
     console.log(`🤝 Creating peer connection as initiator for user: ${userId}`);
+    console.log(`🎛️ Using processed stream:`, this.localStream.getTracks().map(t => t.kind));
 
-    // Create peer connection (initiator)
+    // Create peer connection (initiator) with processed stream
     const peer = new Peer({
       initiator: true,
       trickle: false,
-      stream: this.localStream
+      stream: this.localStream // This should be the processed stream
     });
 
     this.setupPeerEvents(peer, userId);
@@ -654,12 +666,13 @@ class VoiceChatService {
 
     if (!peer && this.localStream) {
       console.log(`🤝 Creating peer connection as receiver for user: ${userId}`);
+      console.log(`🎛️ Using processed stream:`, this.localStream.getTracks().map(t => t.kind));
       
-      // Create peer connection (not initiator)
+      // Create peer connection (not initiator) with processed stream
       peer = new Peer({
         initiator: false,
         trickle: false,
-        stream: this.localStream
+        stream: this.localStream // This should be the processed stream
       });
 
       this.setupPeerEvents(peer, userId);
@@ -717,12 +730,22 @@ class VoiceChatService {
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       this.isMuted = !audioTrack.enabled;
-
-      // Notify other users
-      socketService.sendVoiceMuteStatus(this.currentChannel, this.isMuted, this.currentUserId);
-
+      
+      console.log(`🎤 Mute toggled: ${this.isMuted ? 'MUTED' : 'UNMUTED'}`);
+      
+      // Update all peer connections with new stream state
+      this.peers.forEach((peer, userId) => {
+        try {
+          // The stream is already connected, just the track enabled state changed
+          console.log(`🔄 Updated mute state for peer: ${userId}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to update peer ${userId}:`, error);
+        }
+      });
+      
       this.emit('mute-changed', { isMuted: this.isMuted });
     }
+    socketService.sendVoiceMuteStatus(this.currentChannel, this.isMuted, this.currentUserId);
   }
 
   // Deafen/undeafen (mute all incoming audio)

@@ -322,7 +322,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         }
       });
     };
-  }, [remoteStreams]);
+  }, [remoteStreams, audioElements]);
 
   // Handle remote screen streams
   useEffect(() => {
