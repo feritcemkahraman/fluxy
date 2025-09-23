@@ -14,7 +14,6 @@ import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
-import { voiceStateManager } from "../services/voiceStateManager";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -33,40 +32,10 @@ const FluxyApp = () => {
   const [showMemberList, setShowMemberList] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [voiceChannelUsers, setVoiceChannelUsers] = useState({});
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
 
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
-
-  // Update voice channel users
-  useEffect(() => {
-    const updateVoiceUsers = () => {
-      const status = voiceChatService.getStatus();
-      if (status.currentChannel) {
-        setVoiceChannelUsers(prev => ({
-          ...prev,
-          [status.currentChannel]: status.connectedUsers
-        }));
-      }
-    };
-
-    // Initial update
-    updateVoiceUsers();
-
-    // Listen for voice chat events
-    voiceChatService.on('connected', updateVoiceUsers);
-    voiceChatService.on('disconnected', updateVoiceUsers);
-    voiceChatService.on('user-joined', updateVoiceUsers);
-    voiceChatService.on('user-left', updateVoiceUsers);
-
-    return () => {
-      voiceChatService.off('connected', updateVoiceUsers);
-      voiceChatService.off('disconnected', updateVoiceUsers);
-      voiceChatService.off('user-joined', updateVoiceUsers);
-      voiceChatService.off('user-left', updateVoiceUsers);
-    };
-  }, []);
 
   // Load server members when activeServer changes
   useEffect(() => {
@@ -93,94 +62,9 @@ const FluxyApp = () => {
       }
     };
 
-    const loadVoiceChannelUsers = async () => {
-      if (activeServer?._id || activeServer?.id) {
-        try {
-          const serverId = activeServer._id || activeServer.id;
-          
-          const response = await channelAPI.getChannels(serverId);
-          
-          if (response.data.channels) {
-            const voiceChannelUsersMap = {};
-            
-            response.data.channels.forEach(channel => {
-              if (channel.type === 'voice' && channel.connectedUsers) {
-                voiceChannelUsersMap[channel.id] = channel.connectedUsers.map(cu => 
-                  cu.user?._id || cu.user?.id || cu.user
-                );
-              }
-            });
-            
-            // Backend is always the source of truth - no merging, just set
-            setVoiceChannelUsers(voiceChannelUsersMap);
-          }
-          
-        } catch (error) {
-          // Silent fail for production
-        }
-      }
-    };
-
     loadServerMembers();
-    // loadVoiceChannelUsers(); // Removed - socket events are sufficient
+    // Voice channel users are now handled by useVoiceChat hook
   }, [activeServer?._id, activeServer?.id]);
-
-  // Update voice channel users
-  useEffect(() => {
-    const updateVoiceUsers = () => {
-      const status = voiceChatService.getStatus();
-
-      if (status.currentChannel) {
-        // Add current user to connected users if not already included
-        let connectedUsers = [...(status.connectedUsers || [])];
-        
-        const userId = user?.id || user?._id;
-        if (userId && !connectedUsers.includes(userId)) {
-          connectedUsers = [userId, ...connectedUsers];
-        }
-
-        setVoiceChannelUsers(prev => ({
-          ...prev, // Keep existing voice channel data from other channels
-          [status.currentChannel]: connectedUsers
-        }));
-      } else {
-        // When disconnected, clear current channel data only
-        setVoiceChannelUsers(prev => {
-          const newState = { ...prev };
-          if (status.currentChannel) {
-            delete newState[status.currentChannel];
-          }
-          return newState;
-        });
-      }
-    };
-
-    // Set current user ID in voiceChatService BEFORE update
-    const userId = user?.id || user?._id;
-    if (userId && voiceChatService.currentUserId !== userId) {
-      if (voiceChatService.setCurrentUserId) {
-        voiceChatService.setCurrentUserId(userId);
-      } else {
-        voiceChatService.currentUserId = userId;
-      }
-    }
-
-    // Initial update
-    updateVoiceUsers();
-
-    // Listen for voice chat events
-    voiceChatService.on('connected', updateVoiceUsers);
-    voiceChatService.on('disconnected', updateVoiceUsers);
-    voiceChatService.on('user-joined', updateVoiceUsers);
-    voiceChatService.on('user-left', updateVoiceUsers);
-
-    return () => {
-      voiceChatService.off('connected', updateVoiceUsers);
-      voiceChatService.off('disconnected', updateVoiceUsers);
-      voiceChatService.off('user-joined', updateVoiceUsers);
-      voiceChatService.off('user-left', updateVoiceUsers);
-    };
-  }, [user]);
 
   // Load user's servers on component mount - only once
   useEffect(() => {
@@ -311,44 +195,14 @@ const FluxyApp = () => {
     };
 
     const handleVoiceChannelUpdate = (data) => {
-      const { channelId, action, userId } = data;
-      const currentUserId = user?.id || user?._id;
-      
-      // Update voice channel users based on socket event only
-      // Backend is the source of truth, socket just applies incremental updates
-      setVoiceChannelUsers(prev => {
-        const currentUsers = prev[channelId] || [];
-        
-        if (action === 'userJoined') {
-          // Add user if not already in channel
-          if (!currentUsers.includes(userId)) {
-            const newUsers = [...currentUsers, userId];
-            
-            const newState = {
-              ...prev,
-              [channelId]: newUsers
-            };
-            return newState;
-          }
-        } else if (action === 'userLeft') {
-          // Remove user from channel
-          const newUsers = currentUsers.filter(id => id !== userId);
-          return {
-            ...prev,
-            [channelId]: newUsers
-          };
-        }
-        
-        return prev;
-      });
+      // DEPRECATED: Voice channel updates are now handled by useVoiceChat hook
+      console.log('⚠️ handleVoiceChannelUpdate called but deprecated');
     };
 
     // OPTIMIZED: Voice channel sync handler with state manager
     const handleVoiceChannelSync = (data) => {
-      const { channelId, users } = data;
-      
-      // Use optimized state manager instead of direct setState
-      voiceStateManager.updateChannel(channelId, users || []);
+      // DEPRECATED: Voice channel sync is now handled by useVoiceChat hook
+      console.log('⚠️ handleVoiceChannelSync called but deprecated');
     };
 
     const handleServerCreated = (data) => {
@@ -847,8 +701,6 @@ const FluxyApp = () => {
     const unsubscribeInviteCreated = on('inviteCreated', handleInviteCreated);
     const unsubscribeMemberJoinedViaInvite = on('memberJoinedViaInvite', handleMemberJoinedViaInvite);
     const unsubscribeNewMemberJoined = on('newMemberJoined', handleNewMemberJoined);
-    const unsubscribeVoiceUpdate = on('voiceChannelUpdate', handleVoiceChannelUpdate);
-    const unsubscribeVoiceSync = on('voiceChannelSync', handleVoiceChannelSync);
     const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
     const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
     const unsubscribeChannelCreated = on('channelCreated', handleChannelCreated);
@@ -867,26 +719,12 @@ const FluxyApp = () => {
       unsubscribeInviteCreated();
       unsubscribeMemberJoinedViaInvite();
       unsubscribeNewMemberJoined();
-      unsubscribeVoiceUpdate();
-      unsubscribeVoiceSync();
       unsubscribeServerCreated();
       unsubscribeServerJoined();
       unsubscribeChannelCreated();
       unsubscribeChannelDeleted();
     };
   }, []); // Empty dependency - set up listeners only once
-
-  // OPTIMIZED: Subscribe to voice state manager updates
-  useEffect(() => {
-    const unsubscribe = voiceStateManager.subscribe((newVoiceState) => {
-      setVoiceChannelUsers(newVoiceState);
-    });
-
-    // Load initial state
-    setVoiceChannelUsers(voiceStateManager.getAllChannels());
-
-    return unsubscribe;
-  }, []);
 
   const handleServerSelect = (server) => {
     if (server === "home") {
