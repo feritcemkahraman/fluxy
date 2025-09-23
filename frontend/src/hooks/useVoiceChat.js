@@ -69,8 +69,9 @@ export const useVoiceChat = () => {
       console.log('🎯 HOOK: handleVoiceChannelSync:', { channelId, users, userDetails });
       
       const currentUserId = voiceChatService.currentUserId;
+      const safeUsers = users || [];
       
-      const participantsList = users.map(userId => {
+      const participantsList = safeUsers.map(userId => {
         const userDetail = userDetails?.find(u => (u._id || u.id) === userId);
         const isCurrentUser = currentUserId === userId;
         

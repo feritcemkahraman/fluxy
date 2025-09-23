@@ -83,13 +83,13 @@ class VoiceChannelManager {
 
       // Get updated user list and sync
       const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-      const remainingUserIds = VoiceUtils.extractUserIds(updatedChannel.connectedUsers);
+      const remainingUserIds = VoiceUtils.extractUserIds(updatedChannel?.connectedUsers) || [];
 
       // Emit sync event to remaining users in the channel
       this.io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voiceChannelSync', {
         channelId,
         users: remainingUserIds,
-        userDetails: updatedChannel.connectedUsers
+        userDetails: updatedChannel?.connectedUsers || []
       });
 
       console.log(`🔇 LEAVE: ${socket.user.username} | Channel: ${channelId} | Remaining: [${remainingUserIds.join(', ')}]`);
@@ -118,26 +118,23 @@ class VoiceChannelManager {
       // Update database
       await this.updateChannelDatabase(channelId, userId, 'leave');
 
-      // Notify other users in the channel about user leaving
-      socket.to(VoiceUtils.createVoiceRoomName(channelId)).emit('userLeftVoice', {
-        userId,
-        channelId,
-        username
-      });
-
       // Update socket state
       socket.leave(VoiceUtils.createVoiceRoomName(channelId));
       socket.currentVoiceChannel = null;
 
       if (shouldSync) {
         // Get updated user list and sync
-        const channel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-        const connectedUserIds = VoiceUtils.extractUserIds(channel.connectedUsers);
+        const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
+        const remainingUserIds = VoiceUtils.extractUserIds(updatedChannel?.connectedUsers) || [];
 
-        // Debounced sync
-        this.debouncedSync(channelId, connectedUserIds, channel.server);
+        // Emit sync event to remaining users in the channel
+        this.io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voiceChannelSync', {
+          channelId,
+          users: remainingUserIds,
+          userDetails: updatedChannel?.connectedUsers || []
+        });
 
-        logger.voice('LEAVE', username, channelId, connectedUserIds);
+        console.log(`🔇 LEAVE: ${socket.user.username} | Channel: ${channelId} | Remaining: [${remainingUserIds.join(', ')}]`);
       }
 
     } catch (error) {
