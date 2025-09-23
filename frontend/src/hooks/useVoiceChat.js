@@ -56,34 +56,13 @@ export const useVoiceChat = () => {
     };
 
     const handleUserJoinedVoice = ({ userId, channelId, username }) => {
-      setParticipants(prev => {
-        const existingIndex = prev.findIndex(p => (p.user._id || p.user.id) === userId);
-        if (existingIndex >= 0) {
-          return prev; // Already exists
-        }
-        
-        const currentUserId = voiceChatService.currentUserId;
-        const isCurrentUser = currentUserId === userId;
-        
-        const newParticipant = {
-          user: { 
-            _id: userId, 
-            id: userId, 
-            username: isCurrentUser ? 'You' : (username || 'Unknown'), 
-            displayName: isCurrentUser ? 'You' : (username || 'Unknown') 
-          },
-          isMuted: false,
-          isDeafened: false,
-          isCurrentUser: isCurrentUser,
-          isSpeaking: false
-        };
-        
-        return [...prev, newParticipant];
-      });
+      // DEPRECATED: No longer used, voiceChannelSync handles all updates
+      console.log('⚠️ handleUserJoinedVoice called but deprecated, using voiceChannelSync instead');
     };
 
     const handleUserLeftVoice = ({ userId, channelId }) => {
-      setParticipants(prev => prev.filter(p => (p.user._id || p.user.id) !== userId));
+      // DEPRECATED: No longer used, voiceChannelSync handles all updates
+      console.log('⚠️ handleUserLeftVoice called but deprecated, using voiceChannelSync instead');
     };
 
     const handleVoiceChannelSync = ({ channelId, users, userDetails }) => {

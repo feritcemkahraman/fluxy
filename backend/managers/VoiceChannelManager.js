@@ -83,19 +83,18 @@ class VoiceChannelManager {
 
       // Get updated user list and sync
       const updatedChannel = await Channel.findById(channelId).populate('connectedUsers.user', 'username');
-      const connectedUserIds = VoiceUtils.extractUserIds(updatedChannel.connectedUsers);
+      const remainingUserIds = VoiceUtils.extractUserIds(updatedChannel.connectedUsers);
 
-      // Notify other users in the channel about new user joining
-      socket.to(VoiceUtils.createVoiceRoomName(channelId)).emit('userJoinedVoice', {
-        userId,
+      // Emit sync event to remaining users in the channel
+      this.io.to(VoiceUtils.createVoiceRoomName(channelId)).emit('voiceChannelSync', {
         channelId,
-        username: username || 'Unknown User'
+        users: remainingUserIds,
+        userDetails: updatedChannel.connectedUsers
       });
 
-      // Debounced sync to prevent spam
-      this.debouncedSync(channelId, connectedUserIds, channel.server);
+      console.log(`🔇 LEAVE: ${socket.user.username} | Channel: ${channelId} | Remaining: [${remainingUserIds.join(', ')}]`);
 
-      logger.voice('JOIN', username, channelId, connectedUserIds);
+      return true;
 
     } catch (error) {
       logger.error('Voice channel join error:', error);
