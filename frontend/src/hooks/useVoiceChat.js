@@ -36,22 +36,7 @@ export const useVoiceChat = () => {
       setIsLoading(false);
       setError(null);
       
-      // Add current user to participants when connected
-      const currentUserId = voiceChatService.currentUserId;
-      if (currentUserId) {
-        setParticipants([{
-          user: { 
-            _id: currentUserId, 
-            id: currentUserId, 
-            username: 'You', 
-            displayName: 'You' 
-          },
-          isMuted,
-          isDeafened,
-          isCurrentUser: true,
-          isSpeaking: false
-        }]);
-      }
+      // Don't add current user here - wait for voiceChannelSync event
     };
 
     const handleDisconnected = ({ channelId }) => {
@@ -99,6 +84,33 @@ export const useVoiceChat = () => {
 
     const handleUserLeftVoice = ({ userId, channelId }) => {
       setParticipants(prev => prev.filter(p => (p.user._id || p.user.id) !== userId));
+    };
+
+    const handleVoiceChannelSync = ({ channelId, users, userDetails }) => {
+      console.log('🎯 HOOK: handleVoiceChannelSync:', { channelId, users, userDetails });
+      
+      const currentUserId = voiceChatService.currentUserId;
+      
+      const participantsList = users.map(userId => {
+        const userDetail = userDetails?.find(u => (u._id || u.id) === userId);
+        const isCurrentUser = currentUserId === userId;
+        
+        return {
+          user: {
+            _id: userId,
+            id: userId,
+            username: isCurrentUser ? 'You' : (userDetail?.username || 'Unknown'),
+            displayName: isCurrentUser ? 'You' : (userDetail?.username || 'Unknown')
+          },
+          isMuted: false,
+          isDeafened: false,
+          isCurrentUser: isCurrentUser,
+          isSpeaking: false
+        };
+      });
+      
+      console.log('📋 HOOK: Setting participants from sync:', participantsList);
+      setParticipants(participantsList);
     };
 
     const handleRemoteStream = ({ userId, stream }) => {
@@ -152,6 +164,7 @@ export const useVoiceChat = () => {
     voiceChatService.on('error', handleError);
     voiceChatService.on('userJoinedVoice', handleUserJoinedVoice);
     voiceChatService.on('userLeftVoice', handleUserLeftVoice);
+    voiceChatService.on('voiceChannelSync', handleVoiceChannelSync);
     voiceChatService.on('remote-stream', handleRemoteStream);
     voiceChatService.on('remote-screen-stream', handleRemoteScreenStream);
     voiceChatService.on('user-started-screen-share', handleUserStartedScreenShare);
@@ -170,6 +183,7 @@ export const useVoiceChat = () => {
       voiceChatService.off('error', handleError);
       voiceChatService.off('userJoinedVoice', handleUserJoinedVoice);
       voiceChatService.off('userLeftVoice', handleUserLeftVoice);
+      voiceChatService.off('voiceChannelSync', handleVoiceChannelSync);
       voiceChatService.off('remote-stream', handleRemoteStream);
       voiceChatService.off('remote-screen-stream', handleRemoteScreenStream);
       voiceChatService.off('user-started-screen-share', handleUserStartedScreenShare);

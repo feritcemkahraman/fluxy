@@ -203,6 +203,10 @@ class WebSocketService {
         this.emit('userLeftVoice', data);
       });
 
+      this.socket.on('voiceChannelSync', (data) => {
+        this.emit('voiceChannelSync', data);
+      });
+
       this.socket.on('voice-signal', (data) => {
         this.emit('voice-signal', data);
       });
