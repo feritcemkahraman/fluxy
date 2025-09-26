@@ -35,7 +35,7 @@ class AGCProcessor extends AudioWorkletProcessor {
     this.lookAheadBuffer = new Float32Array(Math.ceil(this.config.lookAheadTime * sampleRate));
     this.bufferIndex = 0;
     
-    console.log('🎚️ AGC Processor initialized with Discord-like settings');
+    // AGC Processor initialized
   }
 
   process(inputs, outputs, parameters) {

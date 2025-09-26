@@ -3,17 +3,20 @@ import ServerSidebar from "./ServerSidebar";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatArea from "./ChatArea";
 import MemberList from "./MemberList";
-import UserPanel from "./UserPanel";
 import DirectMessages from "./DirectMessages";
 import VoiceScreen from "./VoiceScreen";
+import DesktopTitleBar from "./DesktopTitleBar";
+import DesktopNotifications from "./DesktopNotifications";
+import UserPanel from "./UserPanel";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
-import { voiceChatService } from "../services/voiceChat";
+import voiceChatService from "../services/voiceChat";
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
+import electronAPI from "../utils/electronAPI";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -22,6 +25,8 @@ const FluxyApp = () => {
     isConnected: isVoiceConnected, 
     currentChannel: currentVoiceChannel,
     connectedUsers,
+    voiceChannelParticipants,
+    voiceChannelParticipantsVersion,
     joinChannel: joinVoiceChannel,
     leaveChannel: leaveVoiceChannel
   } = useVoiceChat();
@@ -33,6 +38,10 @@ const FluxyApp = () => {
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
+
+  // Derive activeServerId from activeServer
+  const activeServerId = activeServer?._id || activeServer?.id;
+  const activeChannelId = activeChannel?._id || activeChannel?.id;
 
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
@@ -139,15 +148,13 @@ const FluxyApp = () => {
         return;
       }
       
-      // Update user status in all servers (only for other users)
+      // Update user status in all servers (single update, activeServer will sync automatically)
       setServers(prevServers => {
-        const updatedServers = prevServers.map(server => {
+        return prevServers.map(server => {
           if (!server.members) return server;
           
-          let memberUpdated = false;
           const updatedMembers = server.members.map(member => {
             if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
-              memberUpdated = true;
               return {
                 ...member,
                 user: {
@@ -159,38 +166,11 @@ const FluxyApp = () => {
             return member;
           });
           
-          return memberUpdated ? {
+          return {
             ...server,
             members: updatedMembers
-          } : server;
+          };
         });
-        
-        return updatedServers;
-      });
-      
-      // Update user status in the current server's members (only for other users)
-      setActiveServer(prevServer => {
-        if (!prevServer || !prevServer.members) return prevServer;
-        
-        let memberUpdated = false;
-        const updatedMembers = prevServer.members.map(member => {
-          if (member.user && (String(member.user._id) === updateUserId || String(member.user.id) === updateUserId)) {
-            memberUpdated = true;
-            return {
-              ...member,
-              user: {
-                ...member.user,
-                status: status
-              }
-            };
-          }
-          return member;
-        });
-        
-        return memberUpdated ? {
-          ...prevServer,
-          members: updatedMembers
-        } : prevServer;
       });
     };
 
@@ -723,10 +703,30 @@ const FluxyApp = () => {
       unsubscribeServerJoined();
       unsubscribeChannelCreated();
       unsubscribeChannelDeleted();
+
+      // Listen for voice channel leave events to close the voice screen
+      const handleVoiceChannelLeft = () => {
+        console.log('🎤 Voice channel left - closing voice screen');
+        setShowVoiceScreen(false);
+      };
+
+      window.addEventListener('voiceChannelLeft', handleVoiceChannelLeft);
+      return () => {
+        window.removeEventListener('voiceChannelLeft', handleVoiceChannelLeft);
+      };
     };
   }, []); // Empty dependency - set up listeners only once
 
-  const handleServerSelect = (server) => {
+  const handleServerSelect = async (server) => {
+    // Leave voice channel when switching servers or going to DMs
+    if (isVoiceConnected && currentVoiceChannel) {
+      try {
+        await leaveVoiceChannel();
+      } catch (error) {
+        console.warn('Error leaving voice channel when switching servers:', error);
+      }
+    }
+
     if (server === "home") {
       setIsDirectMessages(true);
       setActiveServer(null);
@@ -774,14 +774,22 @@ const FluxyApp = () => {
       const status = voiceChatService.getStatus();
       const isAlreadyConnected = status.isConnected && status.currentChannel === channelId;
 
-      if (isAlreadyConnected) {
-        // If already connected to this channel, toggle panel
+      if (isAlreadyConnected && showVoiceScreen) {
+        // If already connected to this channel and panel is open, toggle panel
         setShowVoiceScreen(prev => !prev);
+      } else if (isAlreadyConnected && !showVoiceScreen) {
+        // If already connected but panel is closed, just open panel
+        setShowVoiceScreen(true);
       } else {
-        // Connect to voice channel (first click) - DON'T show panel yet
+        // Not connected to this channel, connect and show panel
         try {
+          // If connected to different voice channel, leave first
+          if (isVoiceConnected && currentVoiceChannel && currentVoiceChannel !== channelId) {
+            await leaveVoiceChannel();
+          }
+          
           await joinVoiceChannel(channelId);
-          // Panel will be shown on second click when user is already connected
+          setShowVoiceScreen(true); // Show panel on connection
         } catch (error) {
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
         }
@@ -789,8 +797,27 @@ const FluxyApp = () => {
     } else {
       // Regular channel selection for text channels
       setActiveChannel(channel);
+      
+      // If currently connected to voice, leave voice channel when switching to text
+      if (isVoiceConnected && currentVoiceChannel) {
+        try {
+          await leaveVoiceChannel();
+        } catch (error) {
+          console.warn('Error leaving voice channel:', error);
+        }
+      }
+      
       // Hide voice screen when switching to text channels
       setShowVoiceScreen(false);
+    }
+  };
+
+  const handleVoiceChannelJoin = async (channel) => {
+    try {
+      await joinVoiceChannel(channel._id || channel.id);
+      setShowVoiceScreen(true);
+    } catch (error) {
+      toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
     }
   };
 
@@ -881,82 +908,129 @@ const FluxyApp = () => {
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800 flex overflow-hidden">
-      {/* Server Sidebar */}
-      <ServerSidebar
-        servers={servers}
-        activeServer={activeServer}
-        onServerSelect={handleServerSelect}
-        isDirectMessages={isDirectMessages}
-        onServerCreated={handleServerCreated}
-      />
-
-      {/* Conditional Content Based on Selection */}
-      {isDirectMessages ? (
-        /* Direct Messages View */
-        <DirectMessages onChannelSelect={handleChannelSelect} />
-      ) : (
-        /* Server View */
-        <>
-          {/* Channel Sidebar */}
-          <ChannelSidebar
-            server={activeServer}
-            activeChannel={activeChannel}
-            onChannelSelect={handleChannelSelect}
-            onChannelCreated={handleChannelCreated}
-            onServerUpdate={handleServerUpdate}
+    <div className="h-screen flex flex-col bg-gray-900 text-white overflow-hidden">
+      {/* Desktop Title Bar (Electron only) */}
+      <DesktopTitleBar title={activeServer?.name ? `Fluxy - ${activeServer.name}` : 'Fluxy'} />
+      
+      {/* Desktop Notifications Handler (Electron only) */}
+      <DesktopNotifications />
+      
+      {/* Main App Content */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {isDirectMessages ? (
+          <DirectMessages 
+            user={user}
+            onBack={() => setIsDirectMessages(false)}
           />
+        ) : (
+          <>
+            {/* Server Sidebar */}
+            <ServerSidebar
+              servers={servers}
+              activeServerId={activeServerId}
+              onServerSelect={handleServerSelect}
+              onDirectMessages={() => setIsDirectMessages(true)}
+              user={user}
+            />
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col relative">
-            {/* Main Content - Always show Chat Area for text channels */}
-            <div className="flex-1 flex">
-              <div className="flex-1 flex">
-                <ChatArea
-                  channel={activeChannel}
-                  server={activeServer}
-                  showMemberList={showMemberList}
-                  onToggleMemberList={() => setShowMemberList(!showMemberList)}
-                />
+            {/* Channel Sidebar */}
+            {activeServer && (
+              <ChannelSidebar
+                server={activeServer}
+                activeChannel={activeChannel}
+                onChannelSelect={handleChannelSelect}
+                onVoiceChannelJoin={handleVoiceChannelJoin}
+                voiceChannelParticipants={voiceChannelParticipants}
+                voiceChannelParticipantsVersion={voiceChannelParticipantsVersion}
+                currentVoiceChannel={currentVoiceChannel}
+                isVoiceConnected={isVoiceConnected}
+                user={user}
+              />
+            )}
 
-                {/* Member List - Show for text channels */}
-                {showMemberList && activeServer && activeChannel?.type === 'text' && (
-                  <MemberList
+            {/* Main Content Area */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Chat Area or Voice Screen - Desktop: flex-1, Mobile: full width */}
+              <div className="flex-1 flex flex-col min-w-0">
+                {showVoiceScreen && currentVoiceChannel ? (() => {
+                  // Find the voice channel that should be displayed
+                  const voiceChannel = activeServer?.channels?.find(ch =>
+                    ch.type === 'voice' && (ch._id || ch.id) === currentVoiceChannel
+                  );
+
+                  if (!voiceChannel) {
+                    return activeChannel ? (
+                      <ChatArea
+                        channel={activeChannel}
+                        server={activeServer}
+                        user={user}
+                      />
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center bg-gray-800">
+                        <div className="text-center">
+                          <h2 className="text-2xl font-bold text-gray-300 mb-2">
+                            {electronAPI.isElectron() ? 'Fluxy Desktop\'a Hoş Geldiniz!' : 'Fluxy\'ye Hoş Geldiniz!'}
+                          </h2>
+                          <p className="text-gray-400">
+                            {activeServer 
+                              ? 'Sohbet etmek için bir kanal seçin'
+                              : 'Başlamak için bir sunucu seçin'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <VoiceScreen
+                      channel={voiceChannel}
+                      server={activeServer}
+                      servers={servers} // Pass servers list for fallback
+                      onClose={() => {
+                        setShowVoiceScreen(false);
+                      }}
+                      currentUser={user}
+                      isSidebar={false}
+                    />
+                  );
+                })() : activeChannel ? (
+                  <ChatArea
+                    channel={activeChannel}
                     server={activeServer}
-                    activeChannel={activeChannel}
+                    user={user}
                   />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center bg-gray-800">
+                    <div className="text-center">
+                      <h2 className="text-2xl font-bold text-gray-300 mb-2">
+                        {electronAPI.isElectron() ? 'Fluxy Desktop\'a Hoş Geldiniz!' : 'Fluxy\'ye Hoş Geldiniz!'}
+                      </h2>
+                      <p className="text-gray-400">
+                        {activeServer 
+                          ? 'Sohbet etmek için bir kanal seçin'
+                          : 'Başlamak için bir sunucu seçin'
+                        }
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* Voice Screen Overlay - Show when showVoiceScreen is true */}
-            {showVoiceScreen && (() => {
-              // Find the voice channel that should be displayed
-              const voiceChannel = activeServer?.channels?.find(ch =>
-                ch.type === 'voice' && ((currentVoiceChannel && (ch._id || ch.id) === currentVoiceChannel) || 
-                                       (!currentVoiceChannel && ch.type === 'voice'))
-              );
-              
-              if (!voiceChannel) {
-                return null;
-              }
-
-              return (
-                <div className="absolute inset-0 z-10">
-                  <VoiceScreen
-                    channel={voiceChannel}
+              {/* Member List - Desktop: right sidebar, Mobile: hidden, Electron: always show */}
+              {activeChannel && (
+                <div className={`${typeof window !== 'undefined' && window.electronAPI?.isElectron ? 'flex' : 'hidden lg:flex'} w-72 flex-shrink-0`}>
+                  <MemberList
                     server={activeServer}
-                    servers={servers} // Pass servers list for fallback
-                    onClose={() => {
-                      setShowVoiceScreen(false);
-                    }}
+                    channel={activeChannel}
+                    user={user}
                   />
                 </div>
-              );
-            })()}
-          </div>
-        </>
-      )}
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* User Panel - Fixed at bottom */}
       {!isDirectMessages && user && (

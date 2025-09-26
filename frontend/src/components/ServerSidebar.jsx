@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import CreateServerModal from "./CreateServerModal";
 
-const ServerSidebar = ({ servers, activeServer, onServerSelect, isDirectMessages, onServerCreated }) => {
+const ServerSidebar = ({ servers, activeServerId, onServerSelect, isDirectMessages, onServerCreated }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   return (
     <div className="w-24 flex flex-col items-center py-4 px-3 space-y-2">
@@ -51,8 +51,8 @@ const ServerSidebar = ({ servers, activeServer, onServerSelect, isDirectMessages
                   size="icon"
                   onClick={() => onServerSelect(server)}
                   className={`w-12 h-12 transition-all duration-300 group relative ${
-                    (activeServer?.id && server.id && activeServer.id === server.id) || 
-                    (activeServer?._id && server._id && activeServer._id === server._id)
+                    (activeServerId && server.id && activeServerId === server.id) || 
+                    (activeServerId && server._id && activeServerId === server._id)
                       ? "rounded-xl bg-white/20 backdrop-blur-md border border-white/30"
                       : "rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:rounded-xl"
                   }`}
@@ -65,8 +65,8 @@ const ServerSidebar = ({ servers, activeServer, onServerSelect, isDirectMessages
                   </Avatar>
                   
                   {/* Active indicator */}
-                  {((activeServer?.id && server.id && activeServer.id === server.id) || 
-                    (activeServer?._id && server._id && activeServer._id === server._id)) && (
+                  {((activeServerId && server.id && activeServerId === server.id) || 
+                    (activeServerId && server._id && activeServerId === server._id)) && (
                     <div className="absolute -left-4 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
                   )}
                   

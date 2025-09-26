@@ -4,11 +4,10 @@ const Server = require('../models/Server');
 const Channel = require('../models/Channel');
 const Message = require('../models/Message');
 const VoiceChannelManager = require('../managers/VoiceChannelManager');
+const cacheManager = require('../utils/cache');
 
 // Store connected users
 const connectedUsers = new Map();
-// Voice channel manager instance
-let voiceManager;
 
 const socketAuth = async (socket, next) => {
   try {
@@ -49,12 +48,8 @@ const socketAuth = async (socket, next) => {
 const handleConnection = (io) => {
   io.use(socketAuth);
 
-  // Initialize voice channel manager
-  if (!voiceManager) {
-    voiceManager = new VoiceChannelManager(io);
-  }
-
   io.on('connection', async (socket) => {
+
     // Emit authentication success to frontend with connection data
     socket.emit('authenticated', {
       connectionId: socket.id,
@@ -68,7 +63,6 @@ const handleConnection = (io) => {
     // Check if user already has an active connection
     const existingConnection = connectedUsers.get(socket.userId);
     if (existingConnection) {
-      console.log(`User ${socket.user.username} already has an active connection. Disconnecting old connection.`);
       
       // Disconnect the old socket
       const oldSocket = io.sockets.sockets.get(existingConnection.socketId);
@@ -104,7 +98,6 @@ const handleConnection = (io) => {
 
     userServers.forEach(server => {
       socket.join(`server_${server._id}`);
-      console.log(`✅ User ${socket.user.username} joined server room: server_${server._id}`);
     });
 
     // Broadcast user current status to all servers
@@ -124,10 +117,7 @@ const handleConnection = (io) => {
           member.user.toString() === socket.userId
         )) {
           socket.join(`server_${serverId}`);
-          console.log(`✅ User ${socket.user.username} manually joined server room: server_${serverId}`);
-          console.log(`👥 Server room members count: ${io.sockets.adapter.rooms.get(`server_${serverId}`)?.size || 0}`);
         } else {
-          console.log(`❌ User ${socket.user.username} not authorized for server: ${serverId}`);
         }
       } catch (error) {
         console.error('Join server error:', error);
@@ -137,83 +127,74 @@ const handleConnection = (io) => {
     // Handle leaving a server
     socket.on('leaveServer', (serverId) => {
       socket.leave(`server_${serverId}`);
-      console.log(`User ${socket.user.username} left server: ${serverId}`);
     });
 
-    // Handle joining a voice channel - OPTIMIZED
+    // Handle joining a voice channel - SIMPLE
     socket.on('join-voice-channel', async (data) => {
-      console.log(`🔊 JOIN REQUEST: ${socket.user.username} | Channel: ${data.channelId}`);
-      await voiceManager.joinChannel(socket, data.channelId);
-    });
-
-    // Handle leaving a voice channel - OPTIMIZED
-    socket.on('leave-voice-channel', async () => {
-      console.log(`🔇 LEAVE REQUEST: ${socket.user.username}`);
-      await voiceManager.leaveChannel(socket);
-    });
-
-    // WebRTC Voice Signaling - CRITICAL FOR VOICE CHAT
-    socket.on('voice-signal', (data) => {
-      const { signal, targetUserId, channelId, fromUserId } = data;
-      
-      // Forward signal to target user
-      const targetConnection = connectedUsers.get(targetUserId);
-      if (targetConnection) {
-        const targetSocket = io.sockets.sockets.get(targetConnection.socketId);
-        if (targetSocket) {
-          targetSocket.emit('voice-signal', {
-            signal,
-            userId: fromUserId,
-            channelId
-          });
-        }
+      try {
+        const { channelId } = data;
+        console.log(`🎤 User ${socket.user?.username} joining voice channel: ${channelId}`);
+        
+        const result = VoiceChannelManager.joinChannel(channelId, socket.userId);
+        
+        // Join socket room
+        socket.join(`voice:${channelId}`);
+        
+        // Notify others in the channel
+        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
+          channelId,
+          users: result.users,
+          action: 'join',
+          userId: socket.userId
+        });
+        
+        // Send success response
+        socket.emit('voiceChannelUpdate', {
+          channelId,
+          users: result.users,
+          action: 'join',
+          userId: socket.userId
+        });
+        
+      } catch (error) {
+        console.error('Voice join error:', error);
+        socket.emit('error', { message: 'Failed to join voice channel' });
       }
     });
 
-    // Voice mute status
-    socket.on('voice-mute-status', (data) => {
-      const { channelId, isMuted, userId } = data;
-      
-      // Broadcast to voice channel
-      socket.to(`voice:${channelId}`).emit('voice-user-muted', {
-        userId,
-        isMuted,
-        channelId
-      });
+    // Handle leaving a voice channel - SIMPLE
+    socket.on('leave-voice-channel', async (data) => {
+      try {
+        const { channelId } = data;
+        console.log(`🚪 User ${socket.user?.username} leaving voice channel: ${channelId}`);
+        
+        const result = VoiceChannelManager.leaveChannel(channelId, socket.userId);
+        
+        // Leave socket room
+        socket.leave(`voice:${channelId}`);
+        
+        // Notify others in the channel
+        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
+          channelId,
+          users: result.users,
+          action: 'leave',
+          userId: socket.userId
+        });
+        
+        // Send success response
+        socket.emit('voiceChannelUpdate', {
+          channelId,
+          users: result.users,
+          action: 'leave',
+          userId: socket.userId
+        });
+        
+      } catch (error) {
+        console.error('Voice leave error:', error);
+      }
     });
 
-    // Voice deafen status
-    socket.on('voice-deafen-status', (data) => {
-      const { channelId, isDeafened, userId } = data;
-      
-      // Broadcast to voice channel
-      socket.to(`voice:${channelId}`).emit('voice-user-deafened', {
-        userId,
-        isDeafened,
-        channelId
-      });
-    });
-
-    // Screen sharing events
-    socket.on('start-screen-share', (data) => {
-      const { channelId, userId } = data;
-      
-      // Broadcast to voice channel
-      socket.to(`voice:${channelId}`).emit('screen-share-started', {
-        userId,
-        channelId
-      });
-    });
-
-    socket.on('stop-screen-share', (data) => {
-      const { channelId, userId } = data;
-      
-      // Broadcast to voice channel
-      socket.to(`voice:${channelId}`).emit('screen-share-stopped', {
-        userId,
-        channelId
-      });
-    });
+    // Message handling
 
     // Screen sharing signaling
     socket.on('screen-signal', (data) => {
@@ -385,15 +366,28 @@ const handleConnection = (io) => {
       }
     });
 
-    // Handle disconnect - OPTIMIZED
+    // Handle disconnect - SIMPLE
     socket.on('disconnect', async () => {
-      // Remove from connected users but keep status for potential reconnect
+      // Remove from connected users
       connectedUsers.delete(socket.userId);
 
-      // Handle voice channel cleanup through manager
-      await voiceManager.handleDisconnect(socket);
+      // Clean up voice channels
+      const allChannels = VoiceChannelManager.getAllChannels();
+      for (const [channelId, users] of Object.entries(allChannels)) {
+        if (users.includes(socket.userId)) {
+          const result = VoiceChannelManager.leaveChannel(channelId, socket.userId);
+          
+          // Notify others in the channel
+          socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
+            channelId,
+            users: result.users,
+            action: 'leave',
+            userId: socket.userId
+          });
+        }
+      }
 
-      // Broadcast offline status but DON'T update database
+      // Broadcast offline status
       try {
         const userServers = await Server.find({
           'members.user': socket.userId

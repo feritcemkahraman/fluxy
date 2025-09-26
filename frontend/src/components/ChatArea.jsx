@@ -69,10 +69,15 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     // Listen for authentication
     const unsubscribeAuth = on('authenticated', handleAuthenticated);
 
-    // If already authenticated, join immediately
+    // If already authenticated, join immediately (but only once)
     if (channel?._id && joinChannel && socketService.isAuthenticated) {
       devLog.log('Socket already authenticated, joining channel:', channel._id);
-      joinChannel(channel._id);
+      // Use a small delay to prevent duplicate calls
+      setTimeout(() => {
+        if (channel?._id && joinChannel && socketService.isAuthenticated) {
+          joinChannel(channel._id);
+        }
+      }, 100);
     }
 
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
@@ -88,10 +93,10 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           }
         }
         
-        // Simple duplicate check by _id
+        // Optimized duplicate check with Map for O(1) lookup
         setMessages(prev => {
-          const messageExists = prev.some(msg => msg._id === newMessage._id);
-          if (messageExists) {
+          const messageMap = new Map(prev.map(msg => [msg._id, msg]));
+          if (messageMap.has(newMessage._id)) {
             return prev;
           }
           

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import socketService from '../services/socket';
+import electronStorage from '../utils/electronStorage';
+import electronAPI from '../utils/electronAPI';
 
 const AuthContext = createContext();
 
@@ -53,49 +55,61 @@ function authReducer(state, action) {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Initialize auth state from localStorage
+  // Initialize auth state from storage (Electron-compatible)
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
-      
-      if (token && savedUser) {
-        try {
-          // Immediately load user from localStorage for instant UI
-          const localUser = JSON.parse(savedUser);
-          const savedStatus = localStorage.getItem('userStatus') || 'online';
-          
-          dispatch({
-            type: 'LOGIN_SUCCESS',
-            payload: {
-              user: { ...localUser, status: savedStatus },
-              token
-            }
-          });
+      try {
+        const token = electronStorage.getItem('token');
+        const savedUser = electronStorage.getItem('user');
+        
+        if (token && savedUser) {
+          try {
+            // Immediately load user from storage for instant UI
+            const localUser = JSON.parse(savedUser);
+            const savedStatus = electronStorage.getItem('userStatus') || 'online';
+            
+            dispatch({
+              type: 'LOGIN_SUCCESS',
+              payload: {
+                user: { ...localUser, status: savedStatus },
+                token
+              }
+            });
 
-          // Then verify token by making an API call and update if needed
-          const response = await authAPI.getMe();
-          const apiUser = response.data;
-          
-          // Update with fresh data from API (in case user info changed)
-          dispatch({
-            type: 'UPDATE_USER',
-            payload: { ...apiUser, status: savedStatus }
-          });
+            // Skip API verification for now to avoid loading issues
+            // TODO: Re-enable token verification when backend is stable
+            /*
+            // Then verify token by making an API call and update if needed
+            const response = await authAPI.getMe();
+            const apiUser = response.data;
+            
+            // Update with fresh data from API (in case user info changed)
+            dispatch({
+              type: 'UPDATE_USER',
+              payload: { ...apiUser, status: savedStatus }
+            });
+            */
 
-          // Don't connect socket here - let the other useEffect handle it
-        } catch (error) {
-          // Token is invalid, clear storage
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('userStatus');
-          dispatch({ type: 'LOGOUT' });
+            // Don't connect socket here - let the other useEffect handle it
+          } catch (error) {
+            // Token is invalid, clear storage
+            electronStorage.removeItem('token');
+            electronStorage.removeItem('user');
+            electronStorage.removeItem('userStatus');
+            dispatch({ type: 'LOGOUT' });
+          }
+        } else {
+          // No token found
+          dispatch({ type: 'SET_LOADING', payload: false });
         }
-      } else {
-        // No token found
+      } catch (storageError) {
+        // Storage error, just set loading to false
+        console.warn('Storage error during auth init:', storageError);
         dispatch({ type: 'SET_LOADING', payload: false });
       }
-    };    initAuth();
+    };
+    
+    initAuth();
   }, []); // Only run once on mount
 
   const login = async (credentials) => {
@@ -104,10 +118,10 @@ export function AuthProvider({ children }) {
       const response = await authAPI.login(credentials);
       const { user, token } = response; // authAPI.login already returns response.data
 
-      // Store in localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userStatus', user.status || 'online');
+      // Store in storage (Electron-compatible)
+      electronStorage.setItem('token', token);
+      electronStorage.setItem('user', JSON.stringify(user));
+      electronStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -146,10 +160,10 @@ export function AuthProvider({ children }) {
       const response = await authAPI.register(userData);
       const { user, token } = response; // authAPI.register already returns response.data
 
-      // Store in localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userStatus', user.status || 'online');
+      // Store in storage (Electron-compatible)
+      electronStorage.setItem('token', token);
+      electronStorage.setItem('user', JSON.stringify(user));
+      electronStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -204,23 +218,27 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = async () => {
-    // First clear storage and state immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userStatus');
+  const logout = async (skipSocketDisconnect = false) => {
+    // First clear storage and state immediately (Electron-compatible)
+    electronStorage.removeItem('token');
+    electronStorage.removeItem('user');
+    electronStorage.removeItem('userStatus');
     
     dispatch({ type: 'LOGOUT' });
     
-    // Disconnect socket
-    socketService.disconnect();
+    // Disconnect socket only if not already disconnected
+    if (!skipSocketDisconnect) {
+      socketService.disconnect();
+    }
     
     // Optionally try to notify server, but don't block logout
     try {
       await authAPI.logout();
     } catch (error) {
-      // Silently handle server logout errors
-      console.log('Server logout notification failed (ignored):', error.message);
+      // Silently handle server logout errors (token might be expired)
+      if (process.env.NODE_ENV === 'development' && !error.message.includes('401')) {
+        console.log('Server logout notification failed (ignored):', error.message);
+      }
     }
   };
 
@@ -247,9 +265,21 @@ export function AuthProvider({ children }) {
 
     const handleDisconnected = (reason) => {
       if (reason === 'io server disconnect') {
-        // Server kicked us out - likely auth error
-        logout();
+        // Server disconnected us - this could be due to duplicate connections
+        // Don't logout, let the reconnection logic handle it
+        console.log('Server disconnected socket, will attempt reconnection');
+        return;
       }
+      
+      // Only logout for authentication-related disconnects
+      if (reason === 'io client disconnect' || reason === 'ping timeout') {
+        // Client-side disconnect or ping timeout - don't logout
+        return;
+      }
+      
+      // For other disconnect reasons, assume auth error
+      // Skip socket disconnect since we're already disconnected
+      logout(true);
     };
 
     const handleAuthError = () => {
@@ -278,8 +308,8 @@ export function AuthProvider({ children }) {
       const response = await authAPI.updateStatus(statusData);
       const updatedUser = response.data.user;
       
-      // Save status to localStorage
-      localStorage.setItem('userStatus', updatedUser.status);
+      // Save status to storage (Electron-compatible)
+      electronStorage.setItem('userStatus', updatedUser.status);
       
       dispatch({
         type: 'UPDATE_USER',
@@ -294,10 +324,10 @@ export function AuthProvider({ children }) {
   };
 
   const updateUser = (userData) => {
-    // Update localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    // Update storage (Electron-compatible)
+    const currentUser = JSON.parse(electronStorage.getItem('user') || '{}');
     const updatedUserData = { ...currentUser, ...userData };
-    localStorage.setItem('user', JSON.stringify(updatedUserData));
+    electronStorage.setItem('user', JSON.stringify(updatedUserData));
     
     // Update AuthContext state
     dispatch({

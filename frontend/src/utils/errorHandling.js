@@ -19,7 +19,11 @@ class NetworkError extends Error {
 }
 
 const handleAPIError = (error) => {
-  if (process.env.NODE_ENV === 'development') {
+  // Don't log 401 errors in development to reduce noise
+  const status = error.response?.status || error.status;
+  const isLogoutRelated = error.config?.url?.includes('/auth/logout');
+  
+  if (process.env.NODE_ENV === 'development' && !(status === 401 && isLogoutRelated)) {
     console.error('API Error Details:', {
       message: error.message,
       status: error.status,
@@ -38,7 +42,6 @@ const handleAPIError = (error) => {
   }
 
   // HTTP errors
-  const status = error.response?.status;
   const data = error.response?.data;
 
   switch (status) {

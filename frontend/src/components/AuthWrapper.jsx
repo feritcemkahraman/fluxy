@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import LoginForm from './LoginForm';
-import RegisterForm from './RegisterForm';
+import RegisterView from './RegisterView';
 import FluxyApp from './FluxyApp';
+import LandingPage from './LandingPage';
 
 export default function AuthWrapper() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [isLoginMode, setIsLoginMode] = useState(true);
+  
+  // Electron uygulaması mı kontrol et
+  const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
+  
+  const [view, setView] = useState(isElectron ? 'login' : 'landing');
 
-  const toggleMode = () => {
-    setIsLoginMode(!isLoginMode);
-  };
+  const showLogin = () => setView('login');
+  const showRegister = () => setView('register');
+  const showLanding = () => setView('landing');
 
   if (isLoading) {
     return (
@@ -24,11 +29,26 @@ export default function AuthWrapper() {
   }
 
   if (!isAuthenticated) {
-    return isLoginMode ? (
-      <LoginForm onToggleMode={toggleMode} />
-    ) : (
-      <RegisterForm onToggleMode={toggleMode} />
-    );
+    switch (view) {
+      case 'login':
+        return (
+          <LoginForm
+            onToggleMode={showRegister}
+            onBack={showLanding}
+          />
+        );
+      case 'register':
+        return (
+          <RegisterView
+            onToggleMode={showLogin}
+            onBack={showLanding}
+          />
+        );
+      default:
+        return (
+          <LandingPage onLogin={showLogin} onRegister={showRegister} />
+        );
+    }
   }
 
   return <FluxyApp />;

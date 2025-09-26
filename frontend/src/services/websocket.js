@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { devLog } from '../utils/devLogger';
+import monitoringService from '../utils/monitoring';
 
 class WebSocketService {
   constructor() {
@@ -14,39 +15,45 @@ class WebSocketService {
   }
 
   connect(token) {
-    if (this.socket && this.socket.connected) {
+    // Don't create multiple connections
+    if (this.socket && (this.socket.connected || this.socket.connecting)) {
       return;
+    }
+
+    // Disconnect existing socket if it's in a bad state
+    if (this.socket && !this.socket.connected && !this.socket.connecting) {
+      this.socket.disconnect();
+      this.socket = null;
     }
 
     try {
       // Use configured Socket.IO URL (ngrok backend)
-      const socketUrl = process.env.REACT_APP_SOCKET_URL;
+      const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
       
-      if (!socketUrl) {
-        console.error('REACT_APP_SOCKET_URL is not configured');
-        return;
+      if (!process.env.REACT_APP_SOCKET_URL) {
+        console.warn('REACT_APP_SOCKET_URL is not configured, using default: http://localhost:5000');
       }
       
-      devLog.log('Connecting to Socket.IO:', socketUrl);
       this.socket = io(socketUrl, {
         auth: {
           token: token
         },
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        timeout: 5000,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       });
       
       this.socket.on('connect', () => {
-        devLog.log('Socket.IO connected to ngrok backend');
         this.reconnectAttempts = 0;
-        this.emit('connected');
-        
-        // Wait for authentication confirmation from backend
-        // Authentication handled by backend automatically via auth token
+        monitoringService.trackSocketConnection('connect', { socketId: this.socket.id });
+        this.emit('connected', {});
       });
 
       // Listen for authentication success
       this.socket.on('authenticated', () => {
-        devLog.log('Socket authentication successful');
+        monitoringService.trackSocketConnection('authenticated', { socketId: this.socket.id });
         this.isAuthenticated = true;
         this.emit('authenticated');
       });
@@ -54,12 +61,13 @@ class WebSocketService {
       // Listen for authentication error
       this.socket.on('auth_error', (error) => {
         console.error('Socket authentication failed:', error);
+        monitoringService.trackSocketConnection('auth_error', { error });
         this.isAuthenticated = false;
         this.emit('auth_error', error);
       });
 
       this.socket.on('disconnect', (reason) => {
-        devLog.log('Socket.IO disconnected:', reason);
+        monitoringService.trackSocketConnection('disconnect', { reason, socketId: this.socket.id });
         this.isAuthenticated = false;
         this.emit('disconnected');
         
@@ -71,22 +79,18 @@ class WebSocketService {
 
       this.socket.on('connect_error', (error) => {
         console.error('Socket.IO connection error:', error.message);
+        monitoringService.trackSocketConnection('connect_error', { error: error.message });
+        
+        // Check if it's a server unavailable error
+        if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
+          console.warn('Backend server might not be running on:', socketUrl);
+          console.warn('Please make sure your backend server is started and accessible');
+        }
+        
         this.handleReconnect();
       });
 
-      // Authentication events
-      this.socket.on('authenticated', (data) => {
-        devLog.log('Socket authenticated:', data);
-        this.isAuthenticated = true;
-        this.connectionId = data?.connectionId || this.socket.id;
-        this.emit('authenticated', data || { connectionId: this.socket.id });
-      });
-
-      this.socket.on('authentication_failed', (error) => {
-        console.error('Socket authentication failed:', error);
-        this.isAuthenticated = false;
-        this.emit('authentication_failed', error);
-      });
+      // Remove duplicate authenticated event (already handled above)
 
       // Message events
       this.socket.on('newMessage', (message) => {
@@ -184,9 +188,13 @@ class WebSocketService {
         this.emit('user_left_server', data);
       });
 
-      // Voice channel sync
+      // Voice channel events (consolidated)
       this.socket.on('voiceChannelSync', (data) => {
         this.emit('voiceChannelSync', data);
+      });
+
+      this.socket.on('voiceChannelUpdate', (data) => {
+        this.emit('voiceChannelUpdate', data);
       });
 
       // WebRTC Voice Events - CRITICAL FOR VOICE CHAT
@@ -196,10 +204,6 @@ class WebSocketService {
 
       this.socket.on('userLeftVoice', (data) => {
         this.emit('userLeftVoice', data);
-      });
-
-      this.socket.on('voiceChannelSync', (data) => {
-        this.emit('voiceChannelSync', data);
       });
 
       this.socket.on('voice-signal', (data) => {
@@ -276,6 +280,11 @@ class WebSocketService {
   joinChannel(channelId) {
     if (!this.isAuthenticated || !this.socket) {
       console.error('Socket not authenticated or connected');
+      return;
+    }
+
+    // Prevent duplicate joins to the same channel
+    if (this.currentChannel === channelId) {
       return;
     }
 

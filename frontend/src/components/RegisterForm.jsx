@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { InteractiveHoverButton } from '@/registry/magicui/interactive-hover-button';
 
 export default function RegisterForm({ onToggleMode }) {
   const [formData, setFormData] = useState({
@@ -248,20 +249,20 @@ export default function RegisterForm({ onToggleMode }) {
             </div>
 
             {/* Submit button */}
-            <button
+            <InteractiveHoverButton
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
+              className="w-auto justify-center border-transparent bg-cyan-500/80 px-8 py-3 text-base font-semibold text-white hover:bg-cyan-400/80"
             >
               {isLoading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Hesap oluşturuluyor...
-                </div>
+                </span>
               ) : (
                 'Devam Et'
               )}
-            </button>
+            </InteractiveHoverButton>
           </form>
 
           {/* Footer */}

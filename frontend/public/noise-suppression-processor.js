@@ -28,7 +28,7 @@ class NoiseSuppressionProcessor extends AudioWorkletProcessor {
     this.attackCoeff = Math.exp(-1 / (this.config.attackTime * sampleRate));
     this.releaseCoeff = Math.exp(-1 / (this.config.releaseTime * sampleRate));
     
-    console.log('🔇 Noise Suppression Processor initialized');
+    // Processor initialized
   }
 
   process(inputs, outputs, parameters) {
@@ -75,7 +75,7 @@ class NoiseSuppressionProcessor extends AudioWorkletProcessor {
         
         if (this.frameCount >= this.learningFrames) {
           this.isLearningNoise = false;
-          console.log('🎓 Noise profile learning completed');
+          // Profile learning completed
         }
       }
       

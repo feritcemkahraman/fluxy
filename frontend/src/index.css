@@ -2,6 +2,157 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Electron-specific styles */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Scrollbar styling for desktop */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2d3748;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Desktop-specific animations */
+@keyframes desktop-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.desktop-fade-in {
+  animation: desktop-fade-in 0.3s ease-out;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.animate-shine {
+  animation: shine var(--duration, 14s) infinite linear;
+}
+.desktop-focus:focus {
+  outline: 2px solid #4299e1;
+  outline-offset: 2px;
+}
+
+/* Custom selection colors */
+::selection {
+  background-color: #4299e1;
+  color: white;
+}
+
+/* Disable text selection on UI elements */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Enhanced button styles for desktop */
+.desktop-button {
+  transition: all 0.2s ease;
+}
+
+.desktop-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.desktop-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Glass effect for desktop */
+.glass-effect {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(26, 32, 44, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced shadows for desktop */
+.desktop-shadow {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Desktop-specific responsive adjustments */
+@media (min-width: 1024px) {
+  .desktop-container {
+    max-width: none;
+  }
+  
+  .desktop-sidebar {
+    min-width: 240px;
+  }
+  
+  .desktop-main {
+    min-height: calc(100vh - 32px); /* Account for title bar */
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .crisp-edges {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Dark theme enhancements for desktop */
+.dark {
+  color-scheme: dark;
+}
+
+/* Prevent image dragging in desktop app */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
 html, body {
     margin: 0;
     padding: 0;

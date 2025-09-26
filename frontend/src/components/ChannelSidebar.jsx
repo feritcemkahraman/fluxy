@@ -12,7 +12,7 @@ import { channelAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreated, onServerUpdate }) => {
+const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, voiceChannelParticipantsVersion, currentVoiceChannel, isVoiceConnected, user }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
@@ -298,6 +298,31 @@ const ChannelSidebar = ({ server, activeChannel, onChannelSelect, onChannelCreat
                         </div>
                       )}
                     </div>
+
+                    {/* Connected users for voice channels */}
+                    {(() => {
+                      const hasParticipants = voiceChannelParticipants?.has(channelId);
+                      const participants = hasParticipants ? voiceChannelParticipants.get(channelId) : [];
+                      return hasParticipants && participants.length > 0 && (
+                        <div className="ml-6 space-y-1">
+                          {participants.map((participant) => (
+                            <div key={participant.user._id} className="flex items-center space-x-2 px-2 py-1 text-base text-gray-300 hover:text-white transition-colors group">
+                              <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-white/20 group-hover:ring-white/40 transition-all">
+                                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                  <span className="text-white text-sm font-semibold">
+                                    {(participant.user.displayName || participant.user.username || 'U').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="truncate font-medium">{participant.user.displayName || participant.user.username}</span>
+                              {participant.isCurrentUser && (
+                                <span className="text-gray-400 text-sm">(Sen)</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
