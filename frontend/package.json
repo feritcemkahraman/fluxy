@@ -74,12 +74,15 @@
     "eject": "react-scripts eject",
     "electron": "electron .",
     "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-standalone": "npm run build && electron .",
+    "start-electron": "node start-electron.js",
+    "start-electron-dev": "node start-electron-dev.js",
+    "start-dev": "node start-dev.js",
     "electron-pack": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:linux": "npm run build && electron-builder --linux",
-    "postinstall": "electron-builder install-app-deps"
+    "dist:linux": "npm run build && electron-builder --linux"
   },
   "browserslist": {
     "production": [

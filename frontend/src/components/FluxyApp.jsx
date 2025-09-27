@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import ServerSidebar from "./ServerSidebar";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatArea from "./ChatArea";
@@ -27,6 +27,8 @@ const FluxyApp = () => {
     connectedUsers,
     voiceChannelParticipants,
     voiceChannelParticipantsVersion,
+    isMuted,
+    isDeafened,
     joinChannel: joinVoiceChannel,
     leaveChannel: leaveVoiceChannel
   } = useVoiceChat();
@@ -38,6 +40,16 @@ const FluxyApp = () => {
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔍 State Debug:', {
+      showVoiceScreen,
+      currentVoiceChannel,
+      isVoiceConnected,
+      activeServer: activeServer?.name
+    });
+  }, [showVoiceScreen, currentVoiceChannel, isVoiceConnected, activeServer]);
 
   // Derive activeServerId from activeServer
   const activeServerId = activeServer?._id || activeServer?.id;
@@ -789,6 +801,7 @@ const FluxyApp = () => {
           }
           
           await joinVoiceChannel(channelId);
+          console.log('🎤 Voice channel joined, setting showVoiceScreen to true');
           setShowVoiceScreen(true); // Show panel on connection
         } catch (error) {
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
@@ -917,6 +930,15 @@ const FluxyApp = () => {
       
       {/* Main App Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Server Sidebar - Always show */}
+        <ServerSidebar
+          servers={servers}
+          activeServerId={isDirectMessages ? null : activeServerId}
+          onServerSelect={handleServerSelect}
+          onDirectMessages={() => setIsDirectMessages(true)}
+          user={user}
+        />
+
         {isDirectMessages ? (
           <DirectMessages 
             user={user}
@@ -924,15 +946,6 @@ const FluxyApp = () => {
           />
         ) : (
           <>
-            {/* Server Sidebar */}
-            <ServerSidebar
-              servers={servers}
-              activeServerId={activeServerId}
-              onServerSelect={handleServerSelect}
-              onDirectMessages={() => setIsDirectMessages(true)}
-              user={user}
-            />
-
             {/* Channel Sidebar */}
             {activeServer && (
               <ChannelSidebar
@@ -944,6 +957,8 @@ const FluxyApp = () => {
                 voiceChannelParticipantsVersion={voiceChannelParticipantsVersion}
                 currentVoiceChannel={currentVoiceChannel}
                 isVoiceConnected={isVoiceConnected}
+                isMuted={isMuted}
+                isDeafened={isDeafened}
                 user={user}
               />
             )}
@@ -953,6 +968,7 @@ const FluxyApp = () => {
               {/* Chat Area or Voice Screen - Desktop: flex-1, Mobile: full width */}
               <div className="flex-1 flex flex-col min-w-0">
                 {showVoiceScreen && currentVoiceChannel ? (() => {
+                  console.log('🖥️ Rendering VoiceScreen:', { showVoiceScreen, currentVoiceChannel });
                   // Find the voice channel that should be displayed
                   const voiceChannel = activeServer?.channels?.find(ch =>
                     ch.type === 'voice' && (ch._id || ch.id) === currentVoiceChannel
@@ -987,6 +1003,7 @@ const FluxyApp = () => {
                       channel={voiceChannel}
                       server={activeServer}
                       servers={servers} // Pass servers list for fallback
+                      voiceChannelUsers={voiceChannelParticipants || []} // Fix undefined variable
                       onClose={() => {
                         setShowVoiceScreen(false);
                       }}

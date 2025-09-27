@@ -1,11 +1,9 @@
-// Simple Voice Chat Service - Electron Compatible
-import { EventEmitter } from 'events';
+// Simple Voice Chat Service - Stack Overflow Safe Version
 import websocketService from './websocket';
 import electronAPI from '../utils/electronAPI';
 
-class VoiceChatService extends EventEmitter {
+class VoiceChatService {
   constructor() {
-    super();
     this.isConnected = false;
     this.currentChannel = null;
     this.currentUserId = null;
@@ -13,6 +11,50 @@ class VoiceChatService extends EventEmitter {
     this.localStream = null;
     this.isMuted = false;
     this.isDeafened = false;
+    
+    // Simple callback system instead of EventEmitter
+    this.callbacks = {
+      connected: [],
+      disconnected: [],
+      participantsChanged: [],
+      muteChanged: [],
+      deafenChanged: [],
+      'speaking-changed': []
+    };
+  }
+
+  // Simple event system without EventEmitter
+  on(event, callback) {
+    if (this.callbacks[event]) {
+      this.callbacks[event].push(callback);
+    }
+  }
+
+  off(event, callback) {
+    if (this.callbacks[event]) {
+      const index = this.callbacks[event].indexOf(callback);
+      if (index > -1) {
+        this.callbacks[event].splice(index, 1);
+      }
+    }
+  }
+
+  // Safe emit that won't cause stack overflow
+  emit(event, data) {
+    console.log('🔊 VoiceChat emit:', event, data);
+    if (this.callbacks[event]) {
+      // Call immediately instead of setTimeout to prevent unmount issues
+      this.callbacks[event].forEach(callback => {
+        try {
+          console.log('📞 Calling callback for:', event);
+          callback(data);
+        } catch (error) {
+          console.error('Callback error:', error);
+        }
+      });
+    } else {
+      console.warn('❌ No callbacks for event:', event);
+    }
   }
 
   // Enhanced getUserMedia for Electron
@@ -62,38 +104,54 @@ class VoiceChatService extends EventEmitter {
   // Join voice channel
   async joinChannel(channelId) {
     try {
-      // console.log('🎤 Joining voice channel:', channelId);
+      console.log('🎤 Starting joinChannel:', channelId);
       
       // Check if already connected to this channel
       if (this.isConnected && this.currentChannel === channelId) {
+        console.log('✅ Already connected to this channel');
         // Already connected, just emit events
         this.emit('connected', { channelId });
         this.emit('participantsChanged', this.participants);
         return true;
       }
       
+      console.log('🎧 Getting user media...');
       // Get enhanced microphone access for desktop (only if not already connected)
       if (!this.localStream) {
         await this.getUserMedia();
       }
+      console.log('✅ User media acquired');
       
       this.isConnected = true;
       this.currentChannel = channelId;
-      this.participants = [{ user: { id: this.currentUserId }, isMuted: false }];
       
+      // Create proper participant object for current user
+      this.participants = [{
+        user: { 
+          id: this.currentUserId,
+          _id: this.currentUserId,
+          username: 'You',
+          displayName: 'You'
+        },
+        isMuted: this.isMuted,
+        isDeafened: this.isDeafened,
+        isCurrentUser: true,
+        isSpeaking: false
+      }];
+      
+      console.log('📡 Notifying server...');
       // Notify server
       if (websocketService.socket?.connected) {
         websocketService.socket.emit('join-voice-channel', { channelId });
       }
       
-      // Show desktop notification (only when actually joining, not when already connected)
-      if (electronAPI.isElectron()) {
-        electronAPI.showNotification('Fluxy', `Ses kanalına katıldınız: ${channelId}`);
-      }
+      // Voice channel join notification removed as requested
       
+      console.log('🔊 Emitting connected event...');
       this.emit('connected', { channelId });
       this.emit('participantsChanged', this.participants);
       
+      console.log('✅ joinChannel completed successfully');
       return true;
     } catch (error) {
       console.error('❌ Voice join failed:', error);
@@ -129,10 +187,7 @@ class VoiceChatService extends EventEmitter {
       this.currentChannel = null;
       this.participants = [];
       
-      // Show desktop notification
-      if (electronAPI.isElectron()) {
-        electronAPI.showNotification('Fluxy', `Ses kanalından ayrıldınız`);
-      }
+      // Voice channel leave notification removed as requested
       
       this.emit('disconnected', { channelId: leftChannel });
       this.emit('participantsChanged', []);
@@ -153,10 +208,7 @@ class VoiceChatService extends EventEmitter {
       });
     }
     
-    // Desktop notification for mute status
-    if (electronAPI.isElectron()) {
-      electronAPI.showNotification('Fluxy', this.isMuted ? 'Mikrofon kapatıldı' : 'Mikrofon açıldı');
-    }
+    // Desktop notification for mute status removed as requested
     
     this.emit('muteChanged', this.isMuted);
   }
@@ -165,10 +217,13 @@ class VoiceChatService extends EventEmitter {
   toggleDeafen() {
     this.isDeafened = !this.isDeafened;
     
-    // Desktop notification for deafen status
-    if (electronAPI.isElectron()) {
-      electronAPI.showNotification('Fluxy', this.isDeafened ? 'Kulaklık kapatıldı' : 'Kulaklık açıldı');
+    // Deafen yapıldığında otomatik mute da olmalı (Discord gibi)
+    if (this.isDeafened && !this.isMuted) {
+      this.isMuted = true;
+      this.emit('muteChanged', this.isMuted);
     }
+    
+    // Desktop notification for deafen status removed as requested
     
     this.emit('deafenChanged', this.isDeafened);
   }

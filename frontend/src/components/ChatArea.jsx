@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
-  const { sendMessage, on, joinChannel, leaveChannel } = useSocket();
+  const { sendMessage, on, joinChannel, leaveChannel, isAuthenticated } = useSocket();
   
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -61,7 +61,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     // Wait for socket authentication before joining channel
     const handleAuthenticated = () => {
       if (channel?._id && joinChannel) {
-        devLog.log('Socket authenticated, joining channel:', channel._id);
         joinChannel(channel._id);
       }
     };
@@ -70,14 +69,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     const unsubscribeAuth = on('authenticated', handleAuthenticated);
 
     // If already authenticated, join immediately (but only once)
-    if (channel?._id && joinChannel && socketService.isAuthenticated) {
-      devLog.log('Socket already authenticated, joining channel:', channel._id);
-      // Use a small delay to prevent duplicate calls
-      setTimeout(() => {
-        if (channel?._id && joinChannel && socketService.isAuthenticated) {
-          joinChannel(channel._id);
-        }
-      }, 100);
+    if (channel?._id && joinChannel && isAuthenticated()) {
+      joinChannel(channel._id);
     }
 
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {

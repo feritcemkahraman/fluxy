@@ -48,6 +48,14 @@ class WebSocketService {
       this.socket.on('connect', () => {
         this.reconnectAttempts = 0;
         monitoringService.trackSocketConnection('connect', { socketId: this.socket.id });
+        
+        // Attach pending listeners
+        this.listeners.forEach((callbacks, event) => {
+          callbacks.forEach(callback => {
+            this.socket.on(event, callback);
+          });
+        });
+        
         this.emit('connected', {});
       });
 
@@ -451,6 +459,41 @@ class WebSocketService {
           console.error(`Error in event listener for ${event}:`, error);
         }
       });
+    }
+  }
+
+  // Event listener methods
+  on(event, callback) {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    } else {
+      // Store callback for when socket is ready
+      if (!this.listeners.has(event)) {
+        this.listeners.set(event, []);
+      }
+      this.listeners.get(event).push(callback);
+    }
+  }
+
+  off(event, callback) {
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
+    // Also remove from pending listeners
+    if (this.listeners.has(event)) {
+      const callbacks = this.listeners.get(event);
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+      }
+    }
+  }
+
+  emit(event, data) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit(event, data);
+    } else {
+      console.warn('Socket not connected, cannot emit:', event);
     }
   }
 

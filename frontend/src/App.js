@@ -1,15 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Theme } from '@radix-ui/themes';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import AuthWrapper from './components/AuthWrapper';
+import { initElectronOptimizations } from './utils/electronOptimizer';
+import './index.css';
 import '@radix-ui/themes/styles.css';
 import './App.css';
 
 function App() {
+  useEffect(() => {
+    // Apply radical Electron optimizations
+    initElectronOptimizations();
+  }, []);
+
   return (
-    <Theme>
+    <SocketProvider>
       <AuthProvider>
         <Router>
           <div className="App">
@@ -20,7 +27,7 @@ function App() {
           </div>
         </Router>
       </AuthProvider>
-    </Theme>
+    </SocketProvider>
   );
 }
 

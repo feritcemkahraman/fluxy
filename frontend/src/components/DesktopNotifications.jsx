@@ -38,17 +38,11 @@ const DesktopNotifications = () => {
 
     // Handle updates
     const handleUpdateAvailable = () => {
-      electronAPI.showNotification(
-        'Fluxy Güncellemesi',
-        'Yeni bir güncelleme mevcut. İndiriliyor...'
-      );
+      // Update notification removed as requested
     };
 
     const handleUpdateDownloaded = () => {
-      electronAPI.showNotification(
-        'Fluxy Güncellemesi',
-        'Güncelleme indirildi. Uygulamayı yeniden başlatın.'
-      );
+      // Update notification removed as requested
     };
 
     // Add event listeners
@@ -61,10 +55,7 @@ const DesktopNotifications = () => {
 
     // Show welcome notification
     if (user) {
-      electronAPI.showNotification(
-        'Fluxy\'ye Hoş Geldiniz!',
-        `Merhaba ${user.displayName || user.username}! Desktop uygulaması hazır.`
-      );
+      // Welcome notification removed as requested
     }
 
     // Cleanup on unmount

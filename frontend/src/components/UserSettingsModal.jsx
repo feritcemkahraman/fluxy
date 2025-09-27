@@ -213,11 +213,9 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
         stream.getTracks().forEach(track => track.stop());
         setIsTestingMic(false);
       }, 2000);
-      
     } catch (error) {
       setIsTestingMic(false);
-      // Kullanıcıya hata mesajı göster
-      alert('Mikrofon testi başarısız. Lütfen mikrofon izinlerini kontrol edin.');
+      console.error('Mikrofon testi başarısız.', error);
     }
   };
 
@@ -262,7 +260,7 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
       
     } catch (error) {
       setIsTestingSpeaker(false);
-      alert('Hoparlör testi başarısız.');
+      // Alert notification removed as requested
     }
   };
 

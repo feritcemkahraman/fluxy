@@ -146,7 +146,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const copyInviteLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(`https://fluxy.gg/invite/${inviteLink}`);
-      // Show toast notification
+      // Toast notification removed as requested
     }
   };
 
@@ -222,20 +222,19 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       setLoading(false);
     }
   };
-
   const handleIconUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      // Alert notification removed as requested
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+      // Alert notification removed as requested
       return;
     }
 
@@ -252,7 +251,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       }
     } catch (error) {
       // console.error('Upload failed:', error);
-      alert('Failed to upload image: ' + (error.response?.data?.message || error.message));
+      // Alert notification removed as requested
     } finally {
       setLoading(false);
     }
@@ -371,7 +370,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       setDeleteConfirmText("");
     } catch (error) {
       // console.error('Failed to delete server:', error);
-      alert('Sunucu silinirken bir hata oluştu. Lütfen tekrar deneyin.');
+      // Alert notification removed as requested
     } finally {
       setDeleteLoading(false);
     }

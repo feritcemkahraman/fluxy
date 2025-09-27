@@ -2,6 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+/* RADICAL Electron performance optimizations */
+* {
+  /* Force GPU acceleration for EVERYTHING */
+  transform: translateZ(0) !important;
+  -webkit-transform: translateZ(0) !important;
+  /* Remove ALL repaints */
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  /* INSTANT transitions */
+  transition-duration: 50ms !important;
+  transition-timing-function: linear !important;
+  /* Force compositing */
+  will-change: transform !important;
+}
+
+/* Remove ALL scroll smoothing - instant scroll */
+html {
+  scroll-behavior: auto !important;
+  -webkit-font-smoothing: subpixel-antialiased !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeSpeed !important;
+}
+
+body {
+  /* Force GPU layer */
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  /* Instant scrolling */
+  -webkit-overflow-scrolling: auto !important;
+  overflow-scrolling: auto !important;
+}
+
+/* Remove ALL hover delays */
+*:hover {
+  transition: none !important;
+}
+
+/* Optimize hover effects for better performance */
+.hover-optimized {
+  /* Prepare for hover animations */
+  will-change: transform, background-color, border-color, box-shadow;
+  /* Use GPU compositing */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+}
+
+.hover-optimized:hover {
+  /* Force GPU layer */
+  transform: translate3d(0, 0, 0) scale(1.02);
+  -webkit-transform: translate3d(0, 0, 0) scale(1.02);
+}
+
+/* Optimize scroll containers */
+.scroll-optimized {
+  /* Enable hardware acceleration for scrolling */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+  /* Optimize compositing */
+  will-change: scroll-position;
+  /* Use GPU */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Optimize transition elements */
+.transition-optimized {
+  /* Prepare for transitions */
+  will-change: transform, opacity;
+  /* Use GPU */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  /* Optimize backface */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 /* Electron-specific styles */
 .drag-region {
   -webkit-app-region: drag;
