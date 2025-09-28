@@ -809,16 +809,8 @@ const FluxyApp = () => {
       // Regular channel selection for text channels
       setActiveChannel(channel);
       
-      // If currently connected to voice, leave voice channel when switching to text
-      if (isVoiceConnected && currentVoiceChannel) {
-        try {
-          await leaveVoiceChannel();
-        } catch (error) {
-          console.warn('Error leaving voice channel:', error);
-        }
-      }
-      
-      // Hide voice screen when switching to text channels
+      // Discord behavior: Stay in voice channel when switching text channels
+      // Only hide voice screen, don't leave voice channel
       setShowVoiceScreen(false);
     }
   };
