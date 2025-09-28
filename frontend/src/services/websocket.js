@@ -47,15 +47,16 @@ class WebSocketService {
         auth: {
           token: token
         },
-        transports: ['polling', 'websocket'], // Polling first for stability
-        timeout: 20000, // Increased timeout
+        transports: ['polling'], // Start with polling only for stability
+        timeout: 30000, // Increased timeout
         reconnection: true,
-        reconnectionAttempts: 5, // Reduced attempts
-        reconnectionDelay: 1000, // Shorter delay
-        reconnectionDelayMax: 5000,
-        forceNew: true, // Force new connection
-        upgrade: true,
-        autoConnect: true
+        reconnectionAttempts: 3, // Reduced attempts to prevent spam
+        reconnectionDelay: 2000, // Longer delay between attempts
+        reconnectionDelayMax: 10000,
+        forceNew: false, // Don't force new connection
+        upgrade: false, // Disable websocket upgrade initially
+        autoConnect: true,
+        closeOnBeforeunload: false // Prevent premature closing
       });
       
       this.socket.on('connect', () => {
@@ -98,20 +99,24 @@ class WebSocketService {
       });
 
       this.socket.on('connect_error', (error) => {
-        console.warn('Socket connection error (will retry):', error.message);
-        monitoringService.trackSocketConnection('error', { error: error.message });
+        this.reconnectAttempts++;
+        console.warn(`Socket connection error (attempt ${this.reconnectAttempts}):`, error.message);
+        monitoringService.trackSocketConnection('error', { error: error.message, attempt: this.reconnectAttempts });
         this.emitLocal('connection_error', error);
         
         // Don't show error toast immediately, let it retry
         if (this.reconnectAttempts >= 3) {
           console.error('Multiple connection attempts failed. Backend may be down.');
+          console.error('Stopping reconnection attempts to prevent spam');
+          this.socket.disconnect();
+          return;
         }
+        
         // Check if it's a server unavailable error
         if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
           console.warn('Backend server might not be running on:', socketUrl);
           console.warn('Please make sure your backend server is started and accessible');
         }
-        this.handleReconnect();
       });
 
       // Remove duplicate authenticated event (already handled above)
@@ -278,12 +283,20 @@ class WebSocketService {
 
   disconnect() {
     if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
+      try {
+        // Remove all listeners before disconnecting
+        this.socket.removeAllListeners();
+        this.socket.disconnect();
+      } catch (error) {
+        console.warn('Error during socket disconnect:', error);
+      } finally {
+        this.socket = null;
+      }
     }
     this.isAuthenticated = false;
     this.currentChannel = null;
     this.connectionId = null;
+    this.reconnectAttempts = 0; // Reset reconnect attempts
   }
 
   // Send message to channel

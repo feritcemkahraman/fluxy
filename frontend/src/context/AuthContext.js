@@ -261,16 +261,22 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    let connectionTimeout;
+    
     if (state.isAuthenticated && state.token) {
       // Only connect if not already connected/connecting and we have a valid token
       if (!socketService.isConnected() && !socketService.socket?.connecting && state.token.trim() !== '') {
         console.log('Connecting socket with authentication token');
-        try {
-          socketService.connect(state.token);
-        } catch (error) {
-          console.warn('Socket connection failed:', error.message);
-          // Don't throw error, app should work without real-time features
-        }
+        
+        // Add a small delay to prevent rapid reconnection attempts
+        connectionTimeout = setTimeout(() => {
+          try {
+            socketService.connect(state.token);
+          } catch (error) {
+            console.warn('Socket connection failed:', error.message);
+            // Don't throw error, app should work without real-time features
+          }
+        }, 100);
       } else if (socketService.isConnected()) {
         console.log('Socket already connected, skipping connection attempt');
       }
@@ -283,6 +289,9 @@ export function AuthProvider({ children }) {
     }
 
     return () => {
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
       // Only disconnect on unmount, not on every state change
       if (socketService.isConnected()) {
         socketService.disconnect();
