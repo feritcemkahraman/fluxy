@@ -22,16 +22,12 @@ export const useVoiceChat = () => {
   useEffect(() => {
     // Voice service event handlers - Remove mounted check
     const handleConnected = ({ channelId }) => {
-      console.log('🎊 handleConnected called:', { channelId });
-      console.log('🔄 Updating connected state...');
       setIsConnected(true);
       setCurrentChannel(channelId);
       setError(null);
-      console.log('✅ Connected state updated');
     };
 
     const handleDisconnected = ({ channelId }) => {
-      console.log('🚪 handleDisconnected called:', { channelId });
       setIsConnected(false);
       setCurrentChannel(null);
       setParticipants([]);
@@ -39,7 +35,6 @@ export const useVoiceChat = () => {
     };
 
     const handleParticipantsChanged = (newParticipants) => {
-      console.log('👥 handleParticipantsChanged called:', newParticipants);
       setParticipants(prev => {
         // Prevent unnecessary updates
         if (JSON.stringify(prev) === JSON.stringify(newParticipants)) {
@@ -50,12 +45,10 @@ export const useVoiceChat = () => {
     };
 
     const handleMuteChanged = (muted) => {
-      console.log('🔇 handleMuteChanged called:', muted);
       setIsMuted(muted);
     };
 
     const handleDeafenChanged = (deafened) => {
-      console.log('🔊 handleDeafenChanged called:', deafened);
       setIsDeafened(deafened);
     };
 
@@ -107,10 +100,9 @@ export const useVoiceChat = () => {
     // Add websocket listeners
     websocketService.on('voiceChannelUpdate', handleVoiceChannelUpdate);
 
-    // Get initial state - Remove mounted check
+    // Get initial state
     try {
       const state = voiceChatService.getState();
-      console.log('🔄 Setting initial state:', state);
       setIsConnected(state.isConnected);
       setCurrentChannel(state.currentChannel);
       setParticipants(state.participants);
@@ -138,13 +130,10 @@ export const useVoiceChat = () => {
   // Actions
   const joinChannel = async (channelId) => {
     try {
-      console.log('🎯 useVoiceChat joinChannel called with:', channelId);
       setError(null);
-      console.log('🔧 Calling voiceChatService.joinChannel...');
       await voiceChatService.joinChannel(channelId);
-      console.log('✅ voiceChatService.joinChannel completed');
     } catch (err) {
-      console.error('❌ useVoiceChat joinChannel error:', err);
+      console.error('Voice channel join error:', err);
       setError(err.message);
       throw err;
     }

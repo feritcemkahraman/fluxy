@@ -1,6 +1,13 @@
 // Electron-compatible storage utility
 const isElectron = () => {
-  return typeof window !== 'undefined' && window.process && window.process.type === 'renderer';
+  // Enhanced Electron detection
+  const hasElectronAPI = !!(window.electronAPI && window.electronAPI.isElectron);
+  const hasElectronFlag = !!window.isElectron;
+  const hasElectronEnv = !!window.__ELECTRON_ENV__;
+  const hasElectronUserAgent = navigator.userAgent.includes('Electron');
+  const hasElectronProcess = typeof window !== 'undefined' && window.process && window.process.type === 'renderer';
+  
+  return hasElectronAPI || hasElectronFlag || hasElectronEnv || hasElectronUserAgent || hasElectronProcess;
 };
 
 class ElectronStorage {
@@ -8,34 +15,39 @@ class ElectronStorage {
     this.isElectronEnv = isElectron();
     
     if (this.isElectronEnv) {
-      // In Electron, we can use both localStorage and electron-store for persistence
+      // In Electron, use electronAPI for storage
       try {
-        this.electronStore = window.require('electron-store');
-        this.store = new this.electronStore();
+        if (window.electronAPI && window.electronAPI.storeGet) {
+          this.useElectronAPI = true;
+          console.log('✅ Using Electron API for storage');
+        } else {
+          console.log('📦 Electron API not available, using localStorage only');
+          this.useElectronAPI = false;
+        }
       } catch (error) {
-        console.warn('electron-store not available, falling back to localStorage');
-        this.store = null;
+        console.warn('Electron storage initialization failed:', error);
+        this.useElectronAPI = false;
       }
     }
   }
 
-  setItem(key, value) {
+  async setItem(key, value) {
     try {
       // Always use localStorage as primary storage
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(key, value);
       }
       
-      // Additionally use electron-store for persistence across app restarts
-      if (this.store) {
-        this.store.set(key, value);
+      // Additionally use Electron API for persistence
+      if (this.useElectronAPI && window.electronAPI) {
+        await window.electronAPI.storeSet(key, value);
       }
     } catch (error) {
       console.error('Storage setItem error:', error);
     }
   }
 
-  getItem(key) {
+  async getItem(key) {
     try {
       // Try localStorage first
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -45,9 +57,9 @@ class ElectronStorage {
         }
       }
       
-      // Fallback to electron-store
-      if (this.store) {
-        return this.store.get(key, null);
+      // Fallback to Electron API
+      if (this.useElectronAPI && window.electronAPI) {
+        return await window.electronAPI.storeGet(key);
       }
       
       return null;
@@ -57,16 +69,16 @@ class ElectronStorage {
     }
   }
 
-  removeItem(key) {
+  async removeItem(key) {
     try {
       // Remove from localStorage
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(key);
       }
       
-      // Remove from electron-store
-      if (this.store) {
-        this.store.delete(key);
+      // Remove from Electron API
+      if (this.useElectronAPI && window.electronAPI) {
+        await window.electronAPI.storeDelete(key);
       }
     } catch (error) {
       console.error('Storage removeItem error:', error);

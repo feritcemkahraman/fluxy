@@ -16,11 +16,18 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Initialize websocket connection
+    // Initialize websocket connection only when we have a token
     const initSocket = async () => {
       try {
-        // Connect without token initially
-        websocketService.connect();
+        // Get token from storage before connecting
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('No authentication token found, skipping socket connection');
+          return;
+        }
+        
+        // Connect with token
+        websocketService.connect(token);
         setSocket(websocketService.socket);
         setIsConnected(websocketService.isConnected());
       } catch (error) {
@@ -86,7 +93,13 @@ export const SocketProvider = ({ children }) => {
 
   const reconnect = async () => {
     try {
-      websocketService.connect();
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('Cannot reconnect socket: No authentication token');
+        return;
+      }
+      
+      websocketService.connect(token);
       setSocket(websocketService.socket);
       setIsConnected(websocketService.isConnected());
     } catch (error) {

@@ -40,9 +40,13 @@ class AudioManager {
 
   // Load sound effects using HTML Audio API instead of Web Audio API
   async loadSounds() {
+    // Electron-compatible paths
+    const isElectron = window.electronAPI?.isElectron || window.isElectron;
+    const basePath = isElectron ? './sounds/' : '/sounds/';
+    
     const soundFiles = {
-      'voice-join': '/sounds/giris.wav',
-      'voice-leave': '/sounds/cikis.wav'
+      'voice-join': basePath + 'giris.wav',
+      'voice-leave': basePath + 'cikis.wav'
     };
 
     for (const [name, url] of Object.entries(soundFiles)) {

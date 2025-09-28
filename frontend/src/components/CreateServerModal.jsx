@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -36,6 +37,26 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       loadTemplates();
       loadCategories();
     }
+  }, [isOpen]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen]);
 
   const loadTemplates = async () => {
@@ -389,26 +410,35 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
     template.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-purple-900/20 to-blue-900/20 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl shadow-2xl w-full max-w-5xl mx-auto max-h-[85vh] overflow-hidden border border-white/10">
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-gradient-to-br from-black/80 via-purple-900/20 to-blue-900/20 backdrop-blur-md flex items-center justify-center z-[9999] p-2 sm:p-4"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-4xl lg:max-w-5xl mx-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden border border-white/10 relative">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 p-6">
+        <div className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 p-4 sm:p-6">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-cyan-600/20 backdrop-blur-sm"></div>
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center">
-                {activeTab === 'create' ? <Sparkles className="w-6 h-6 text-white" /> : <Users className="w-6 h-6 text-white" />}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center">
+                {activeTab === 'create' ? <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" /> : <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-lg sm:text-2xl font-bold text-white">
                   {activeTab === 'create' ? 
                     (currentStep === 'template' ? 'Sunucunu Oluştur' : 
                      currentStep === 'confirm' ? 'Seçiminizi Onaylayın' : 'Sunucunu Özelleştir') :
                     'Sunucuya Katıl'
                   }
                 </h2>
-                <p className="text-purple-100 text-sm mt-1">
+                <p className="text-purple-100 text-xs sm:text-sm mt-1 hidden sm:block">
                   {activeTab === 'create' ?
                     (currentStep === 'template' ? 'Topluluğuna özel bir sunucu oluştur' : 
                      currentStep === 'confirm' ? 'Seçiminizi gözden geçirin' : 'Sunucunu kişiselleştir') :
@@ -426,7 +456,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
           </div>
           
           {/* Tab Navigation */}
-          <div className="relative mt-6">
+          <div className="relative mt-4 sm:mt-6">
             <div className="flex space-x-1 bg-white/10 backdrop-blur-md rounded-xl p-1">
               <button
                 onClick={() => setActiveTab('create')}
@@ -455,20 +485,20 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(85vh-200px)] p-6">
+        <div className="overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)] p-3 sm:p-6">
           {activeTab === 'create' ? (
             /* Create Server Tab */
             <>
               {currentStep === 'template' ? (
                 /* Template Selection */
-                <div className="space-y-8">
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
-                      <Palette className="w-8 h-8 text-white" />
+                <div className="space-y-6 sm:space-y-8">
+                  <div className="text-center space-y-3 sm:space-y-4">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
+                      <Palette className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-3xl font-bold text-white mb-2">Şablon Seç</h3>
-                      <p className="text-gray-400 text-lg">Hazır şablonlarla hızlıca başla</p>
+                      <h3 className="text-xl sm:text-3xl font-bold text-white mb-2">Şablon Seç</h3>
+                      <p className="text-gray-400 text-sm sm:text-lg">Hazır şablonlarla hızlıca başla</p>
                     </div>
                   </div>
 
@@ -484,7 +514,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
               </div>
 
               {/* Categories */}
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
                 {categories.map((category) => {
                   const categoryTranslations = {
                     'gaming': 'Oyun',
@@ -527,20 +557,20 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
               ) : (
                 <>
                   {/* Custom Server Option - Centered */}
-                  <div className="col-span-full flex justify-center mb-8">
+                  <div className="col-span-full flex justify-center mb-6 sm:mb-8">
                     <div
                       onClick={handleCustomServer}
                       className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-600 hover:border-purple-500/50 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/10 w-full max-w-md"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      <div className="relative p-6">
-                        <div className="flex items-center space-x-4 mb-4">
-                          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                            <Zap className="w-7 h-7 text-white" />
+                      <div className="relative p-4 sm:p-6">
+                        <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                            <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-bold text-white text-lg group-hover:text-purple-300 transition-colors">Kendi Sunucumu Oluştur</h4>
-                            <p className="text-sm text-gray-400">Sıfırdan başla</p>
+                            <h4 className="font-bold text-white text-base sm:text-lg group-hover:text-purple-300 transition-colors">Kendi Sunucumu Oluştur</h4>
+                            <p className="text-xs sm:text-sm text-gray-400">Sıfırdan başla</p>
                           </div>
                         </div>
                         <p className="text-gray-400 text-sm leading-relaxed">
@@ -562,7 +592,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                     {/* console.log('Templates array:', templates) */}
                     {/* console.log('Filtered templates:', filteredTemplates) */}
                     {/* console.log('Filtered templates length:', filteredTemplates.length) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                       {filteredTemplates.map((template) => {
                         // console.log('Rendering template:', template._id, template.name);
                         return (
@@ -578,20 +608,20 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                             className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-600 hover:border-purple-500/50 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/10"
                           >
                           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                          <div className="relative p-6">
-                            <div className="flex items-center space-x-4 mb-4">
+                          <div className="relative p-4 sm:p-6">
+                            <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
                               <div className="relative">
                                 <img
                                   src={template.icon}
                                   alt={template.name}
-                                  className="w-14 h-14 rounded-xl group-hover:scale-110 transition-transform duration-300"
+                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl group-hover:scale-110 transition-transform duration-300"
                                 />
                                 <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                                   <Crown className="w-3 h-3 text-white" />
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-white text-lg group-hover:text-purple-300 transition-colors truncate">
+                                <h4 className="font-bold text-white text-base sm:text-lg group-hover:text-purple-300 transition-colors truncate">
                                   {template.name}
                                 </h4>
                                 <div className="flex items-center space-x-2 mt-1">
@@ -628,22 +658,22 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
             </div>
           ) : currentStep === 'confirm' ? (
             /* Confirm Selection */
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* console.log('=== Rendering confirm step ===') */}
               {/* console.log('Current step:', currentStep) */}
               {/* console.log('Selected template:', selectedTemplate) */}
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
-                  <Sparkles className="w-8 h-8 text-white" />
+              <div className="text-center space-y-3 sm:space-y-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-bold text-white mb-2">Seçiminizi Onaylayın</h3>
-                  <p className="text-gray-400 text-lg">Devam etmek için seçiminizi gözden geçirin</p>
+                  <h3 className="text-xl sm:text-3xl font-bold text-white mb-2">Seçiminizi Onaylayın</h3>
+                  <p className="text-gray-400 text-sm sm:text-lg">Devam etmek için seçiminizi gözden geçirin</p>
                 </div>
               </div>
 
               {/* Selection Preview */}
-              <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-600 rounded-2xl p-8">
+              <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-600 rounded-2xl p-4 sm:p-8">
                 {selectedTemplate ? (
                   /* Template Preview */
                   <div className="space-y-6">
@@ -704,22 +734,22 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex space-x-4 pt-6">
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4 sm:pt-6">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleBackToTemplates}
-                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500 h-12 rounded-xl"
+                  className="w-full sm:flex-1 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500 h-10 sm:h-12 rounded-xl text-sm sm:text-base"
                 >
                   ← Geri Dön
                 </Button>
                 <Button
                   type="button"
                   onClick={handleConfirmContinue}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-12 rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105"
+                  className="w-full sm:flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-10 sm:h-12 rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 text-sm sm:text-base"
                 >
                   <div className="flex items-center space-x-2">
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>Devam</span>
                   </div>
                 </Button>
@@ -727,7 +757,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
             </div>
           ) : (
             /* Server Customization */
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
               {/* Template Info */}
               {selectedTemplate && (
                 <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-2xl p-6">
@@ -867,29 +897,29 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
               </div>
 
               {/* Actions */}
-              <div className="flex space-x-4 pt-6 border-t border-gray-600">
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4 sm:pt-6 border-t border-gray-600">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleBackToTemplates}
-                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500 h-12 rounded-xl"
+                  className="w-full sm:flex-1 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500 h-10 sm:h-12 rounded-xl text-sm sm:text-base"
                   disabled={loading}
                 >
                   ← Geri Dön
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-12 rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105"
+                  className="w-full sm:flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-10 sm:h-12 rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 text-sm sm:text-base"
                   disabled={loading || !formData.name.trim()}
                 >
                   {loading ? (
                     <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                       <span>Oluşturuluyor...</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2">
-                      <Sparkles className="w-5 h-5" />
+                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>{selectedTemplate ? 'Şablondan Oluştur' : 'Sunucu Oluştur'}</span>
                     </div>
                   )}
@@ -900,18 +930,18 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
           </>
           ) : (
             /* Join Server Tab */
-            <div className="space-y-8">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
-                  <Users className="w-8 h-8 text-white" />
+            <div className="space-y-6 sm:space-y-8">
+              <div className="text-center space-y-3 sm:space-y-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-bold text-white mb-2">Sunucuya Katıl</h3>
-                  <p className="text-gray-400 text-lg">Davet kodu ile bir sunucuya katıl</p>
+                  <h3 className="text-xl sm:text-3xl font-bold text-white mb-2">Sunucuya Katıl</h3>
+                  <p className="text-gray-400 text-sm sm:text-lg">Davet kodu ile bir sunucuya katıl</p>
                 </div>
               </div>
 
-              <div className="max-w-md mx-auto space-y-6">
+              <div className="max-w-md mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
                 <div className="space-y-2">
                   <Label htmlFor="inviteCode" className="text-white text-sm font-medium">
                     Davet Kodu
@@ -933,16 +963,16 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                 <Button
                   onClick={handleJoinServer}
                   disabled={!inviteCode.trim() || joinLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm sm:text-base h-10 sm:h-auto"
                 >
                   {joinLoading ? (
                     <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                       <span>Katılınıyor...</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2">
-                      <Users className="w-5 h-5" />
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Sunucuya Katıl</span>
                     </div>
                   )}
@@ -954,6 +984,9 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       </div>
     </div>
   );
+
+  // Render modal using portal to document.body
+  return createPortal(modalContent, document.body);
 };
 
 export default CreateServerModal;

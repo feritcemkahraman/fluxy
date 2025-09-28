@@ -4,15 +4,18 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import AuthWrapper from './components/AuthWrapper';
-import { initElectronOptimizations } from './utils/electronOptimizer';
+import { initPerformanceOptimizations } from './utils/performance';
+// import performanceMonitor from './utils/performanceMonitor';
 import './index.css';
 import '@radix-ui/themes/styles.css';
 import './App.css';
 
 function App() {
   useEffect(() => {
-    // Apply radical Electron optimizations
-    initElectronOptimizations();
+    initPerformanceOptimizations();
+    
+    // Performance monitoring disabled for now
+    console.log('🚀 App started');
   }, []);
 
   return (

@@ -73,16 +73,18 @@
     "test": "craco test",
     "eject": "react-scripts eject",
     "electron": "electron .",
-    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-standalone": "npm run build && electron .",
+    "electron-dev": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && electron . --no-sandbox\"",
+    "electron-dev-safe": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && npx electron . --no-sandbox --disable-gpu-sandbox\"",
+    "electron-standalone": "npm run build && electron . --no-sandbox",
+    "electron-safe": "node start-electron-safe.js",
+    "electron-simple": "node start-simple.js",
     "start-electron": "node start-electron.js",
-    "start-electron-dev": "node start-electron-dev.js",
     "start-dev": "node start-dev.js",
     "electron-pack": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
   },
   "browserslist": {
     "production": [
@@ -99,6 +101,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/eslint-parser": "^7.25.1",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@babel/preset-env": "^7.25.3",
     "@babel/preset-react": "^7.24.7",
     "@eslint/js": "9.23.0",

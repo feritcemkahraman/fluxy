@@ -59,14 +59,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const token = electronStorage.getItem('token');
-        const savedUser = electronStorage.getItem('user');
+        const token = await electronStorage.getItem('token');
+        const savedUser = await electronStorage.getItem('user');
         
         if (token && savedUser) {
           try {
             // Immediately load user from storage for instant UI
             const localUser = JSON.parse(savedUser);
-            const savedStatus = electronStorage.getItem('userStatus') || 'online';
+            const savedStatus = await electronStorage.getItem('userStatus') || 'online';
             
             dispatch({
               type: 'LOGIN_SUCCESS',
@@ -93,9 +93,9 @@ export function AuthProvider({ children }) {
             // Don't connect socket here - let the other useEffect handle it
           } catch (error) {
             // Token is invalid, clear storage
-            electronStorage.removeItem('token');
-            electronStorage.removeItem('user');
-            electronStorage.removeItem('userStatus');
+            await electronStorage.removeItem('token');
+            await electronStorage.removeItem('user');
+            await electronStorage.removeItem('userStatus');
             dispatch({ type: 'LOGOUT' });
           }
         } else {
@@ -119,9 +119,9 @@ export function AuthProvider({ children }) {
       const { user, token } = response; // authAPI.login already returns response.data
 
       // Store in storage (Electron-compatible)
-      electronStorage.setItem('token', token);
-      electronStorage.setItem('user', JSON.stringify(user));
-      electronStorage.setItem('userStatus', user.status || 'online');
+      await electronStorage.setItem('token', token);
+      await electronStorage.setItem('user', JSON.stringify(user));
+      await electronStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -161,9 +161,9 @@ export function AuthProvider({ children }) {
       const { user, token } = response; // authAPI.register already returns response.data
 
       // Store in storage (Electron-compatible)
-      electronStorage.setItem('token', token);
-      electronStorage.setItem('user', JSON.stringify(user));
-      electronStorage.setItem('userStatus', user.status || 'online');
+      await electronStorage.setItem('token', token);
+      await electronStorage.setItem('user', JSON.stringify(user));
+      await electronStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -220,9 +220,9 @@ export function AuthProvider({ children }) {
 
   const logout = async (skipSocketDisconnect = false) => {
     // First clear storage and state immediately (Electron-compatible)
-    electronStorage.removeItem('token');
-    electronStorage.removeItem('user');
-    electronStorage.removeItem('userStatus');
+    await electronStorage.removeItem('token');
+    await electronStorage.removeItem('user');
+    await electronStorage.removeItem('userStatus');
     
     dispatch({ type: 'LOGOUT' });
     
@@ -236,25 +236,33 @@ export function AuthProvider({ children }) {
       await authAPI.logout();
     } catch (error) {
       // Silently handle server logout errors (token might be expired)
-      if (process.env.NODE_ENV === 'development' && !error.message.includes('401')) {
+      if (process.env.NODE_ENV === 'development') {
         console.log('Server logout notification failed (ignored):', error.message);
       }
+      // Don't throw error - logout should always succeed locally
     }
   };
 
   useEffect(() => {
     if (state.isAuthenticated && state.token) {
-
-      // Only connect if not already connected
-      if (!socketService.isConnected()) {
+      // Only connect if not already connected and we have a valid token
+      if (!socketService.isConnected() && state.token.trim() !== '') {
+        console.log('Connecting socket with authentication token');
         socketService.connect(state.token);
       }
     } else {
-      socketService.disconnect();
+      // Disconnect socket when not authenticated
+      if (socketService.isConnected()) {
+        console.log('Disconnecting socket - user not authenticated');
+        socketService.disconnect();
+      }
     }
 
     return () => {
-      socketService.disconnect();
+      // Only disconnect on unmount, not on every state change
+      if (socketService.isConnected()) {
+        socketService.disconnect();
+      }
     };
   }, [state.isAuthenticated, state.token]);
 
@@ -264,22 +272,27 @@ export function AuthProvider({ children }) {
     };
 
     const handleDisconnected = (reason) => {
-      if (reason === 'io server disconnect') {
-        // Server disconnected us - this could be due to duplicate connections
-        // Don't logout, let the reconnection logic handle it
-        console.log('Server disconnected socket, will attempt reconnection');
+      console.log('Socket disconnected with reason:', reason);
+      
+      // Don't logout for normal disconnect reasons
+      const normalDisconnectReasons = [
+        'io server disconnect',
+        'io client disconnect', 
+        'ping timeout',
+        'transport close',
+        'transport error'
+      ];
+      
+      if (normalDisconnectReasons.includes(reason)) {
+        console.log('Normal disconnect, not logging out');
         return;
       }
       
       // Only logout for authentication-related disconnects
-      if (reason === 'io client disconnect' || reason === 'ping timeout') {
-        // Client-side disconnect or ping timeout - don't logout
-        return;
+      if (reason === 'unauthorized' || reason === 'authentication failed') {
+        console.log('Authentication failed, logging out');
+        logout(true);
       }
-      
-      // For other disconnect reasons, assume auth error
-      // Skip socket disconnect since we're already disconnected
-      logout(true);
     };
 
     const handleAuthError = () => {

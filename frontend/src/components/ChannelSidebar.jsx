@@ -12,7 +12,7 @@ import { channelAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, voiceChannelParticipantsVersion, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user }) => {
+const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
@@ -183,7 +183,7 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                   key={channel.id || channel._id}
                   variant="ghost"
                   onClick={() => onChannelSelect(channel)}
-                  className={`w-full justify-start px-3 py-2 text-left group transition-all duration-75 electron-hover ${
+                  className={`w-full justify-start px-3 py-2 text-left group transition-all duration-200 ${
                     (activeChannel._id || activeChannel.id) === (channel._id || channel.id)
                       ? "bg-white/10 text-white backdrop-blur-sm"
                       : "text-gray-300 hover:bg-white/5 hover:text-gray-100"
@@ -236,7 +236,7 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                       <Button
                         variant="ghost"
                         onClick={() => handleVoiceChannelSelect(channel)}
-                        className={`w-full justify-start px-3 py-2 text-left transition-all duration-75 electron-hover ${
+                        className={`w-full justify-start px-3 py-2 text-left transition-all duration-200 ${
                           (activeChannel?._id || activeChannel?.id) === channelId
                             ? "bg-white/10 text-white backdrop-blur-sm"
                             : "text-gray-300 hover:bg-white/5 hover:text-gray-100"
@@ -301,22 +301,11 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
 
                     {/* Connected users for voice channels */}
                     {(() => {
-                      console.log('🔍 Voice Channel Debug:', {
-                        channelId,
-                        voiceChannelParticipants,
-                        currentVoiceChannel,
-                        isVoiceConnected,
-                        user: user?.username
-                      });
-                      
                       const hasParticipants = voiceChannelParticipants?.has(channelId);
                       const participants = hasParticipants ? voiceChannelParticipants.get(channelId) : [];
                       
-                      console.log('👥 Channel participants:', { channelId, hasParticipants, participants });
-                      
                       // If this is the current voice channel and user is connected, ensure they're shown
                       if (currentVoiceChannel === channelId && isVoiceConnected && user && !hasParticipants) {
-                        console.log('🎤 Adding current user to voice channel display', { isMuted, isDeafened });
                         
                         const currentUserParticipant = {
                           user: user,

@@ -24,9 +24,8 @@ const FluxyApp = () => {
   const { 
     isConnected: isVoiceConnected, 
     currentChannel: currentVoiceChannel,
+    participants: voiceParticipants,
     connectedUsers,
-    voiceChannelParticipants,
-    voiceChannelParticipantsVersion,
     isMuted,
     isDeafened,
     joinChannel: joinVoiceChannel,
@@ -41,20 +40,19 @@ const FluxyApp = () => {
   const [loading, setLoading] = useState(true);
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
 
-  // Debug state changes
-  useEffect(() => {
-    console.log('🔍 State Debug:', {
-      showVoiceScreen,
-      currentVoiceChannel,
-      isVoiceConnected,
-      activeServer: activeServer?.name
-    });
-  }, [showVoiceScreen, currentVoiceChannel, isVoiceConnected, activeServer]);
-
   // Derive activeServerId from activeServer
   const activeServerId = activeServer?._id || activeServer?.id;
   const activeChannelId = activeChannel?._id || activeChannel?.id;
-
+  
+  // Create voiceChannelParticipants Map from voiceParticipants array
+  const voiceChannelParticipants = useMemo(() => {
+    const participantsMap = new Map();
+    if (currentVoiceChannel && voiceParticipants && voiceParticipants.length > 0) {
+      participantsMap.set(currentVoiceChannel, voiceParticipants);
+    }
+    return participantsMap;
+  }, [currentVoiceChannel, voiceParticipants]);
+  
   // Track active voice channel for UI - only set when explicitly opened via 2nd click
   // Don't automatically show voice panel just because user is connected
 
@@ -188,13 +186,11 @@ const FluxyApp = () => {
 
     const handleVoiceChannelUpdate = (data) => {
       // DEPRECATED: Voice channel updates are now handled by useVoiceChat hook
-      console.log('⚠️ handleVoiceChannelUpdate called but deprecated');
     };
 
     // OPTIMIZED: Voice channel sync handler with state manager
     const handleVoiceChannelSync = (data) => {
       // DEPRECATED: Voice channel sync is now handled by useVoiceChat hook
-      console.log('⚠️ handleVoiceChannelSync called but deprecated');
     };
 
     const handleServerCreated = (data) => {
@@ -801,7 +797,6 @@ const FluxyApp = () => {
           }
           
           await joinVoiceChannel(channelId);
-          console.log('🎤 Voice channel joined, setting showVoiceScreen to true');
           setShowVoiceScreen(true); // Show panel on connection
         } catch (error) {
           toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
@@ -921,7 +916,7 @@ const FluxyApp = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-900 text-white overflow-hidden transition-optimized">
       {/* Desktop Title Bar (Electron only) */}
       <DesktopTitleBar title={activeServer?.name ? `Fluxy - ${activeServer.name}` : 'Fluxy'} />
       
@@ -929,8 +924,8 @@ const FluxyApp = () => {
       <DesktopNotifications />
       
       {/* Main App Content */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* Server Sidebar - Always show */}
+      <div className="flex-1 flex overflow-hidden min-h-0 scroll-optimized">
+        {/* Server Sidebar - Always visible */}
         <ServerSidebar
           servers={servers}
           activeServerId={isDirectMessages ? null : activeServerId}
@@ -954,21 +949,19 @@ const FluxyApp = () => {
                 onChannelSelect={handleChannelSelect}
                 onVoiceChannelJoin={handleVoiceChannelJoin}
                 voiceChannelParticipants={voiceChannelParticipants}
-                voiceChannelParticipantsVersion={voiceChannelParticipantsVersion}
                 currentVoiceChannel={currentVoiceChannel}
                 isVoiceConnected={isVoiceConnected}
                 isMuted={isMuted}
                 isDeafened={isDeafened}
                 user={user}
+                onChannelCreated={handleChannelCreated}
+                onServerUpdate={handleServerUpdate}
               />
             )}
-
-            {/* Main Content Area */}
             <div className="flex-1 flex overflow-hidden">
               {/* Chat Area or Voice Screen - Desktop: flex-1, Mobile: full width */}
               <div className="flex-1 flex flex-col min-w-0">
                 {showVoiceScreen && currentVoiceChannel ? (() => {
-                  console.log('🖥️ Rendering VoiceScreen:', { showVoiceScreen, currentVoiceChannel });
                   // Find the voice channel that should be displayed
                   const voiceChannel = activeServer?.channels?.find(ch =>
                     ch.type === 'voice' && (ch._id || ch.id) === currentVoiceChannel
@@ -1050,7 +1043,7 @@ const FluxyApp = () => {
       </div>
 
       {/* User Panel - Fixed at bottom */}
-      {!isDirectMessages && user && (
+      {user && (
         <UserPanel user={user} server={activeServer} />
       )}
     </div>

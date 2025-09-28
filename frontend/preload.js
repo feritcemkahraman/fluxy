@@ -44,5 +44,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true
 });
 
-// Set global flag for Electron detection
+// Set global flags for Electron detection
 window.isElectron = true;
+window.__ELECTRON_ENV__ = {
+  isElectron: true,
+  platform: process.platform,
+  version: process.versions.electron,
+  nodeVersion: process.versions.node
+};
+
+// Override user agent to help with detection
+Object.defineProperty(navigator, 'userAgent', {
+  value: navigator.userAgent + ' Electron/' + process.versions.electron,
+  writable: false
+});

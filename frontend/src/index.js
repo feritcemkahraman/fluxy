@@ -3,34 +3,36 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 
-// Electron compatibility checks and polyfills
-const isElectron = () => {
-  return typeof window !== 'undefined' && window.process && window.process.type === 'renderer';
+// Enhanced environment detection
+const detectElectron = () => {
+  // Multiple detection methods for reliability
+  const hasElectronAPI = !!(window.electronAPI && window.electronAPI.isElectron);
+  const hasElectronFlag = !!window.isElectron;
+  const hasElectronEnv = !!window.__ELECTRON_ENV__;
+  const hasElectronUserAgent = navigator.userAgent.includes('Electron');
+  
+  return hasElectronAPI || hasElectronFlag || hasElectronEnv || hasElectronUserAgent;
 };
 
-// Polyfill for process (needed by some dependencies in browser environment)
-if (typeof window !== 'undefined' && !window.process) {
-  window.process = { env: {} };
-}
+const isElectron = detectElectron();
+const isBrowser = !isElectron;
 
-// Electron-specific initialization
-if (isElectron()) {
+// Set global environment flags
+window.__FLUXY_ENV__ = {
+  isElectron,
+  isBrowser,
+  isDevelopment: process.env.NODE_ENV === 'development',
+  version: process.env.REACT_APP_VERSION || '1.0.0'
+};
+
+if (isElectron) {
   console.log('🖥️ Running in Electron environment');
-  
-  // Disable context menu in production
-  if (process.env.NODE_ENV === 'production') {
-    window.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-    });
-  }
-  
-  // Handle Electron-specific events
-  window.addEventListener('beforeunload', (e) => {
-    // Prevent accidental close in Electron
-    e.returnValue = false;
-  });
+  // Electron-specific optimizations
+  document.body.classList.add('electron-app');
 } else {
   console.log('🌐 Running in web browser environment');
+  // Browser-specific optimizations
+  document.body.classList.add('web-app');
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

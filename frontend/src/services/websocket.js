@@ -15,8 +15,16 @@ class WebSocketService {
   }
 
   connect(token) {
+    // Validate token before attempting connection
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      console.error('WebSocket connection failed: Invalid or missing authentication token');
+      this.emitLocal('auth_error', { message: 'No token provided' });
+      return;
+    }
+
     // Don't create multiple connections
     if (this.socket && (this.socket.connected || this.socket.connecting)) {
+      console.log('WebSocket already connected or connecting');
       return;
     }
 
@@ -38,11 +46,16 @@ class WebSocketService {
         auth: {
           token: token
         },
-        transports: ['websocket', 'polling'],
-        timeout: 5000,
+        transports: ['polling', 'websocket'], // Polling first for stability
+        timeout: 10000, // Increased timeout
         reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
+        reconnectionAttempts: 10, // More attempts
+        reconnectionDelay: 2000, // Longer delay
+        reconnectionDelayMax: 5000,
+        maxReconnectionAttempts: 10,
+        randomizationFactor: 0.5,
+        forceNew: false,
+        upgrade: true
       });
       
       this.socket.on('connect', () => {
@@ -56,14 +69,14 @@ class WebSocketService {
           });
         });
         
-        this.emit('connected', {});
+        this.emitLocal('connected', {});
       });
 
       // Listen for authentication success
       this.socket.on('authenticated', () => {
         monitoringService.trackSocketConnection('authenticated', { socketId: this.socket.id });
         this.isAuthenticated = true;
-        this.emit('authenticated');
+        this.emitLocal('authenticated');
       });
 
       // Listen for authentication error
@@ -71,13 +84,13 @@ class WebSocketService {
         console.error('Socket authentication failed:', error);
         monitoringService.trackSocketConnection('auth_error', { error });
         this.isAuthenticated = false;
-        this.emit('auth_error', error);
+        this.emitLocal('auth_error', error);
       });
 
       this.socket.on('disconnect', (reason) => {
         monitoringService.trackSocketConnection('disconnect', { reason, socketId: this.socket.id });
         this.isAuthenticated = false;
-        this.emit('disconnected');
+        this.emitLocal('disconnected');
         
         if (reason === 'io server disconnect') {
           // Server disconnected, try to reconnect
@@ -102,141 +115,141 @@ class WebSocketService {
 
       // Message events
       this.socket.on('newMessage', (message) => {
-        this.emit('newMessage', message);
+        this.emitLocal('newMessage', message);
       });
 
       this.socket.on('message_updated', (message) => {
-        this.emit('message_updated', message);
+        this.emitLocal('message_updated', message);
       });
 
       this.socket.on('message_deleted', (messageId) => {
-        this.emit('message_deleted', messageId);
+        this.emitLocal('message_deleted', messageId);
       });
 
       // Channel events
       this.socket.on('user_joined_channel', (data) => {
-        this.emit('user_joined_channel', data);
+        this.emitLocal('user_joined_channel', data);
       });
 
       this.socket.on('user_left_channel', (data) => {
-        this.emit('user_left_channel', data);
+        this.emitLocal('user_left_channel', data);
       });
 
       // Voice events
       this.socket.on('voice_user_joined', (data) => {
-        this.emit('voice_user_joined', data);
+        this.emitLocal('voice_user_joined', data);
       });
 
       this.socket.on('voice_user_left', (data) => {
-        this.emit('voice_user_left', data);
+        this.emitLocal('voice_user_left', data);
       });
 
       // Server events
       this.socket.on('server_updated', (server) => {
-        this.emit('server_updated', server);
+        this.emitLocal('server_updated', server);
       });
 
       this.socket.on('channelCreated', (channel) => {
-        this.emit('channelCreated', channel);
+        this.emitLocal('channelCreated', channel);
       });
 
       this.socket.on('channel_updated', (channel) => {
-        this.emit('channel_updated', channel);
+        this.emitLocal('channel_updated', channel);
       });
 
       this.socket.on('channelDeleted', (data) => {
-        this.emit('channelDeleted', data);
+        this.emitLocal('channelDeleted', data);
       });
 
       // User events
       this.socket.on('userStatusUpdate', (data) => {
-        this.emit('userStatusUpdate', data);
+        this.emitLocal('userStatusUpdate', data);
       });
 
       this.socket.on('userProfileUpdate', (data) => {
-        this.emit('userProfileUpdate', data);
+        this.emitLocal('userProfileUpdate', data);
       });
 
       // Friend events
       this.socket.on('friendRequestReceived', (data) => {
-        this.emit('friendRequestReceived', data);
+        this.emitLocal('friendRequestReceived', data);
       });
 
       this.socket.on('friendRequestAccepted', (data) => {
-        this.emit('friendRequestAccepted', data);
+        this.emitLocal('friendRequestAccepted', data);
       });
 
       this.socket.on('friendAdded', (data) => {
-        this.emit('friendAdded', data);
+        this.emitLocal('friendAdded', data);
       });
 
       this.socket.on('friendRemoved', (data) => {
-        this.emit('friendRemoved', data);
+        this.emitLocal('friendRemoved', data);
       });
 
       // Direct Message events
       this.socket.on('newDirectMessage', (data) => {
-        this.emit('newDirectMessage', data);
+        this.emitLocal('newDirectMessage', data);
       });
 
       this.socket.on('dmSent', (data) => {
-        this.emit('dmSent', data);
+        this.emitLocal('dmSent', data);
       });
 
       // Typing indicators
       this.socket.on('userTyping', (data) => {
-        this.emit('userTyping', data);
+        this.emitLocal('userTyping', data);
       });
 
       this.socket.on('user_joined_server', (data) => {
-        this.emit('user_joined_server', data);
+        this.emitLocal('user_joined_server', data);
       });
 
       this.socket.on('user_left_server', (data) => {
-        this.emit('user_left_server', data);
+        this.emitLocal('user_left_server', data);
       });
 
       // Voice channel events (consolidated)
       this.socket.on('voiceChannelSync', (data) => {
-        this.emit('voiceChannelSync', data);
+        this.emitLocal('voiceChannelSync', data);
       });
 
       this.socket.on('voiceChannelUpdate', (data) => {
-        this.emit('voiceChannelUpdate', data);
+        this.emitLocal('voiceChannelUpdate', data);
       });
 
       // WebRTC Voice Events - CRITICAL FOR VOICE CHAT
       this.socket.on('userJoinedVoice', (data) => {
-        this.emit('userJoinedVoice', data);
+        this.emitLocal('userJoinedVoice', data);
       });
 
       this.socket.on('userLeftVoice', (data) => {
-        this.emit('userLeftVoice', data);
+        this.emitLocal('userLeftVoice', data);
       });
 
       this.socket.on('voice-signal', (data) => {
-        this.emit('voice-signal', data);
+        this.emitLocal('voice-signal', data);
       });
 
       this.socket.on('voice-user-muted', (data) => {
-        this.emit('voice-user-muted', data);
+        this.emitLocal('voice-user-muted', data);
       });
 
       this.socket.on('voice-user-deafened', (data) => {
-        this.emit('voice-user-deafened', data);
+        this.emitLocal('voice-user-deafened', data);
       });
 
       // Screen Sharing Events
       this.socket.on('screen-share-started', (data) => {
-        this.emit('screen-share-started', data);
+        this.emitLocal('screen-share-started', data);
       });
 
       this.socket.on('screen-share-stopped', (data) => {
-        this.emit('screen-share-stopped', data);
+        this.emitLocal('screen-share-stopped', data);
       });
 
       this.socket.on('screen-signal', (data) => {
-        this.emit('screen-signal', data);
+        this.emitLocal('screen-signal', data);
       });
 
     } catch (error) {
@@ -247,7 +260,7 @@ class WebSocketService {
 
   handleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.emit('max_reconnect_attempts_reached');
+      this.emitLocal('max_reconnect_attempts_reached');
       return;
     }
 
@@ -438,33 +451,7 @@ class WebSocketService {
 
   // Event listener management
   on(event, callback) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event).add(callback);
-  }
-
-  off(event, callback) {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event).delete(callback);
-    }
-  }
-
-  emit(event, data) {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
-        }
-      });
-    }
-  }
-
-  // Event listener methods
-  on(event, callback) {
-    if (this.socket) {
+    if (this.socket && this.socket.connected) {
       this.socket.on(event, callback);
     } else {
       // Store callback for when socket is ready
@@ -494,6 +481,19 @@ class WebSocketService {
       this.socket.emit(event, data);
     } else {
       console.warn('Socket not connected, cannot emit:', event);
+    }
+  }
+
+  // Internal event emitter for local events
+  emitLocal(event, data) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
     }
   }
 

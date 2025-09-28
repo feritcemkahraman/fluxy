@@ -437,7 +437,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         )}
 
         {/* Voice Participants Area */}
-        <div className={`${hasScreenShares ? 'w-80' : 'flex-1'} overflow-y-auto bg-black/40 backdrop-blur-sm`}>
+        <div className={`${hasScreenShares ? 'w-80' : 'flex-1'} overflow-y-auto bg-black/40 backdrop-blur-sm scroll-optimized`}>
           {participants.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-sm">
@@ -466,13 +466,13 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                 {participants.map((participant) => (
                   <div
                     key={participant.user._id || participant.user.id}
-                    className={`relative bg-black/40 backdrop-blur-sm rounded-lg border-2 border-white/20 p-4 hover:bg-black/50 hover:border-white/30 hover:shadow-lg hover:shadow-white/10 transition-all duration-75 group min-w-[200px] min-h-[220px] electron-hover ${
+                    className={`relative bg-black/40 backdrop-blur-sm rounded-lg border-2 border-white/20 p-4 hover:bg-black/50 hover:border-white/30 hover:shadow-lg hover:shadow-white/10 transition-all duration-200 group min-w-[200px] min-h-[220px] hover-optimized ${
                       hasScreenShares ? 'flex items-center space-x-3' : 'aspect-[4/5] flex flex-col items-center justify-center'
                     } shadow-md`}
                   >
                     {/* User Avatar Container */}
                     <div className={`relative ${hasScreenShares ? '' : 'flex flex-col items-center mb-5'}`}>
-                      <div className={`relative ${hasScreenShares ? 'w-12 h-12' : 'w-20 h-20 md:w-24 md:h-24'} rounded-full overflow-hidden transition-all duration-75 ${
+                      <div className={`relative ${hasScreenShares ? 'w-12 h-12' : 'w-20 h-20 md:w-24 md:h-24'} rounded-full overflow-hidden transition-all duration-200 ${
                         participant.isSpeaking
                           ? 'ring-4 ring-green-400 ring-opacity-80 shadow-xl shadow-green-400/40 animate-pulse'
                           : 'ring-2 ring-white/20 group-hover:ring-white/30'

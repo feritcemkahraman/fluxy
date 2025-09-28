@@ -13,32 +13,50 @@ const socketAuth = async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
 
-    if (!token) {
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      console.log('❌ Socket auth failed: No token provided or invalid token format');
       return next(new Error('No token provided'));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Validate JWT secret exists
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET not configured in environment');
+      return next(new Error('Server configuration error'));
+    }
+
+    const decoded = jwt.verify(token.trim(), process.env.JWT_SECRET);
+    
+    if (!decoded.userId) {
+      console.log('❌ Socket auth failed: Token missing userId');
+      return next(new Error('Invalid token payload'));
+    }
+
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
+      console.log('❌ Socket auth failed: User not found for ID:', decoded.userId);
       return next(new Error('User not found'));
     }
 
     socket.userId = user._id.toString();
     socket.user = user;
+    
+    console.log('✅ Socket authenticated for user:', user.username);
     next();
   } catch (error) {
     console.log('❌ Socket authentication failed:', error.message);
 
-    // Log more details about the error
+    // Enhanced error logging
     if (error.name === 'JsonWebTokenError') {
-      console.log('❌ JWT Token Error - Invalid token');
-      console.log('❌ Token might be malformed or from different secret');
+      console.log('❌ JWT Token Error - Invalid token format or signature');
+      console.log('❌ This usually means token is malformed or using wrong secret');
     } else if (error.name === 'TokenExpiredError') {
-      console.log('❌ JWT Token Error - Token expired');
-      console.log('❌ Token expired at:', error.expiredAt);
+      console.log('❌ JWT Token Error - Token expired at:', error.expiredAt);
+      console.log('❌ Client needs to refresh token');
     } else if (error.name === 'NotBeforeError') {
-      console.log('❌ JWT Token Error - Token not active yet');
+      console.log('❌ JWT Token Error - Token not active until:', error.date);
+    } else {
+      console.log('❌ Unexpected auth error:', error);
     }
 
     next(new Error('Authentication failed'));

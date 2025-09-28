@@ -8,8 +8,8 @@ import { InteractiveHoverButton } from '@/registry/magicui/interactive-hover-but
 
 export default function LoginForm({ onToggleMode, onBack }) {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'test@fluxy.com', // Pre-filled for testing
+    password: 'test123', // Pre-filled for testing
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

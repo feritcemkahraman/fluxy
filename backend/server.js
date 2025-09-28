@@ -15,8 +15,8 @@ const server = createServer(app);
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000',
   'https://fluxycorn.netlify.app', // Netlify frontend (güncellenecek)
   process.env.FRONTEND_URL,
   process.env.NGROK_URL // Ngrok URL'i için
@@ -172,7 +172,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

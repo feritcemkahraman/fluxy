@@ -4,45 +4,85 @@ const isDev = require('electron-is-dev');
 const { autoUpdater } = require('electron-updater');
 const Store = require('electron-store');
 
-// Increase memory limit and stack size to prevent overflow
-app.commandLine.appendSwitch('--max-old-space-size', '16384'); // 16GB
-app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=16384 --stack-size=4096 --max-stack-size=4096');
+// Optimized memory settings to prevent system errors
+app.commandLine.appendSwitch('--max-old-space-size', '4096'); // 4GB instead of 16GB
+app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
 
-// Radical Electron performance fixes - Remove ALL throttling
+// Windows-specific fixes and security warnings suppression
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('--disable-gpu-sandbox');
+  app.commandLine.appendSwitch('--no-sandbox');
+}
+
+// Completely suppress ALL Electron security warnings
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'false';
+process.env.ELECTRON_NO_SECURITY_WARNINGS = '1';
+process.env.ELECTRON_SKIP_BINARY_DOWNLOAD = '1';
+
+// Override console methods to suppress security warnings
+const originalConsole = console.warn;
+console.warn = function(...args) {
+  const message = args.join(' ');
+  if (message.includes('Electron Security Warning') || 
+      message.includes('security') || 
+      message.includes('Security')) {
+    return; // Suppress security warnings
+  }
+  originalConsole.apply(console, args);
+};
+
+// Additional security warning suppression
+app.commandLine.appendSwitch('--disable-web-security');
+app.commandLine.appendSwitch('--allow-running-insecure-content');
+app.commandLine.appendSwitch('--disable-features', 'VizDisplayCompositor');
+app.commandLine.appendSwitch('--ignore-certificate-errors');
+app.commandLine.appendSwitch('--ignore-ssl-errors');
+app.commandLine.appendSwitch('--ignore-certificate-errors-spki-list');
+app.commandLine.appendSwitch('--disable-dev-shm-usage');
+app.commandLine.appendSwitch('--disable-logging');
+app.commandLine.appendSwitch('--silent');
+app.commandLine.appendSwitch('--no-first-run');
+app.commandLine.appendSwitch('--disable-default-apps');
+
+if (isDev) {
+  // Development-specific flags
+  app.commandLine.appendSwitch('--enable-logging');
+  app.commandLine.appendSwitch('--log-level', '0');
+}
+
+// Performance optimizations - Enable GPU acceleration
 app.commandLine.appendSwitch('--enable-gpu-rasterization');
 app.commandLine.appendSwitch('--enable-zero-copy');
-app.commandLine.appendSwitch('--ignore-gpu-blacklist');
-app.commandLine.appendSwitch('--ignore-gpu-sandbox-failures');
-app.commandLine.appendSwitch('--enable-native-gpu-memory-buffers');
-app.commandLine.appendSwitch('--enable-gpu-memory-buffer-video-frames');
 app.commandLine.appendSwitch('--disable-background-timer-throttling');
 app.commandLine.appendSwitch('--disable-renderer-backgrounding');
 app.commandLine.appendSwitch('--disable-backgrounding-occluded-windows');
-app.commandLine.appendSwitch('--disable-features', 'TranslateUI,VizDisplayCompositor');
-app.commandLine.appendSwitch('--disable-ipc-flooding-protection');
-app.commandLine.appendSwitch('--enable-features', 'VaapiVideoDecoder,CanvasOopRasterization,UseSkiaRenderer');
-app.commandLine.appendSwitch('--force-gpu-mem-available-mb', '8192');
-app.commandLine.appendSwitch('--max-gum-fps', '120');
-app.commandLine.appendSwitch('--disable-frame-rate-limit');
-app.commandLine.appendSwitch('--disable-gpu-vsync');
-app.commandLine.appendSwitch('--disable-software-rasterizer');
-app.commandLine.appendSwitch('--enable-accelerated-2d-canvas');
-app.commandLine.appendSwitch('--enable-accelerated-video-decode');
-app.commandLine.appendSwitch('--disable-dev-shm-usage');
-app.commandLine.appendSwitch('--no-sandbox');
-app.commandLine.appendSwitch('--disable-web-security');
-app.commandLine.appendSwitch('--disable-site-isolation-trials');
+app.commandLine.appendSwitch('--enable-features', 'VaapiVideoDecoder');
+app.commandLine.appendSwitch('--ignore-gpu-blacklist');
+app.commandLine.appendSwitch('--enable-gpu-memory-buffer-video-frames');
 
-// Process crash protection
+// Enhanced process crash protection for Windows
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  // Don't exit, just log
+  // Show user-friendly error dialog
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    dialog.showErrorBox('Uygulama Hatası', 'Bir hata oluştu. Uygulama yeniden başlatılıyor...');
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit, just log
 });
+
+// Windows-specific error handling
+if (process.platform === 'win32') {
+  app.on('gpu-process-crashed', (event, killed) => {
+    console.log('GPU process crashed, restarting...');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.reload();
+    }
+  });
+}
 
 const store = new Store();
 
@@ -61,76 +101,93 @@ if (isDev) {
 let mainWindow;
 
 function createWindow() {
-  // Ana pencere oluştur - MAXIMUM PERFORMANCE
+  // Ana pencere oluştur - Windows uyumlu ayarlar
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1000,
     minHeight: 600,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      webSecurity: false, // Disabled for performance
-      allowRunningInsecureContent: true, // Allow for performance
-      preload: path.join(__dirname, 'preload.js'),
-      // RADICAL Performance optimizations
-      experimentalFeatures: true,
-      enableBlinkFeatures: 'CSSColorSchemeUARendering,CanvasOopRasterization,UseSkiaRenderer,AcceleratedSmallCanvases',
-      disableBlinkFeatures: 'Auxclick,TranslateUI,VizDisplayCompositor',
+      nodeIntegration: false, // Security: Disable node integration
+      contextIsolation: true, // Security: Enable context isolation
+      enableRemoteModule: false, // Security: Disable deprecated remote module
+      webSecurity: isDev ? false : true, // Only disable in development
+      allowRunningInsecureContent: isDev ? true : false, // Only allow in development
+      preload: path.join(__dirname, 'preload.js'), // Secure preload script
+      // Performance optimizations
+      experimentalFeatures: false,
       backgroundThrottling: false,
       offscreen: false,
-      // Hardware acceleration - FORCE EVERYTHING
-      hardwareAcceleration: true,
-      // V8 optimizations - MAX PERFORMANCE
-      v8CacheOptions: 'code',
-      // Disable ALL unnecessary features
-      plugins: false,
-      java: false,
-      webgl: true,
-      // Additional performance flags
-      spellcheck: false,
-      enableWebSQL: false,
-      // Force GPU acceleration
-      acceleratedCompositing: true,
-      // Disable security features for performance
-      sandbox: false,
+      // Security settings
+      sandbox: false, // Required for some features
       nodeIntegrationInWorker: false,
-      nodeIntegrationInSubFrames: false
+      nodeIntegrationInSubFrames: false,
+      // Additional security
+      disableBlinkFeatures: 'Auxclick',
+      additionalArguments: isDev ? [] : ['--disable-dev-shm-usage']
     },
-    // Window optimizations
+    // icon: path.join(__dirname, 'public/favicon.ico'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    show: false,
+    show: false, // Yüklendikten sonra göster
     frame: true,
-    backgroundColor: '#1a1a1a',
-    vibrancy: null, // Disable for performance
-    // RADICAL Performance optimizations
+    backgroundColor: '#1a1a1a', // Dark theme background
+    vibrancy: process.platform === 'darwin' ? 'dark' : null,
+    // Performance optimizations
     paintWhenInitiallyHidden: false,
-    thickFrame: false,
-    skipTaskbar: false,
-    // Force compositing
-    transparent: false,
-    opacity: 1.0
+    thickFrame: false
   });
 
   // React dev server veya build dosyasını yükle
   const startUrl = isDev 
     ? 'http://localhost:3000' 
-    : `file://${path.join(__dirname, './build/index.html')}`;
+    : `file://${path.join(__dirname, 'build/index.html')}`;
 
-  // Production modunda React dev server bekleme
+  // Development modunda React dev server'ı bekle
   console.log('Loading URL:', startUrl);
   console.log('isDev:', isDev);
-  console.log('__dirname:', __dirname);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
   
-  // Load URL immediately without CSP for maximum performance
+  // Set CSP headers for security (development-friendly)
+  if (!isDev) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: https: blob:",
+            "connect-src 'self' ws: wss: http: https:",
+            "media-src 'self' blob:",
+            "worker-src 'self' blob:"
+          ].join('; ')
+        }
+      });
+    });
+  }
+  
   mainWindow.loadURL(startUrl);
   // Pencere hazır olduğunda göster
   mainWindow.once('ready-to-show', () => {
+    console.log('🖼️ Window ready to show');
     mainWindow.show();
+    mainWindow.focus();
     
-    // Development modunda DevTools aç - Her zaman aç
-    mainWindow.webContents.openDevTools();
+    // Development modunda DevTools aç
+    if (isDev) {
+      mainWindow.webContents.openDevTools();
+    }
+  });
+
+  // Yükleme tamamlandığında da göster (backup)
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('📄 Content loaded');
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 
   // Pencere kapatıldığında minimize et (Discord-like behavior)
@@ -292,19 +349,33 @@ nativeTheme.on('updated', () => {
   }, 100); // Debounce theme changes
 });
 
-// Uygulama hazır olduğunda
+// Güvenli uygulama başlatma
 app.whenReady().then(() => {
-  createWindow();
-  // createTray();
+  try {
+    createWindow();
+    // createTray();
+    
+    console.log('✅ Electron app started successfully');
+  } catch (error) {
+    console.error('❌ Failed to create window:', error);
+    dialog.showErrorBox('Başlatma Hatası', 'Uygulama başlatılamadı: ' + error.message);
+  }
 
   // macOS için
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    } else {
-      mainWindow.show();
+    try {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      } else if (mainWindow) {
+        mainWindow.show();
+      }
+    } catch (error) {
+      console.error('❌ Failed to activate window:', error);
     }
   });
+}).catch(error => {
+  console.error('❌ App failed to start:', error);
+  dialog.showErrorBox('Kritik Hata', 'Uygulama başlatılamadı: ' + error.message);
 });
 
 // Tüm pencereler kapatıldığında

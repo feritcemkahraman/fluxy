@@ -2,41 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* RADICAL Electron performance optimizations */
+/* Performance optimizations */
 * {
-  /* Force GPU acceleration for EVERYTHING */
-  transform: translateZ(0) !important;
-  -webkit-transform: translateZ(0) !important;
-  /* Remove ALL repaints */
-  -webkit-backface-visibility: hidden !important;
-  backface-visibility: hidden !important;
-  /* INSTANT transitions */
-  transition-duration: 50ms !important;
-  transition-timing-function: linear !important;
-  /* Force compositing */
-  will-change: transform !important;
+  /* Enable hardware acceleration for all elements */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  /* Optimize repaints */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Optimize compositing */
+  will-change: auto;
 }
 
-/* Remove ALL scroll smoothing - instant scroll */
+/* Smooth scrolling with hardware acceleration */
 html {
-  scroll-behavior: auto !important;
-  -webkit-font-smoothing: subpixel-antialiased !important;
-  -moz-osx-font-smoothing: auto !important;
-  text-rendering: optimizeSpeed !important;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
 }
 
 body {
-  /* Force GPU layer */
-  transform: translate3d(0, 0, 0) !important;
-  -webkit-transform: translate3d(0, 0, 0) !important;
-  /* Instant scrolling */
-  -webkit-overflow-scrolling: auto !important;
-  overflow-scrolling: auto !important;
+  /* Enable GPU compositing */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  /* Optimize scrolling */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
 }
 
-/* Remove ALL hover delays */
-*:hover {
-  transition: none !important;
+/* Optimize animations and transitions */
+*,
+*::before,
+*::after {
+  /* Use GPU for animations */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Optimize transitions */
+  transition-property: transform, opacity, filter;
+  -webkit-transition-property: transform, opacity, filter;
 }
 
 /* Optimize hover effects for better performance */
