@@ -64,9 +64,13 @@ const socketAuth = async (socket, next) => {
 };
 
 const handleConnection = (io) => {
+  console.log('🔌 Socket.IO handler initialized');
+  
   io.use(socketAuth);
 
   io.on('connection', async (socket) => {
+    console.log('🔗 New socket connection attempt:', socket.id);
+    console.log('👤 User authenticated:', socket.user?.username);
 
     // Emit authentication success to frontend with connection data
     socket.emit('authenticated', {
@@ -77,6 +81,8 @@ const handleConnection = (io) => {
         status: socket.user.status
       }
     });
+    
+    console.log('✅ Socket connection established for user:', socket.user.username);
     
     // Check if user already has an active connection
     const existingConnection = connectedUsers.get(socket.userId);
@@ -158,20 +164,49 @@ const handleConnection = (io) => {
         // Join socket room
         socket.join(`voice:${channelId}`);
         
+        // Get user details for all users in channel
+        const usersWithDetails = await Promise.all(
+          result.users.map(async (userId) => {
+            const user = await User.findById(userId).select('username displayName avatar status');
+            return {
+              id: userId,
+              _id: userId,
+              username: user?.username || 'Unknown User',
+              displayName: user?.displayName || user?.username || 'Unknown User',
+              avatar: user?.avatar,
+              status: user?.status || 'offline',
+              isMuted: false,
+              isDeafened: false,
+              isSpeaking: false,
+              isCurrentUser: userId === socket.userId
+            };
+          })
+        );
+        
         // Notify others in the channel
         socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
           channelId,
-          users: result.users,
+          users: usersWithDetails,
           action: 'join',
-          userId: socket.userId
+          userId: socket.userId,
+          joinedUser: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
         });
         
         // Send success response
         socket.emit('voiceChannelUpdate', {
           channelId,
-          users: result.users,
+          users: usersWithDetails,
           action: 'join',
-          userId: socket.userId
+          userId: socket.userId,
+          joinedUser: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
         });
         
       } catch (error) {
@@ -191,20 +226,49 @@ const handleConnection = (io) => {
         // Leave socket room
         socket.leave(`voice:${channelId}`);
         
+        // Get user details for remaining users in channel
+        const usersWithDetails = await Promise.all(
+          result.users.map(async (userId) => {
+            const user = await User.findById(userId).select('username displayName avatar status');
+            return {
+              id: userId,
+              _id: userId,
+              username: user?.username || 'Unknown User',
+              displayName: user?.displayName || user?.username || 'Unknown User',
+              avatar: user?.avatar,
+              status: user?.status || 'offline',
+              isMuted: false,
+              isDeafened: false,
+              isSpeaking: false,
+              isCurrentUser: userId === socket.userId
+            };
+          })
+        );
+        
         // Notify others in the channel
         socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
           channelId,
-          users: result.users,
+          users: usersWithDetails,
           action: 'leave',
-          userId: socket.userId
+          userId: socket.userId,
+          leftUser: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
         });
         
         // Send success response
         socket.emit('voiceChannelUpdate', {
           channelId,
-          users: result.users,
+          users: usersWithDetails,
           action: 'leave',
-          userId: socket.userId
+          userId: socket.userId,
+          leftUser: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
         });
         
       } catch (error) {
@@ -381,6 +445,41 @@ const handleConnection = (io) => {
       } catch (error) {
         console.error('Add reaction error:', error);
         socket.emit('error', { message: 'Failed to add reaction' });
+      }
+    });
+
+    // Handle DM typing indicator
+    socket.on('dmTyping', ({ conversationId, isTyping }) => {
+      try {
+        // Broadcast typing status to other participants in the conversation
+        socket.to(`dm_${conversationId}`).emit('dmTyping', {
+          conversationId,
+          userId: socket.userId,
+          username: socket.user.username,
+          isTyping
+        });
+      } catch (error) {
+        console.error('DM typing error:', error);
+      }
+    });
+
+    // Join DM conversation room
+    socket.on('joinDMConversation', ({ conversationId }) => {
+      try {
+        socket.join(`dm_${conversationId}`);
+        console.log(`User ${socket.user.username} joined DM conversation ${conversationId}`);
+      } catch (error) {
+        console.error('Join DM conversation error:', error);
+      }
+    });
+
+    // Leave DM conversation room
+    socket.on('leaveDMConversation', ({ conversationId }) => {
+      try {
+        socket.leave(`dm_${conversationId}`);
+        console.log(`User ${socket.user.username} left DM conversation ${conversationId}`);
+      } catch (error) {
+        console.error('Leave DM conversation error:', error);
       }
     });
 

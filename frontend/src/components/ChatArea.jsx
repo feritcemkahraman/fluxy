@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Hash, Users, Send, Smile, Paperclip, Search } from "lucide-react";
@@ -28,13 +28,33 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const [userDisplayNames, setUserDisplayNames] = useState(new Map()); // username -> displayName mapping
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  
+  // Refs to avoid dependency issues
+  const channelRef = useRef(channel);
+  const serverRef = useRef(server);
+  const userRef = useRef(user);
+  const sendMessageRef = useRef(sendMessage);
+  
+  // Update refs when values change
+  useEffect(() => {
+    channelRef.current = channel;
+    serverRef.current = server;
+    userRef.current = user;
+    sendMessageRef.current = sendMessage;
+  }, [channel, server, user, sendMessage]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
-  useEffect(() => {
-    scrollToBottom();
+  // Simple scroll after messages change
+  useLayoutEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   // Load messages when channel changes
@@ -205,54 +225,44 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || !channel) return;
+  const handleSendMessage = useCallback(async () => {
+    if (!message.trim() || !channelRef.current) return;
 
     const messageToSend = message.trim();
-    const currentChannelId = channel._id;
+    const currentChannelId = channelRef.current._id;
     setMessage(""); // Clear input immediately
 
-    if (currentChannelId) {
-      // Send via WebSocket - no optimistic update for now to debug
-      sendMessage(currentChannelId, messageToSend, server?._id);
-    } else {
-      // Fallback for mock data
-      const newMessage = {
-        id: `msg${Date.now()}`,
-        author: user || {
-          id: 'unknown',
-          username: 'Unknown User',
-          displayName: 'Unknown User',
-          avatar: '',
-          roleColor: '#6b7280'
-        },
-        content: messageToSend,
-        timestamp: new Date(),
-        reactions: []
-      };
-      setMessages(prev => [...prev, newMessage]);
+    try {
+      if (currentChannelId) {
+        // Send via WebSocket with error handling
+        await sendMessageRef.current(currentChannelId, messageToSend, serverRef.current?._id);
+      } else {
+        // Fallback for mock data
+        const newMessage = {
+          id: `msg${Date.now()}`,
+          author: userRef.current || {
+            id: 'unknown',
+            username: 'Unknown User',
+            displayName: 'Unknown User',
+            avatar: '',
+            roleColor: '#6b7280'
+          },
+          content: messageToSend,
+          timestamp: new Date(),
+          reactions: []
+        };
+        setMessages(prev => [...prev, newMessage]);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Restore message on error
+      setMessage(messageToSend);
+      // Show error toast if available
+      if (typeof toast !== 'undefined') {
+        toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
+      }
     }
-  };
-
-  const handleTyping = (value) => {
-    setMessage(value);
-    
-    // TODO: Implement typing indicator
-    // if (channel?._id) {
-    //   // Send typing indicator via WebSocket
-    //   sendTyping(channel._id, true);
-    //   
-    //   // Clear previous timeout
-    //   if (typingTimeoutRef.current) {
-    //     clearTimeout(typingTimeoutRef.current);
-    //   }
-    //   
-    //   // Stop typing after 3 seconds of inactivity
-    //   typingTimeoutRef.current = setTimeout(() => {
-    //     sendTyping(channel._id, false);
-    //   }, 3000);
-    // }
-  };
+  }, [message]);
 
   const handleReaction = async (messageId, emoji) => {
     try {
@@ -366,7 +376,18 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
       {/* Chat Area for Text Channels ONLY */}
       {channel?.type === "text" && (
-        <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        <div 
+          key={channel._id}
+          ref={(el) => {
+            messagesContainerRef.current = el;
+            if (el) {
+              // Immediately scroll to bottom when ref is set
+              el.scrollTop = el.scrollHeight;
+            }
+          }}
+          className="flex-1 overflow-y-auto p-4" 
+          style={{ maxHeight: 'calc(100vh - 200px)', scrollBehavior: 'auto' }}
+        >
           <div className="w-full space-y-2">
             {messages.map((msg, index) => {
               const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -500,71 +521,30 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
       {/* Message Input - Only show for text channels */}
       {channel?.type === "text" && (
-        <div className="p-4">
+        <div className="p-4 bg-black/20 backdrop-blur-sm border-t border-white/10">
           <div className="relative">
-            <div className="flex items-center space-x-3 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg p-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowFileUpload(true)}
-                className="w-8 h-8 text-gray-400 hover:text-gray-600"
-                style={{ 
-                  '--tw-ring-color': 'transparent',
-                  '--tw-shadow': 'none',
-                  backgroundColor: 'transparent',
-                  borderColor: 'transparent'
-                }}
-              >
-                <Paperclip 
-                  className="w-4 h-4" 
-                  style={{ 
-                    color: 'currentColor',
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: '2'
-                  }}
-                />
-              </Button>
-              
+            <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
               <Input
                 value={message}
-                onChange={(e) => handleTyping(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                onChange={useCallback((e) => setMessage(e.target.value), [])}
+                onKeyDown={useCallback((e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }, [handleSendMessage])}
                 placeholder={`#${channel?.name || 'kanal'} kanalına mesaj`}
-                className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none"
+                className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none text-base"
               />
               
-              <div className="flex items-center space-x-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="w-8 h-8 text-gray-400 hover:text-gray-600"
-                  style={{ 
-                    '--tw-ring-color': 'transparent',
-                    '--tw-shadow': 'none',
-                    backgroundColor: 'transparent',
-                    borderColor: 'transparent'
-                  }}
-                >
-                  <Smile 
-                    className="w-4 h-4" 
-                    style={{ 
-                      color: 'currentColor',
-                      fill: 'none',
-                      stroke: 'currentColor',
-                      strokeWidth: '2'
-                    }}
-                  />
-                </Button>
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!message.trim()}
-                  size="icon"
-                  className="w-8 h-8 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
+              <Button
+                onClick={handleSendMessage}
+                disabled={!message.trim()}
+                size="icon"
+                className="w-9 h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600"
+              >
+                <Send className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -592,4 +572,4 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   );
 };
 
-export default ChatArea;
+export default React.memo(ChatArea);

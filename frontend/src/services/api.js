@@ -186,18 +186,6 @@ export const messageAPI = {
     apiCall('DELETE', `/messages/${messageId}/react`, { emoji })
 };
 
-// Enhanced Direct Messages API with retry
-export const dmAPI = {
-  getConversations: () => apiCall('GET', '/dm/conversations'),
-  getMessages: (conversationId, page = 1, limit = 50) => 
-    apiCall('GET', `/dm/${conversationId}/messages?page=${page}&limit=${limit}`),
-  sendMessage: (userId, content) => 
-    apiCall('POST', '/dm/send', { userId, content }),
-  createConversation: (userId) => 
-    apiCall('POST', '/dm/conversations', { userId }),
-  markAsRead: (conversationId) => 
-    apiCall('PUT', `/dm/${conversationId}/read`)
-};
 
 // Enhanced Role API with retry
 export const roleAPI = {
@@ -288,6 +276,25 @@ export const uploadAPI = {
       throw error;
     }
   }
+};
+
+// Direct Messages API
+export const dmAPI = {
+  getConversations: () => apiCall('GET', '/dm/conversations'),
+  getMessages: (conversationId, page = 1, limit = 50) => 
+    apiCall('GET', `/dm/conversations/${conversationId}/messages?page=${page}&limit=${limit}`),
+  sendMessage: (conversationId, content) => 
+    apiCall('POST', `/dm/conversations/${conversationId}/messages`, { content }),
+  createConversation: (recipientId) => 
+    apiCall('POST', '/dm/conversations', { recipientId }),
+  markAsRead: (conversationId) => 
+    apiCall('PUT', `/dm/conversations/${conversationId}/read`),
+  deleteMessage: (conversationId, messageId) => 
+    apiCall('DELETE', `/dm/conversations/${conversationId}/messages/${messageId}`),
+  addReaction: (conversationId, messageId, emoji) => 
+    apiCall('POST', `/dm/conversations/${conversationId}/messages/${messageId}/reactions`, { emoji }),
+  removeReaction: (conversationId, messageId, emoji) => 
+    apiCall('DELETE', `/dm/conversations/${conversationId}/messages/${messageId}/reactions/${emoji}`)
 };
 
 // Health Check API

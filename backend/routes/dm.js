@@ -23,11 +23,19 @@ router.get('/conversations', auth, async (req, res) => {
       const otherParticipant = conv.participants.find(p => p._id.toString() !== req.user.id);
       return {
         id: conv._id,
-        type: conv.type,
-        name: conv.type === 'direct' ? otherParticipant?.username : conv.name,
-        avatar: conv.type === 'direct' ? otherParticipant?.avatar : conv.icon,
-        participants: conv.participants,
-        lastMessage: conv.lastMessage,
+        type: 'dm',
+        user: {
+          id: otherParticipant?._id,
+          username: otherParticipant?.username,
+          displayName: otherParticipant?.displayName || otherParticipant?.username,
+          avatar: otherParticipant?.avatar,
+          status: otherParticipant?.status || 'offline'
+        },
+        lastMessage: conv.lastMessage ? {
+          content: conv.lastMessage.content,
+          timestamp: conv.lastMessage.createdAt,
+          author: { username: conv.lastMessage.author?.username }
+        } : null,
         lastActivity: conv.lastActivity,
         unreadCount: 0 // TODO: Calculate unread count
       };
@@ -102,10 +110,10 @@ router.post('/conversations', auth, [
   }
 });
 
-// @route   GET /api/dm/:conversationId/messages
+// @route   GET /api/dm/conversations/:conversationId/messages  
 // @desc    Get messages from conversation
 // @access  Private
-router.get('/:conversationId/messages', auth, async (req, res) => {
+router.get('/conversations/:conversationId/messages', auth, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -123,13 +131,27 @@ router.get('/:conversationId/messages', auth, async (req, res) => {
     }
 
     const messages = await DirectMessage.find({ conversation: conversationId })
-      .populate('author', 'username avatar discriminator')
+      .populate('author', 'username displayName avatar discriminator')
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip(skip);
 
+    const formattedMessages = messages.reverse().map(msg => ({
+      id: msg._id,
+      conversationId: conversationId,
+      author: {
+        id: msg.author._id,
+        username: msg.author.username,
+        displayName: msg.author.displayName || msg.author.username,
+        avatar: msg.author.avatar
+      },
+      content: msg.content,
+      timestamp: msg.createdAt,
+      reactions: msg.reactions || []
+    }));
+
     res.json({ 
-      messages: messages.reverse(),
+      messages: formattedMessages,
       hasMore: messages.length === limit
     });
 
@@ -213,10 +235,107 @@ router.post('/send', auth, [
   }
 });
 
-// @route   PUT /api/dm/:conversationId/read
+// @route   POST /api/dm/conversations/:conversationId/messages
+// @desc    Send message to conversation
+// @access  Private
+router.post('/conversations/:conversationId/messages', auth, [
+  body('content').isLength({ min: 1, max: 2000 }).withMessage('Message content required (1-2000 characters)')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { conversationId } = req.params;
+    const { content } = req.body;
+
+    // Check if conversation exists and user is participant
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    if (!conversation.participants.includes(req.user.id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Create message
+    const message = new DirectMessage({
+      conversation: conversationId,
+      author: req.user.id,
+      content
+    });
+
+    await message.save();
+    await message.populate('author', 'username displayName avatar discriminator');
+
+    // Update conversation
+    conversation.lastMessage = message._id;
+    conversation.lastActivity = new Date();
+    await conversation.save();
+
+    // Get other participant for WebSocket notification
+    const otherParticipantId = conversation.participants.find(
+      p => p.toString() !== req.user.id
+    );
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      const dmData = {
+        id: message._id,
+        conversationId: conversationId,
+        author: {
+          id: message.author._id,
+          username: message.author.username,
+          displayName: message.author.displayName || message.author.username,
+          avatar: message.author.avatar
+        },
+        content: message.content,
+        timestamp: message.createdAt,
+        reactions: []
+      };
+      
+      // Broadcast to conversation room (all participants)
+      io.to(`dm_${conversationId}`).emit('newDirectMessage', dmData);
+      
+      // Also emit to user rooms for multi-device sync
+      if (otherParticipantId) {
+        io.to(`user_${otherParticipantId}`).emit('newDirectMessage', dmData);
+      }
+      io.to(`user_${req.user.id}`).emit('newDirectMessage', dmData);
+    }
+
+    res.status(201).json({ 
+      message: {
+        id: message._id,
+        conversationId: conversationId,
+        author: {
+          id: message.author._id,
+          username: message.author.username,
+          displayName: message.author.displayName || message.author.username,
+          avatar: message.author.avatar
+        },
+        content: message.content,
+        timestamp: message.createdAt,
+        reactions: []
+      }
+    });
+
+  } catch (error) {
+    console.error('Send message to conversation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   PUT /api/dm/conversations/:conversationId/read
 // @desc    Mark conversation as read
 // @access  Private
-router.put('/:conversationId/read', auth, async (req, res) => {
+router.put('/conversations/:conversationId/read', auth, async (req, res) => {
   try {
     const { conversationId } = req.params;
 
@@ -249,6 +368,127 @@ router.put('/:conversationId/read', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Mark as read error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/dm/conversations/:conversationId/messages/:messageId/reactions
+// @desc    Add reaction to DM message
+// @access  Private
+router.post('/conversations/:conversationId/messages/:messageId/reactions', auth, [
+  body('emoji').isLength({ min: 1, max: 10 }).withMessage('Emoji required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { conversationId, messageId } = req.params;
+    const { emoji } = req.body;
+
+    // Check conversation access
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation || !conversation.participants.includes(req.user.id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Find message
+    const message = await DirectMessage.findById(messageId);
+    if (!message || message.conversation.toString() !== conversationId) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Add/toggle reaction
+    let reaction = message.reactions.find(r => r.emoji === emoji);
+    
+    if (reaction) {
+      const userIndex = reaction.users.indexOf(req.user.id);
+      if (userIndex > -1) {
+        reaction.users.splice(userIndex, 1);
+        if (reaction.users.length === 0) {
+          message.reactions = message.reactions.filter(r => r.emoji !== emoji);
+        }
+      } else {
+        reaction.users.push(req.user.id);
+      }
+    } else {
+      message.reactions.push({
+        emoji,
+        users: [req.user.id]
+      });
+    }
+
+    await message.save();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`dm_${conversationId}`).emit('dmReactionUpdate', {
+        messageId,
+        conversationId,
+        reactions: message.reactions
+      });
+    }
+
+    res.json({ reactions: message.reactions });
+
+  } catch (error) {
+    console.error('Add DM reaction error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/dm/conversations/:conversationId/messages/:messageId/reactions/:emoji
+// @desc    Remove reaction from DM message
+// @access  Private
+router.delete('/conversations/:conversationId/messages/:messageId/reactions/:emoji', auth, async (req, res) => {
+  try {
+    const { conversationId, messageId, emoji } = req.params;
+
+    // Check conversation access
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation || !conversation.participants.includes(req.user.id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Find message
+    const message = await DirectMessage.findById(messageId);
+    if (!message || message.conversation.toString() !== conversationId) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Remove reaction
+    const reaction = message.reactions.find(r => r.emoji === emoji);
+    if (reaction) {
+      const userIndex = reaction.users.indexOf(req.user.id);
+      if (userIndex > -1) {
+        reaction.users.splice(userIndex, 1);
+        if (reaction.users.length === 0) {
+          message.reactions = message.reactions.filter(r => r.emoji !== emoji);
+        }
+      }
+    }
+
+    await message.save();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`dm_${conversationId}`).emit('dmReactionUpdate', {
+        messageId,
+        conversationId,
+        reactions: message.reactions
+      });
+    }
+
+    res.json({ reactions: message.reactions });
+
+  } catch (error) {
+    console.error('Remove DM reaction error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

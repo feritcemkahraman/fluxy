@@ -1,4 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../hooks/useSocket";
+import { dmAPI } from "../services/api";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -23,146 +27,185 @@ import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 
 const DirectMessageChat = ({ conversation }) => {
+  const { user } = useAuth();
+  const { sendMessage, on, isAuthenticated } = useSocket();
+  
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const messagesEndRef = useRef(null);
-
-  // Mock DM message history for different conversations
-  const dmMessageHistory = {
-    dm1: [
-      {
-        id: "dm1_msg1",
-        author: {
-          id: "user2",
-          username: "Alice",
-          avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Hey! The glassmorphism design looks amazing! 🎨",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        reactions: [{ emoji: "😍", count: 1, users: ["user1"] }]
-      },
-      {
-        id: "dm1_msg2",
-        author: {
-          id: "user1",
-          username: "YourUsername",
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Thanks Alice! I'm really happy with how the frosted glass effects turned out. The dark theme gives it such a premium feel.",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1.5),
-        reactions: []
-      },
-      {
-        id: "dm1_msg3",
-        author: {
-          id: "user2",
-          username: "Alice",
-          avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "The subtle animations are perfect too! Not too flashy but enough to make everything feel alive. How long did it take you to get the blur effects just right?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        reactions: [{ emoji: "👏", count: 1, users: ["user1"] }]
-      },
-      {
-        id: "dm1_msg4",
-        author: {
-          id: "user1",
-          username: "YourUsername",
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "It took me a few hours to fine-tune the backdrop-blur values and opacity levels. The key was getting the right balance between transparency and readability.",
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        reactions: []
-      },
-      {
-        id: "dm1_msg5",
-        author: {
-          id: "user2",
-          username: "Alice",
-          avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Well it definitely paid off! This looks way better than regular Fluxy. Are you planning to add more themes?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 15),
-        reactions: []
-      }
-    ],
-    dm2: [
-      {
-        id: "dm2_msg1",
-        author: {
-          id: "user3",
-          username: "Bob",
-          avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Are we still meeting for the project review?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        reactions: []
-      },
-      {
-        id: "dm2_msg2",
-        author: {
-          id: "user1",
-          username: "YourUsername",
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Yes! I'll be ready in 15 minutes. Should we use the voice channel?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1.5),
-        reactions: []
-      },
-      {
-        id: "dm2_msg3",
-        author: {
-          id: "user3",
-          username: "Bob",
-          avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
-        },
-        content: "Perfect! The General voice channel should work fine. I have all the designs ready to show.",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        reactions: [{ emoji: "👍", count: 1, users: ["user1"] }]
-      }
-    ]
-  };
-
+  const messagesContainerRef = useRef(null);
+  
+  // Refs to avoid dependency issues
+  const conversationRef = useRef(conversation);
+  const userRef = useRef(user);
+  const sendMessageRef = useRef(sendMessage);
+  
+  // Update refs when values change
   useEffect(() => {
-    // Load message history for current conversation
-    const history = dmMessageHistory[conversation.id] || [];
-    setMessages(history);
-    
-    // Simulate typing indicator sometimes
-    if (Math.random() > 0.7) {
-      setIsTyping(true);
-      setTimeout(() => setIsTyping(false), 3000);
+    conversationRef.current = conversation;
+    userRef.current = user;
+    sendMessageRef.current = sendMessage;
+  }, [conversation, user, sendMessage]);
+
+  // Load DM messages from API
+  const loadMessages = useCallback(async () => {
+    if (!conversation?.id) return;
+
+    try {
+      setLoading(true);
+      const response = await dmAPI.getMessages(conversation.id);
+      setMessages(response.data.messages || []);
+    } catch (error) {
+      console.error('Failed to load DM messages:', error);
+      setMessages([]);
+      toast.error('Mesajlar yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
     }
-  }, [conversation.id]);
+  }, [conversation?.id]);
 
+  // Load messages when conversation changes
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    loadMessages();
+  }, [conversation.id, loadMessages]);
+
+  // WebSocket connection status listener
+  useEffect(() => {
+    if (!on) return;
+
+    try {
+      const unsubscribeConnect = on('connect', () => {
+        setSocketConnected(true);
+      });
+
+      const unsubscribeDisconnect = on('disconnect', () => {
+        setSocketConnected(false);
+      });
+
+      const unsubscribeError = on('connect_error', () => {
+        setSocketConnected(false);
+      });
+
+      return () => {
+        try {
+          unsubscribeConnect();
+          unsubscribeDisconnect();
+          unsubscribeError();
+        } catch (error) {
+          console.warn('Error cleaning up connection listeners:', error);
+        }
+      };
+    } catch (error) {
+      console.warn('Error setting up connection listeners:', error);
+    }
+  }, [on]);
+
+  // WebSocket event listeners for real-time messaging
+  useEffect(() => {
+    if (!isAuthenticated || !isAuthenticated() || !on || !socketConnected) return;
+
+    try {
+      const unsubscribeNewMessage = on('newDirectMessage', (newMessage) => {
+        // Only add message if it belongs to the current conversation
+        if (newMessage.conversationId === conversation.id) {
+          setMessages(prev => {
+            // Remove optimistic message if this is the real message
+            const withoutOptimistic = prev.filter(msg => 
+              !(msg.isOptimistic && msg.content === newMessage.content && 
+                msg.author.id === newMessage.author.id)
+            );
+            
+            // Check for duplicates
+            const exists = withoutOptimistic.some(msg => msg.id === newMessage.id);
+            if (exists) return withoutOptimistic;
+            
+            return [...withoutOptimistic, newMessage];
+          });
+        }
+      });
+
+      const unsubscribeTyping = on('dmTyping', (data) => {
+        if (data.conversationId === conversation.id && data.userId !== user?.id) {
+          setIsTyping(data.isTyping);
+        }
+      });
+
+      return () => {
+        try {
+          unsubscribeNewMessage();
+          unsubscribeTyping();
+        } catch (error) {
+          console.warn('Error unsubscribing from WebSocket events:', error);
+        }
+      };
+    } catch (error) {
+      console.warn('Error setting up WebSocket listeners:', error);
+    }
+  }, [conversation.id, user?.id, on, isAuthenticated, socketConnected]);
+
+  // Scroll to bottom immediately after DOM updates
+  useLayoutEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  });
+
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: `dm_msg_${Date.now()}`,
-        author: {
-          id: "user1",
-          username: "YourUsername",
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"
-        },
-        content: message,
-        timestamp: new Date(),
-        reactions: []
-      };
-      setMessages([...messages, newMessage]);
-      setMessage("");
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
+
+  const handleSendMessage = useCallback(async () => {
+    if (!message.trim() || !conversation?.id || !user) return;
+
+    const messageToSend = message.trim();
+    setMessage(""); // Clear input immediately
+
+    try {
+      // Create optimistic message with real user data
+      const optimisticMessage = {
+        id: `temp_${Date.now()}`,
+        author: {
+          id: user.id || user._id,
+          username: user.username,
+          displayName: user.displayName || user.username,
+          avatar: user.avatar
+        },
+        content: messageToSend,
+        timestamp: new Date(),
+        reactions: [],
+        conversationId: conversation.id,
+        isOptimistic: true
+      };
+
+      // Add optimistic message immediately
+      setMessages(prev => [...prev, optimisticMessage]);
+
+      // Send via API first, then WebSocket will handle real-time delivery
+      const response = await dmAPI.sendMessage(conversation.id, messageToSend);
+      
+      // Remove optimistic message and add real message
+      setMessages(prev => {
+        const withoutOptimistic = prev.filter(msg => !msg.isOptimistic);
+        return [...withoutOptimistic, response.data.message];
+      });
+
+    } catch (error) {
+      console.error('Failed to send DM:', error);
+      // Restore message on error
+      setMessage(messageToSend);
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => !msg.isOptimistic));
+      toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
+    }
+  }, [message, conversation, user]);
 
   const handleRightClick = (event, type, data) => {
     event.preventDefault();
@@ -193,20 +236,39 @@ const DirectMessageChat = ({ conversation }) => {
   };
 
   const formatTime = (timestamp) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(timestamp);
+    if (!timestamp) return '';
+
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return '';
+
+      return new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch (error) {
+      console.warn('Invalid timestamp format:', timestamp);
+      return '';
+    }
   };
 
   const formatDate = (timestamp) => {
-    const today = new Date();
-    const messageDate = new Date(timestamp);
+    if (!timestamp) return '';
     
-    if (messageDate.toDateString() === today.toDateString()) {
-      return "Today";
-    } else {
-      return messageDate.toLocaleDateString();
+    try {
+      const today = new Date();
+      const messageDate = new Date(timestamp);
+      
+      if (isNaN(messageDate.getTime())) return '';
+      
+      if (messageDate.toDateString() === today.toDateString()) {
+        return "Today";
+      } else {
+        return messageDate.toLocaleDateString();
+      }
+    } catch (error) {
+      console.warn('Invalid timestamp format:', timestamp);
+      return '';
     }
   };
 
@@ -329,7 +391,18 @@ const DirectMessageChat = ({ conversation }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/20 backdrop-blur-sm">
+      <div 
+        key={conversation.id}
+        ref={(el) => {
+          messagesContainerRef.current = el;
+          if (el) {
+            // Immediately scroll to bottom when ref is set
+            el.scrollTop = el.scrollHeight;
+          }
+        }}
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/20 backdrop-blur-sm"
+        style={{ scrollBehavior: 'auto' }}
+      >
         {/* Welcome Message */}
         <div className="flex flex-col items-center justify-center py-8">
           <Avatar className="w-20 h-20 ring-4 ring-white/20 mb-4">
@@ -350,13 +423,17 @@ const DirectMessageChat = ({ conversation }) => {
         </div>
 
         {/* Message History */}
-        {messages.map((msg, index) => {
+        {messages.filter(msg => msg && (msg.timestamp || msg.createdAt)).map((msg, index) => {
           const prevMessage = index > 0 ? messages[index - 1] : null;
-          const showDate = !prevMessage || 
-            new Date(msg.timestamp).toDateString() !== new Date(prevMessage.timestamp).toDateString();
+          const msgTimestamp = msg.timestamp || msg.createdAt;
+          const prevTimestamp = prevMessage?.timestamp || prevMessage?.createdAt;
+          
+          const showDate = !prevMessage || !prevTimestamp || !msgTimestamp ||
+            new Date(msgTimestamp).toDateString() !== new Date(prevTimestamp).toDateString();
           const showAvatar = !prevMessage || 
-            prevMessage.author.id !== msg.author.id ||
-            new Date(msg.timestamp) - new Date(prevMessage.timestamp) > 300000; // 5 minutes
+            prevMessage.author?.id !== msg.author?.id ||
+            !prevTimestamp || !msgTimestamp ||
+            new Date(msgTimestamp) - new Date(prevTimestamp) > 300000; // 5 minutes
 
           return (
             <div key={msg.id}>
@@ -364,7 +441,7 @@ const DirectMessageChat = ({ conversation }) => {
                 <div className="flex items-center justify-center my-6">
                   <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
                     <span className="text-xs text-gray-300 font-medium">
-                      {formatDate(msg.timestamp)}
+                      {formatDate(msgTimestamp)}
                     </span>
                   </div>
                 </div>
@@ -381,9 +458,9 @@ const DirectMessageChat = ({ conversation }) => {
                     className="w-12 h-12 ring-2 ring-white/10 cursor-pointer"
                     onContextMenu={(e) => handleRightClick(e, "user", msg.author)}
                   >
-                    <AvatarImage src={null} alt={msg.author.username} />
+                    <AvatarImage src={null} alt={msg.author?.username || 'User'} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      {msg.author.username.charAt(0)}
+                      {(msg.author?.username || msg.author?.displayName || 'U').charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -392,16 +469,21 @@ const DirectMessageChat = ({ conversation }) => {
                   {showAvatar && (
                     <div className="flex items-baseline space-x-3 mb-1">
                       <span className="font-semibold text-white text-base">
-                        {msg.author.username}
+                        {msg.author?.displayName || msg.author?.username || 'Unknown User'}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {formatTime(msg.timestamp)}
+                        {formatTime(msgTimestamp)}
                       </span>
                     </div>
                   )}
                   
-                  <div className="text-gray-200 text-base leading-relaxed">
+                  <div className={`text-base leading-relaxed ${
+                    msg.isOptimistic ? 'text-gray-300 opacity-70' : 'text-gray-200'
+                  }`}>
                     {msg.content}
+                    {msg.isOptimistic && (
+                      <span className="ml-2 text-xs text-gray-500">Gönderiliyor...</span>
+                    )}
                   </div>
                   
                   {msg.reactions && msg.reactions.length > 0 && (
@@ -462,8 +544,13 @@ const DirectMessageChat = ({ conversation }) => {
             
             <Input
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              onChange={useCallback((e) => setMessage(e.target.value), [])}
+              onKeyDown={useCallback((e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }, [handleSendMessage])}
               placeholder={`Message ${conversation.user?.username || conversation.name}`}
               className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none text-base"
             />
@@ -510,4 +597,4 @@ const DirectMessageChat = ({ conversation }) => {
   );
 };
 
-export default DirectMessageChat;
+export default React.memo(DirectMessageChat);

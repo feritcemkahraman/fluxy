@@ -16,20 +16,19 @@ class WebSocketService {
 
   connect(token) {
     // Validate token before attempting connection
-    if (!token || typeof token !== 'string' || token.trim() === '') {
-      console.error('WebSocket connection failed: Invalid or missing authentication token');
-      this.emitLocal('auth_error', { message: 'No token provided' });
+    if (this.socket && this.socket.connected) {
+      console.log('Socket already connected, reusing existing connection');
       return;
     }
-
-    // Don't create multiple connections
-    if (this.socket && (this.socket.connected || this.socket.connecting)) {
-      console.log('WebSocket already connected or connecting');
+    
+    if (this.socket && this.socket.connecting) {
+      console.log('Socket already connecting, waiting...');
       return;
     }
-
-    // Disconnect existing socket if it's in a bad state
+    
+    // Only cleanup if socket exists and is in a bad state
     if (this.socket && !this.socket.connected && !this.socket.connecting) {
+      console.log('Cleaning up disconnected socket');
       this.socket.disconnect();
       this.socket = null;
     }
@@ -42,20 +41,21 @@ class WebSocketService {
         console.warn('REACT_APP_SOCKET_URL is not configured, using default: http://localhost:5000');
       }
       
+      console.log('🔌 Attempting to connect to Socket.IO server:', socketUrl);
+      
       this.socket = io(socketUrl, {
         auth: {
           token: token
         },
         transports: ['polling', 'websocket'], // Polling first for stability
-        timeout: 10000, // Increased timeout
+        timeout: 20000, // Increased timeout
         reconnection: true,
-        reconnectionAttempts: 10, // More attempts
-        reconnectionDelay: 2000, // Longer delay
+        reconnectionAttempts: 5, // Reduced attempts
+        reconnectionDelay: 1000, // Shorter delay
         reconnectionDelayMax: 5000,
-        maxReconnectionAttempts: 10,
-        randomizationFactor: 0.5,
-        forceNew: false,
-        upgrade: true
+        forceNew: true, // Force new connection
+        upgrade: true,
+        autoConnect: true
       });
       
       this.socket.on('connect', () => {
@@ -93,21 +93,24 @@ class WebSocketService {
         this.emitLocal('disconnected');
         
         if (reason === 'io server disconnect') {
-          // Server disconnected, try to reconnect
           this.handleReconnect();
         }
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('Socket.IO connection error:', error.message);
-        monitoringService.trackSocketConnection('connect_error', { error: error.message });
+        console.warn('Socket connection error (will retry):', error.message);
+        monitoringService.trackSocketConnection('error', { error: error.message });
+        this.emitLocal('connection_error', error);
         
+        // Don't show error toast immediately, let it retry
+        if (this.reconnectAttempts >= 3) {
+          console.error('Multiple connection attempts failed. Backend may be down.');
+        }
         // Check if it's a server unavailable error
         if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
           console.warn('Backend server might not be running on:', socketUrl);
           console.warn('Please make sure your backend server is started and accessible');
         }
-        
         this.handleReconnect();
       });
 

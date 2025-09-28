@@ -119,18 +119,24 @@ class VoiceChatService {
       this.currentChannel = channelId;
       
       // Create proper participant object for current user
+      const currentUserData = {
+        id: this.currentUserId,
+        _id: this.currentUserId,
+        username: this.currentUser?.username || 'Unknown User',
+        displayName: this.currentUser?.displayName || this.currentUser?.username || 'Unknown User',
+        avatar: this.currentUser?.avatar,
+        status: this.currentUser?.status || 'online'
+      };
+      
       this.participants = [{
-        user: { 
-          id: this.currentUserId,
-          _id: this.currentUserId,
-          username: this.currentUser?.username || this.currentUser?.displayName || 'You',
-          displayName: this.currentUser?.displayName || this.currentUser?.username || 'You'
-        },
+        user: currentUserData,
         isMuted: this.isMuted,
         isDeafened: this.isDeafened,
         isCurrentUser: true,
         isSpeaking: false
       }];
+      
+      console.log('🎤 Created participant for current user:', currentUserData);
       
       // Notify server
       if (websocketService.socket?.connected) {
@@ -239,6 +245,11 @@ class VoiceChatService {
   setCurrentUser(user) {
     this.currentUser = user;
     this.currentUserId = user?._id || user?.id;
+    console.log('🎤 Voice chat user set:', {
+      userId: this.currentUserId,
+      username: user?.username,
+      displayName: user?.displayName
+    });
   }
 
   // Desktop-specific: Check if running in Electron

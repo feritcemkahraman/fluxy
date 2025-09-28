@@ -62,12 +62,35 @@ export const useVoiceChat = () => {
       updateTimeout = setTimeout(() => {
         const { channelId, users, action, userId } = data;
         
-        // Update participants based on server data
-        const newParticipants = users.map(userId => ({
-          user: { id: userId },
-          isMuted: false,
-          isDeafened: false
-        }));
+        // Update participants based on server data with full user info
+        const newParticipants = users.map(userInfo => {
+          // Handle both old format (userId string) and new format (user object)
+          if (typeof userInfo === 'string') {
+            return {
+              user: { id: userInfo, username: 'Unknown User' },
+              isMuted: false,
+              isDeafened: false,
+              isCurrentUser: userInfo === voiceChatService.currentUserId,
+              isSpeaking: false
+            };
+          } else {
+            // New format with full user details
+            return {
+              user: {
+                id: userInfo.id || userInfo._id,
+                _id: userInfo._id || userInfo.id,
+                username: userInfo.username || 'Unknown User',
+                displayName: userInfo.displayName || userInfo.username || 'Unknown User',
+                avatar: userInfo.avatar,
+                status: userInfo.status
+              },
+              isMuted: userInfo.isMuted || false,
+              isDeafened: userInfo.isDeafened || false,
+              isCurrentUser: userInfo.isCurrentUser || (userInfo.id === voiceChatService.currentUserId),
+              isSpeaking: userInfo.isSpeaking || false
+            };
+          }
+        });
         
         setParticipants(newParticipants);
         

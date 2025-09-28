@@ -262,10 +262,17 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (state.isAuthenticated && state.token) {
-      // Only connect if not already connected and we have a valid token
-      if (!socketService.isConnected() && state.token.trim() !== '') {
+      // Only connect if not already connected/connecting and we have a valid token
+      if (!socketService.isConnected() && !socketService.socket?.connecting && state.token.trim() !== '') {
         console.log('Connecting socket with authentication token');
-        socketService.connect(state.token);
+        try {
+          socketService.connect(state.token);
+        } catch (error) {
+          console.warn('Socket connection failed:', error.message);
+          // Don't throw error, app should work without real-time features
+        }
+      } else if (socketService.isConnected()) {
+        console.log('Socket already connected, skipping connection attempt');
       }
     } else {
       // Disconnect socket when not authenticated

@@ -24,11 +24,13 @@ const allowedOrigins = [
 
 const io = new Server(server, {
   cors: {
-    origin: true, // Allow all origins for development
+    origin: allowedOrigins, // Use specific allowed origins
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  }
+  },
+  allowEIO3: true, // Allow Engine.IO v3 clients
+  transports: ['polling', 'websocket']
 });
 
 // Security middleware
@@ -155,14 +157,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Rota bulunamadı' });
-});
-
-// Initialize Socket.IO
-handleConnection(io);
-
 // Make io available to routes
 app.set('io', io);
 
@@ -172,10 +166,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize Socket.IO
+handleConnection(io);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Rota bulunamadı' });
+});
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔌 Socket.IO server ready on port ${PORT}`);
+  console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}/socket.io/`);
 });
 
 // backend/server.js'e ekleyin:

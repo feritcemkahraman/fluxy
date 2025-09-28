@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../hooks/useSocket";
+import { dmAPI, serverAPI } from "../services/api";
+import friendsAPI from '../services/friendsAPI';
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { 
   Search, 
-  UserPlus as Plus, 
-  MessageSquare, 
+  UserPlus, 
+  Users, 
+  MessageCircle, 
+  MessageSquare,
   Phone, 
-  Video, 
-  MoreHorizontal,
-  Users,
+  Video,
   ArrowLeft,
-  Settings,
   UserCheck,
   UserX,
   Shield,
@@ -21,24 +28,20 @@ import {
   Star,
   TrendingUp,
   Eye,
-  Filter
+  Filter,
+  Plus
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Badge } from "./ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { dmAPI, serverAPI } from "../services/api";
 import DirectMessageChat from "./DirectMessageChat";
-import { useSocket } from "../hooks/useSocket";
-import friendsAPI from '../services/friendsAPI';
-import { useToast } from "../hooks/use-toast";
 
 const DirectMessages = ({ onChannelSelect }) => {
+  const { user } = useAuth();
+  const { on, isAuthenticated } = useSocket();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { on } = useSocket();
-  const { toast } = useToast();
+  const [socketConnected, setSocketConnected] = useState(false);
 
   // Friends data states
   const [friends, setFriends] = useState([]);
@@ -48,6 +51,41 @@ const DirectMessages = ({ onChannelSelect }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const [friendsError, setFriendsError] = useState('');
+
+  // Load conversations from API
+  const loadConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await dmAPI.getConversations();
+      setConversations(response.data.conversations || []);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+      setConversations([]);
+      toast.error('Sohbetler yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load friends data
+  const loadFriendsData = useCallback(async () => {
+    try {
+      const [friendsData, pendingData, sentData, blockedData] = await Promise.all([
+        friendsAPI.getFriends(),
+        friendsAPI.getPendingRequests(),
+        friendsAPI.getSentRequests(),
+        friendsAPI.getBlockedUsers()
+      ]);
+      
+      setFriends(friendsData.data || []);
+      setPendingRequests(pendingData.data || []);
+      setSentRequests(sentData.data || []);
+      setBlockedUsers(blockedData.data || []);
+    } catch (error) {
+      console.error('Error loading friends data:', error);
+      toast.error('Arkadaş verileri yüklenirken hata oluştu');
+    }
+  }, []);
   
   // Discover servers states
   const [showDiscover, setShowDiscover] = useState(false);
@@ -56,62 +94,116 @@ const DirectMessages = ({ onChannelSelect }) => {
   const [discoverFilter, setDiscoverFilter] = useState('all');
   const [discoverSearch, setDiscoverSearch] = useState('');
 
-  // Fetch conversations and friends data
+  // Load data when component mounts
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [conversationsResponse, friendsData, pendingData, sentData, blockedData] = await Promise.all([
-          dmAPI.getConversations(),
-          friendsAPI.getFriends(),
-          friendsAPI.getPendingRequests(),
-          friendsAPI.getSentRequests(),
-          friendsAPI.getBlockedUsers()
-        ]);
+    if (user) {
+      loadConversations();
+      loadFriendsData();
+    }
+  }, [user, loadConversations, loadFriendsData]);
 
-        setConversations(conversationsResponse.data.conversations || []);
-        setFriends(friendsData);
-        setPendingRequests(pendingData);
-        setSentRequests(sentData);
-        setBlockedUsers(blockedData);
+  // WebSocket connection status listener
+  useEffect(() => {
+    if (!on) return;
+
+    let unsubscribeConnect, unsubscribeDisconnect, unsubscribeError;
+
+    try {
+      unsubscribeConnect = on('connect', () => {
+        setSocketConnected(true);
+        console.log('✅ WebSocket connected');
+      });
+
+      unsubscribeDisconnect = on('disconnect', () => {
+        setSocketConnected(false);
+        console.warn('❌ WebSocket disconnected');
+      });
+
+      unsubscribeError = on('connect_error', (error) => {
+        setSocketConnected(false);
+        console.warn('⚠️ WebSocket connection error:', error?.message || 'Unknown error');
+      });
+
+      return () => {
+        try {
+          if (unsubscribeConnect) unsubscribeConnect();
+          if (unsubscribeDisconnect) unsubscribeDisconnect();
+          if (unsubscribeError) unsubscribeError();
+        } catch (error) {
+          console.warn('Error cleaning up connection listeners:', error);
+        }
+      };
+    } catch (error) {
+      console.warn('Error setting up connection listeners:', error);
+      return () => {
+        // Cleanup in case of setup error
+        try {
+          if (unsubscribeConnect) unsubscribeConnect();
+          if (unsubscribeDisconnect) unsubscribeDisconnect();
+          if (unsubscribeError) unsubscribeError();
+        } catch (cleanupError) {
+          console.warn('Error in cleanup after setup error:', cleanupError);
+        }
+      };
+    }
+  }, [on]);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!isAuthenticated || !isAuthenticated() || !on || !socketConnected) return;
+
+    let unsubscribeNewConversation, unsubscribeConversationUpdate;
+
+    try {
+      unsubscribeNewConversation = on('newConversation', (conversation) => {
+        if (!conversation || !conversation.id) {
+          console.warn('Invalid conversation data received:', conversation);
+          return;
+        }
         
-        // Load discover servers
-        await loadDiscoverServers();
-      } catch (error) {
-        // console.error('Failed to fetch data:', error);
-        setConversations([]);
-        setFriends([]);
-        setPendingRequests([]);
-        setSentRequests([]);
-        setBlockedUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+        setConversations(prev => {
+          const exists = prev.some(conv => conv.id === conversation.id);
+          if (exists) return prev;
+          return [conversation, ...prev];
+        });
+      });
 
-    fetchData();
-  }, []);
+      unsubscribeConversationUpdate = on('conversationUpdate', (updatedConversation) => {
+        if (!updatedConversation || !updatedConversation.id) {
+          console.warn('Invalid conversation update data received:', updatedConversation);
+          return;
+        }
+        
+        setConversations(prev => 
+          prev.map(conv => 
+            conv.id === updatedConversation.id ? { ...conv, ...updatedConversation } : conv
+          )
+        );
+      });
+
+      return () => {
+        try {
+          if (unsubscribeNewConversation) unsubscribeNewConversation();
+          if (unsubscribeConversationUpdate) unsubscribeConversationUpdate();
+        } catch (error) {
+          console.warn('Error unsubscribing from WebSocket events:', error);
+        }
+      };
+    } catch (error) {
+      console.warn('Error setting up WebSocket listeners:', error);
+      return () => {
+        try {
+          if (unsubscribeNewConversation) unsubscribeNewConversation();
+          if (unsubscribeConversationUpdate) unsubscribeConversationUpdate();
+        } catch (cleanupError) {
+          console.warn('Error in cleanup after setup error:', cleanupError);
+        }
+      };
+    }
+  }, [on, isAuthenticated, socketConnected]);
+
 
   // Friends management functions
-  const loadFriendsData = async () => {
-    try {
-      const [friendsData, pendingData, sentData, blockedData] = await Promise.all([
-        friendsAPI.getFriends(),
-        friendsAPI.getPendingRequests(),
-        friendsAPI.getSentRequests(),
-        friendsAPI.getBlockedUsers()
-      ]);
-
-      setFriends(friendsData);
-      setPendingRequests(pendingData);
-      setSentRequests(sentData);
-      setBlockedUsers(blockedData);
-      setFriendsError('');
-    } catch (error) {
-      setFriendsError('Failed to load friends data');
-      // console.error('Load friends data error:', error);
-    }
-  };
 
   const handleSendFriendRequest = async (username) => {
     try {
@@ -376,6 +468,33 @@ const DirectMessages = ({ onChannelSelect }) => {
     }
   };
 
+  // Format message content safely
+  const formatMessageContent = (message) => {
+    if (!message) return "Henüz mesaj yok";
+    
+    // If message is an object, extract content
+    if (typeof message === 'object') {
+      return message.content || message.text || "Mesaj içeriği yok";
+    }
+    
+    // If message is a string, return it
+    return String(message);
+  };
+
+  // Format last activity safely
+  const formatLastActivity = (timestamp) => {
+    if (!timestamp) return "";
+    return formatTime(timestamp);
+  };
+
+  // Get display name safely
+  const getDisplayName = (dmUser, dmName) => {
+    if (dmUser) {
+      return dmUser.displayName || dmUser.username || "Bilinmeyen Kullanıcı";
+    }
+    return dmName || "Bilinmeyen Sohbet";
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "online": return "bg-green-500";
@@ -455,24 +574,24 @@ const DirectMessages = ({ onChannelSelect }) => {
                   key={dm.id}
                   variant="ghost"
                   onClick={() => handleConversationSelect(dm)}
-                  className="w-full justify-start p-2 text-left hover:bg-white/10 transition-colors rounded-md"
+                  className="w-full justify-start p-3 text-left hover:bg-white/10 transition-colors rounded-md"
                 >
                   <div className="flex items-center space-x-2.5 w-full">
                     {dm.type === "dm" ? (
                       <div className="relative">
                         <Avatar className="w-8 h-8 ring-1 ring-white/10">
-                          <AvatarImage src={null} alt={dm.user.username} />
+                          <AvatarImage src={null} alt={dm.user?.username || "User"} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                            {dm.user.username.charAt(0)}
+                            {(dm.user?.username || "U").charAt(0)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black/50 ${getStatusColor(dm.user.status)}`} />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black/50 ${getStatusColor(dm.user?.status)}`} />
                       </div>
                     ) : (
                       <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                        <AvatarImage src={dm.icon} alt={dm.name} />
+                        <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
                         <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white text-sm">
-                          {dm.name.charAt(0)}
+                          {(dm.name || "G").charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                     )}
@@ -480,18 +599,20 @@ const DirectMessages = ({ onChannelSelect }) => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-white truncate">
-                          {dm.user?.displayName || dm.user?.username || dm.name}
+                          {getDisplayName(dm.user, dm.name)}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatTime(dm.lastActivity)}
+                          {formatLastActivity(dm.lastMessage?.timestamp || dm.lastActivity)}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 truncate">{dm.lastMessage}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {formatMessageContent(dm.lastMessage)}
+                      </p>
                     </div>
                     
-                    {dm.unread > 0 && (
+                    {(dm.unreadCount > 0 || dm.unread > 0) && (
                       <Badge variant="destructive" className="text-xs px-1.5 py-0.5 min-w-[16px] h-4 flex items-center justify-center">
-                        {dm.unread}
+                        {dm.unreadCount || dm.unread}
                       </Badge>
                     )}
                   </div>
@@ -518,6 +639,7 @@ const DirectMessages = ({ onChannelSelect }) => {
               </Button>
             </div>
             <DirectMessageChat 
+              key={selectedConversation.id}
               conversation={selectedConversation}
             />
           </div>
@@ -602,32 +724,32 @@ const DirectMessages = ({ onChannelSelect }) => {
                     <div 
                       key={dm.id}
                       onClick={() => handleConversationSelect(dm)}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                      className="flex items-center space-x-3 p-4 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
                     >
                       {dm.type === "dm" ? (
                         <div className="relative">
                           <Avatar className="w-10 h-10">
-                            <AvatarImage src={null} alt={dm.user.username} />
+                            <AvatarImage src={null} alt={dm.user?.username || "User"} />
                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                              {dm.user.username.charAt(0)}
+                              {(dm.user?.username || "U").charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-black/50 ${getStatusColor(dm.user.status)}`} />
+                          <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-black/50 ${getStatusColor(dm.user?.status)}`} />
                         </div>
                       ) : (
                         <Avatar className="w-10 h-10">
-                          <AvatarImage src={dm.icon} alt={dm.name} />
+                          <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
                           <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white">
-                            {dm.name.charAt(0)}
+                            {(dm.name || "G").charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium">{dm.user?.displayName || dm.user?.username || dm.name}</div>
-                        <div className="text-sm text-gray-400 truncate">{dm.lastMessage}</div>
+                        <div className="text-white font-medium">{getDisplayName(dm.user, dm.name)}</div>
+                        <div className="text-sm text-gray-400 truncate">{formatMessageContent(dm.lastMessage)}</div>
                       </div>
                       <div className="text-xs text-gray-500">
-                        {formatTime(dm.lastActivity)}
+                        {formatLastActivity(dm.lastActivity)}
                       </div>
                     </div>
                   ))}

@@ -20,16 +20,31 @@ process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'false';
 process.env.ELECTRON_NO_SECURITY_WARNINGS = '1';
 process.env.ELECTRON_SKIP_BINARY_DOWNLOAD = '1';
 
-// Override console methods to suppress security warnings
-const originalConsole = console.warn;
+// Override console methods to suppress warnings in development
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
 console.warn = function(...args) {
   const message = args.join(' ');
   if (message.includes('Electron Security Warning') || 
       message.includes('security') || 
-      message.includes('Security')) {
-    return; // Suppress security warnings
+      message.includes('Security') ||
+      message.includes('DeprecationWarning') ||
+      message.includes('DEP0060') ||
+      message.includes('util._extend')) {
+    return; // Suppress warnings in development
   }
-  originalConsole.apply(console, args);
+  originalConsoleWarn.apply(console, args);
+};
+
+console.error = function(...args) {
+  const message = args.join(' ');
+  if (message.includes('Autofill.enable') || 
+      message.includes('Autofill.setAddresses') ||
+      message.includes("wasn't found")) {
+    return; // Suppress DevTools autofill errors
+  }
+  originalConsoleError.apply(console, args);
 };
 
 // Additional security warning suppression
