@@ -25,13 +25,6 @@ export const useVoiceParticipants = (channelId) => {
     const isCurrentChannel = currentChannel === channelId;
     const isUserConnected = isConnected && isCurrentChannel;
     
-    // DEBUG: Log channel filtering
-    console.log(`🎯 useVoiceParticipants for channel ${channelId}:`, {
-      currentChannel,
-      isCurrentChannel,
-      isUserConnected,
-      voiceParticipantsCount: voiceParticipants?.length || 0
-    });
 
     // Add participants from voice service - ONLY for current channel
     if (voiceParticipants && voiceParticipants.length > 0 && isCurrentChannel) {

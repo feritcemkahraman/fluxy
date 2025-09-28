@@ -41,12 +41,10 @@ class VoiceChatService {
 
   // Safe emit that won't cause stack overflow
   emit(event, data) {
-    console.log('🔊 VoiceChat emit:', event, data);
     if (this.callbacks[event]) {
       // Call immediately instead of setTimeout to prevent unmount issues
       this.callbacks[event].forEach(callback => {
         try {
-          console.log('📞 Calling callback for:', event);
           callback(data);
         } catch (error) {
           console.error('Callback error:', error);
@@ -104,23 +102,18 @@ class VoiceChatService {
   // Join voice channel
   async joinChannel(channelId) {
     try {
-      console.log('🎤 Starting joinChannel:', channelId);
-      
       // Check if already connected to this channel
       if (this.isConnected && this.currentChannel === channelId) {
-        console.log('✅ Already connected to this channel');
         // Already connected, just emit events
         this.emit('connected', { channelId });
         this.emit('participantsChanged', this.participants);
         return true;
       }
       
-      console.log('🎧 Getting user media...');
       // Get enhanced microphone access for desktop (only if not already connected)
       if (!this.localStream) {
         await this.getUserMedia();
       }
-      console.log('✅ User media acquired');
       
       this.isConnected = true;
       this.currentChannel = channelId;
@@ -139,19 +132,13 @@ class VoiceChatService {
         isSpeaking: false
       }];
       
-      console.log('📡 Notifying server...');
       // Notify server
       if (websocketService.socket?.connected) {
         websocketService.socket.emit('join-voice-channel', { channelId });
       }
       
-      // Voice channel join notification removed as requested
-      
-      console.log('🔊 Emitting connected event...');
       this.emit('connected', { channelId });
       this.emit('participantsChanged', this.participants);
-      
-      console.log('✅ joinChannel completed successfully');
       return true;
     } catch (error) {
       console.error('❌ Voice join failed:', error);

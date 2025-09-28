@@ -94,33 +94,23 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       }
     };
 
-    fetchMissingUsers();
   }, [effectiveServer?._id, effectiveServer?.id, voiceChannelUsers, effectiveServer?.members]);
 
   // Simplified useEffect - always show current user when connected
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      console.log('🔍 VoiceScreen Debug:', {
-        isConnected,
-        currentUser: currentUser?.username || currentUser?.displayName,
-        currentChannel,
-        channelId: channel?._id,
-        voiceChannelUsersLength: voiceChannelUsers?.length,
-        participantsLength: participants.length,
-        hookParticipantsLength: participants.length // From useVoiceChat hook
-      });
-
       if (isConnected && currentUser && currentChannel === channel?._id) {
         // Always ensure current user is shown when connected
         const currentUserParticipant = {
           user: currentUser,
+          isMuted: isMuted,
+          isDeafened: isDeafened,
           isMuted,
           isDeafened,
           isCurrentUser: true,
           isSpeaking: false
         };
 
-        console.log('👤 Current user participant:', currentUserParticipant);
 
         // Start with current user
         let allParticipants = [currentUserParticipant];
@@ -151,28 +141,22 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
           allParticipants = [currentUserParticipant, ...otherParticipants];
         }
 
-        console.log('👥 Final participants to set:', allParticipants);
 
-        // Always update participants when connected (force update)
         setParticipants(allParticipants);
         
       } else if (!isConnected) {
         // Clear participants when not connected
         if (participants.length > 0) {
-          console.log('🚪 Clearing participants - not connected');
           setParticipants([]);
         }
-      } else {
-        console.log('❌ Not updating participants:', {
-          isConnected,
-          hasCurrentUser: !!currentUser,
-          channelMatch: currentChannel === channel?._id,
-          currentChannel,
-          channelId: channel?._id
-        });
+      } else if (currentChannel !== channel?._id) {
+        // Clear participants when not in the same channel
+        if (participants.length > 0) {
+          setParticipants([]);
+        }
       }
     }, 100);
-
+    
     return () => clearTimeout(timeoutId);
   }, [isConnected, currentUser, currentChannel, channel?._id, isMuted, isDeafened, voiceChannelUsers, server?.members]);
 

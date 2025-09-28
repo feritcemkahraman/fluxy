@@ -14,8 +14,6 @@ import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
 const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user }) => {
-  // DEBUG: Log mute/deafen state changes
-  console.log('🎤 ChannelSidebar mute state:', { isMuted, isDeafened, user: user?.displayName });
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
