@@ -324,8 +324,8 @@ class VoiceChatService {
         user: { 
           id: this.currentUserId,
           _id: this.currentUserId,
-          username: 'You',
-          displayName: 'You'
+          username: this.currentUser?.username || this.currentUser?.displayName || 'You',
+          displayName: this.currentUser?.displayName || this.currentUser?.username || 'You'
         },
         isMuted: this.isMuted,
         isDeafened: this.isDeafened,
@@ -563,6 +563,11 @@ class VoiceChatService {
       throw new Error('User ID must be a string');
     }
     this.currentUserId = userId;
+  }
+
+  setCurrentUser(user) {
+    this.currentUser = user;
+    this.currentUserId = user?._id || user?.id;
   }
 
   isElectronApp() {

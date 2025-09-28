@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edit, Trash2, MoreHorizontal, Mic, MicOff, Headphones, VolumeX } from "lucide-react";
+import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edit, Trash2, MoreHorizontal, Mic, MicOff, Headphones, HeadphonesIcon, VolumeX } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Badge } from "./ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
@@ -8,11 +8,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ServerSettingsModal from "./ServerSettingsModal";
 import CreateChannelModal from "./CreateChannelModal";
+import VoiceParticipantList from "./VoiceParticipantList";
 import { channelAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
 const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user }) => {
+  // DEBUG: Log mute/deafen state changes
+  console.log('🎤 ChannelSidebar mute state:', { isMuted, isDeafened, user: user?.displayName });
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
@@ -299,93 +302,11 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                       )}
                     </div>
 
-                    {/* Connected users for voice channels */}
-                    {(() => {
-                      const hasParticipants = voiceChannelParticipants?.has(channelId);
-                      const participants = hasParticipants ? voiceChannelParticipants.get(channelId) : [];
-                      
-                      // If this is the current voice channel and user is connected, ensure they're shown
-                      if (currentVoiceChannel === channelId && isVoiceConnected && user && !hasParticipants) {
-                        
-                        const currentUserParticipant = {
-                          user: user,
-                          isCurrentUser: true,
-                          isMuted: isMuted,
-                          isDeafened: isDeafened
-                        };
-                        return (
-                          <div className="ml-6 space-y-1">
-                            <div key={user._id || user.id} className="flex items-center justify-between px-2 py-1 text-base text-gray-300 hover:text-white transition-colors group">
-                              <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-green-400/60 group-hover:ring-green-400/80 transition-all">
-                                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                    <span className="text-white text-sm font-semibold">
-                                      {(user.displayName || user.username || 'U').charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <span className="truncate font-medium flex-1">{user.displayName || user.username}</span>
-                                <span className="text-green-400 text-sm flex-shrink-0">(Sen)</span>
-                              </div>
-                              
-                              {/* Mute/Deafen Icons - Real state */}
-                              <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
-                                {/* Muted Icon */}
-                                <div className={`w-4 h-4 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-                                  isMuted ? 'opacity-100' : 'opacity-0'
-                                }`}>
-                                  <MicOff className="w-3 h-3 text-red-400" />
-                                </div>
-                                {/* Deafened Icon */}
-                                <div className={`w-4 h-4 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-                                  isDeafened ? 'opacity-100' : 'opacity-0'
-                                }`}>
-                                  <VolumeX className="w-3 h-3 text-red-400" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                      
-                      return hasParticipants && participants.length > 0 && (
-                        <div className="ml-6 space-y-1">
-                          {participants.map((participant) => (
-                            <div key={participant.user._id} className="flex items-center justify-between px-2 py-1 text-base text-gray-300 hover:text-white transition-colors group">
-                              <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-white/20 group-hover:ring-white/40 transition-all">
-                                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                    <span className="text-white text-sm font-semibold">
-                                      {(participant.user.displayName || participant.user.username || 'U').charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <span className="truncate font-medium flex-1">{participant.user.displayName || participant.user.username}</span>
-                                {participant.isCurrentUser && (
-                                  <span className="text-gray-400 text-sm flex-shrink-0">(Sen)</span>
-                                )}
-                              </div>
-                              
-                              {/* Mute/Deafen Icons */}
-                              <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
-                                {/* Muted Icon */}
-                                <div className={`w-4 h-4 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-                                  participant.isMuted ? 'opacity-100' : 'opacity-0'
-                                }`}>
-                                  <MicOff className="w-3 h-3 text-red-400" />
-                                </div>
-                                {/* Deafened Icon */}
-                                <div className={`w-4 h-4 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-                                  participant.isDeafened ? 'opacity-100' : 'opacity-0'
-                                }`}>
-                                  <VolumeX className="w-3 h-3 text-red-400" />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
+                    {/* Voice Participants - New Clean System */}
+                    <VoiceParticipantList 
+                      channelId={channelId}
+                      showMuteIcons={true}
+                    />
                   </div>
                 );
               })}

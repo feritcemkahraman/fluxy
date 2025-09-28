@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import socketService from '../services/socket';
+import voiceChatService from '../services/voiceChat';
 import electronStorage from '../utils/electronStorage';
 import electronAPI from '../utils/electronAPI';
 
@@ -68,13 +69,19 @@ export function AuthProvider({ children }) {
             const localUser = JSON.parse(savedUser);
             const savedStatus = await electronStorage.getItem('userStatus') || 'online';
             
+            const userData = { ...localUser, status: savedStatus };
             dispatch({
               type: 'LOGIN_SUCCESS',
               payload: {
-                user: { ...localUser, status: savedStatus },
+                user: userData,
                 token
               }
             });
+
+            // Set user data in voice chat service
+            if (voiceChatService.setCurrentUser) {
+              voiceChatService.setCurrentUser(userData);
+            }
 
             // Skip API verification for now to avoid loading issues
             // TODO: Re-enable token verification when backend is stable
@@ -128,6 +135,11 @@ export function AuthProvider({ children }) {
         payload: { user, token },
       });
 
+      // Set user data in voice chat service
+      if (voiceChatService.setCurrentUser) {
+        voiceChatService.setCurrentUser(user);
+      }
+
       // Connect to socket
       socketService.connect(token);
 
@@ -169,6 +181,11 @@ export function AuthProvider({ children }) {
         type: 'LOGIN_SUCCESS',
         payload: { user, token },
       });
+
+      // Set user data in voice chat service
+      if (voiceChatService.setCurrentUser) {
+        voiceChatService.setCurrentUser(user);
+      }
 
       // Connect to socket
       socketService.connect(token);

@@ -769,10 +769,13 @@ const FluxyApp = () => {
     if (channel.type === 'voice') {
       const channelId = channel._id || channel.id;
 
-      // Set current user ID in voiceChatService BEFORE joining
+      // Set current user data in voiceChatService BEFORE joining
       const userId = user?.id || user?._id;
       if (userId && voiceChatService.currentUserId !== userId) {
-        if (voiceChatService.setCurrentUserId) {
+        // Set both user ID and user data
+        if (voiceChatService.setCurrentUser) {
+          voiceChatService.setCurrentUser(user);
+        } else if (voiceChatService.setCurrentUserId) {
           voiceChatService.setCurrentUserId(userId);
         } else {
           voiceChatService.currentUserId = userId;

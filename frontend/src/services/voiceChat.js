@@ -130,8 +130,8 @@ class VoiceChatService {
         user: { 
           id: this.currentUserId,
           _id: this.currentUserId,
-          username: 'You',
-          displayName: 'You'
+          username: this.currentUser?.username || this.currentUser?.displayName || 'You',
+          displayName: this.currentUser?.displayName || this.currentUser?.username || 'You'
         },
         isMuted: this.isMuted,
         isDeafened: this.isDeafened,
@@ -244,9 +244,14 @@ class VoiceChatService {
     return this.getState();
   }
 
-  // Set user ID
+  // Set user ID and user data
   setCurrentUserId(userId) {
     this.currentUserId = userId;
+  }
+
+  setCurrentUser(user) {
+    this.currentUser = user;
+    this.currentUserId = user?._id || user?.id;
   }
 
   // Desktop-specific: Check if running in Electron
