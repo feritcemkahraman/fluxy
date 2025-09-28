@@ -22,7 +22,7 @@ import {
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 
-const DirectMessageChat = ({ conversation, onBack }) => {
+const DirectMessageChat = ({ conversation }) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
@@ -220,7 +220,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
+    <>
       {/* DM Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/40 backdrop-blur-md">
         <div className="flex items-center space-x-4">
@@ -329,7 +329,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/20 backdrop-blur-sm">
         {/* Welcome Message */}
         <div className="flex flex-col items-center justify-center py-8">
           <Avatar className="w-20 h-20 ring-4 ring-white/20 mb-4">
@@ -448,7 +448,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
       </div>
 
       {/* Message Input */}
-      <div className="p-4">
+      <div className="p-4 bg-black/20 backdrop-blur-sm border-t border-white/10">
         <div className="relative">
           <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
             <Button 
@@ -506,7 +506,7 @@ const DirectMessageChat = ({ conversation, onBack }) => {
           onClose={() => setShowFileUpload(false)}
         />
       )}
-    </div>
+    </>
   );
 };
 

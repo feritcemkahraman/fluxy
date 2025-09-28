@@ -417,34 +417,14 @@ const DirectMessages = ({ onChannelSelect }) => {
     setSelectedConversation(null);
   };
 
-  // If a conversation is selected, show the chat interface
-  if (selectedConversation) {
-    return (
-      <div className="flex-1 flex">
-        {/* Back Button for Mobile/Small Screens */}
-        <div className="hidden max-md:block absolute top-4 left-4 z-10">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBack}
-            className="w-10 h-10 bg-black/50 backdrop-blur-md border border-white/20 text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </div>
-        
-        <DirectMessageChat 
-          conversation={selectedConversation} 
-          onBack={handleBack}
-        />
-      </div>
-    );
-  }
+  // Discord-style layout: Always show sidebar, chat on the right when selected
 
   return (
-    <div className="flex-1 flex">
-      {/* Direct Messages Sidebar */}
-      <div className="w-72 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col h-full">
+    <div className="flex-1 flex h-full">
+      {/* Direct Messages Sidebar - Always Visible on Desktop, Hidden on Mobile when Chat is Open */}
+      <div className={`w-72 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col h-full flex-shrink-0 ${
+        selectedConversation ? 'hidden md:flex' : 'flex'
+      }`}>
         {/* Header */}
         <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="relative">
@@ -521,8 +501,29 @@ const DirectMessages = ({ onChannelSelect }) => {
         </div>
       </div>
 
-      {/* Main Content Area - Enhanced Welcome Screen with Friends Management */}
+      {/* Main Content Area - Chat or Welcome Screen */}
       <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
+        {selectedConversation ? (
+          /* Chat Interface */
+          <div className="flex-1 flex flex-col relative">
+            {/* Mobile Back Button */}
+            <div className="md:hidden absolute top-4 left-4 z-10">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBack}
+                className="w-10 h-10 bg-black/50 backdrop-blur-md border border-white/20 text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </div>
+            <DirectMessageChat 
+              conversation={selectedConversation}
+            />
+          </div>
+        ) : (
+          /* Welcome Screen with Friends Management */
+          <>
         {/* Welcome Header */}
         <div className="p-6 border-b border-white/10">
           <div className="max-w-4xl mx-auto">
@@ -725,6 +726,8 @@ const DirectMessages = ({ onChannelSelect }) => {
             )}
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Discover Servers Modal */}
