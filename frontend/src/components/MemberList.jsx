@@ -7,7 +7,7 @@ import { useSocket } from "../hooks/useSocket";
 import { useAuth } from "../context/AuthContext";
 import { UserProfileModal } from "./UserProfileModal";
 
-const MemberList = ({ server, activeChannel }) => {
+const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [members, setMembers] = useState([]);
@@ -326,6 +326,7 @@ const MemberList = ({ server, activeChannel }) => {
         onOpenChange={setIsProfileOpen}
         user={selectedUser}
         currentUser={currentUser}
+        onDirectMessageNavigation={onDirectMessageNavigation}
       />
     </>
   );

@@ -7,7 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { 
   User, 
   MessageSquare, 
-  UserPlus, 
+  UserPlus,
+  UserCheck,
   Crown, 
   Shield,
   Star,
@@ -20,10 +21,11 @@ import {
 import { dmAPI } from '../services/api';
 import friendsAPI from '../services/friendsAPI';
 
-export function UserProfileModal({ user, open, onOpenChange, currentUser, showMessageButton = true, showFriendButton = true }) {
+export function UserProfileModal({ user, open, onOpenChange, currentUser, showMessageButton = true, showFriendButton = true, onDirectMessageNavigation }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [displayUser, setDisplayUser] = useState(user);
+  const [friendshipStatus, setFriendshipStatus] = useState('none'); // none, pending, friend, blocked
 
   const activities = [
     { id: 1, type: 'playing', game: 'Visual Studio Code', timestamp: '2 saat önce' },
@@ -39,21 +41,87 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
 
   useEffect(() => {
     if (user) {
+      // Reset friendship status immediately when user changes
+      setFriendshipStatus('none');
       setDisplayUser(user);
+      checkFriendshipStatus();
     }
   }, [user]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setFriendshipStatus('none');
+      setActiveTab('profile');
+    }
+  }, [open]);
+
+  const checkFriendshipStatus = async () => {
+    if (!user || !user.username) return;
+    
+    try {
+      // Get all friends data to check relationship status
+      const [friends, sentRequests, pendingRequests] = await Promise.all([
+        friendsAPI.getFriends(),
+        friendsAPI.getSentRequests(),
+        friendsAPI.getPendingRequests()
+      ]);
+
+      const userId = user.id || user._id;
+      
+      // Check if already friends
+      const isFriend = friends.some(f => (f.id || f._id) === userId);
+      if (isFriend) {
+        setFriendshipStatus('friend');
+        return;
+      }
+
+      // Check if request sent
+      const requestSent = sentRequests.some(r => (r.to?.id || r.to?._id) === userId);
+      if (requestSent) {
+        setFriendshipStatus('pending');
+        return;
+      }
+
+      // Check if request received
+      const requestReceived = pendingRequests.some(r => (r.from?.id || r.from?._id) === userId);
+      if (requestReceived) {
+        setFriendshipStatus('received');
+        return;
+      }
+
+      setFriendshipStatus('none');
+    } catch (error) {
+      console.error('Error checking friendship status:', error);
+      setFriendshipStatus('none');
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!displayUser || loading) return;
     
+    const userId = displayUser.id || displayUser._id;
+    if (!userId) {
+      console.error('No user ID found in displayUser:', displayUser);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await dmAPI.createConversation(displayUser.id);
-      if (response.success) {
+      const response = await dmAPI.createConversation(userId);
+      
+      // Check for success in multiple formats
+      if (response.success || response.conversation || response.data?.conversation) {
+        // Close modal first
         onOpenChange(false);
+        
+        // Navigate to direct messages section
+        if (onDirectMessageNavigation) {
+          onDirectMessageNavigation(userId);
+        }
       }
     } catch (error) {
-      // Error handled silently or with toast if needed
+      console.error('Error in handleSendMessage:', error);
     } finally {
       setLoading(false);
     }
@@ -62,14 +130,46 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
   const handleAddFriend = async () => {
     if (!displayUser || loading) return;
     
+    // If user has sent us a request, accept it
+    if (friendshipStatus === 'received') {
+      setLoading(true);
+      try {
+        const pendingRequests = await friendsAPI.getPendingRequests();
+        const userId = displayUser.id || displayUser._id;
+        const request = pendingRequests.find(r => (r.from?.id || r.from?._id) === userId);
+        
+        if (request) {
+          await friendsAPI.acceptFriendRequest(request.id);
+          console.log('✅ Friend request accepted');
+          setFriendshipStatus('friend');
+        }
+      } catch (error) {
+        console.error('Error accepting friend request:', error);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
+    // Otherwise, send a friend request
+    const username = displayUser.username;
+    if (!username) {
+      console.error('No username found in displayUser:', displayUser);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await friendsAPI.sendFriendRequest(displayUser.id);
-      if (response.success) {
+      const response = await friendsAPI.sendFriendRequest(username);
+      if (response && response.request) {
         // Friend request sent successfully
+        console.log('✅ Friend request sent:', response);
+        // Update friendship status to pending (don't close modal)
+        setFriendshipStatus('pending');
       }
     } catch (error) {
-      // Error handled silently or with toast if needed
+      console.error('Error sending friend request:', error);
+      // Error handled - could show toast notification
     } finally {
       setLoading(false);
     }
@@ -151,13 +251,40 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
               {showFriendButton && (
                 <Button 
                   onClick={handleAddFriend}
-                  disabled={loading}
+                  disabled={loading || friendshipStatus === 'pending' || friendshipStatus === 'friend'}
                   variant="outline"
                   size="sm"
-                  className="flex-1 bg-gray-700/80 backdrop-blur-sm hover:bg-gray-700 text-white border border-gray-600/50 text-xs py-2"
+                  className={`flex-1 backdrop-blur-sm text-white border text-xs py-2 ${
+                    friendshipStatus === 'pending' 
+                      ? 'bg-yellow-600/80 border-yellow-500/50 cursor-not-allowed' 
+                      : friendshipStatus === 'friend'
+                      ? 'bg-green-600/80 border-green-500/50 cursor-not-allowed'
+                      : friendshipStatus === 'received'
+                      ? 'bg-blue-600/80 hover:bg-blue-700 border-blue-500/50'
+                      : 'bg-gray-700/80 hover:bg-gray-700 border-gray-600/50'
+                  }`}
                 >
-                  <UserPlus className="w-3 h-3 mr-1" />
-                  Arkadaş Ekle
+                  {friendshipStatus === 'pending' ? (
+                    <>
+                      <UserCheck className="w-3 h-3 mr-1" />
+                      İstek Beklemede
+                    </>
+                  ) : friendshipStatus === 'friend' ? (
+                    <>
+                      <UserCheck className="w-3 h-3 mr-1" />
+                      Arkadaş
+                    </>
+                  ) : friendshipStatus === 'received' ? (
+                    <>
+                      <UserCheck className="w-3 h-3 mr-1" />
+                      İstek Kabul Et
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Arkadaş Ekle
+                    </>
+                  )}
                 </Button>
               )}
               

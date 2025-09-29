@@ -140,7 +140,7 @@ const DirectMessageChat = ({ conversation }) => {
   return (
     <div className="flex-1 flex flex-col bg-gray-900 h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
+      <div className="flex items-center justify-between p-4 pl-16 border-b border-gray-700 bg-gray-800/50">
         <div className="flex items-center space-x-3">
           <Avatar className="w-8 h-8">
             <AvatarImage src={otherUser?.avatar} />

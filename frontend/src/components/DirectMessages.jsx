@@ -33,13 +33,15 @@ import {
   Plus
 } from "lucide-react";
 import { DirectMessageChat } from "../features/messages";
+import FriendsPanel from "./FriendsPanel";
 
-const DirectMessages = ({ onChannelSelect }) => {
+const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection }) => {
   const { user } = useAuth();
   const { on, isAuthenticated } = useSocket();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [showFriends, setShowFriends] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -112,6 +114,85 @@ const DirectMessages = ({ onChannelSelect }) => {
     }
   }, [user, loadConversations, loadFriendsData]);
 
+  // Handle targetUserId prop - auto-open conversation with specific user
+  useEffect(() => {
+    if (!targetUserId) {
+      // If targetUserId is cleared, don't auto-select any conversation
+      // This allows users to see the conversation list
+      return;
+    }
+    
+    // Close friends panel when opening a conversation
+    setShowFriends(false);
+    
+    const handleTargetUser = async () => {
+      // First, try to find existing conversation
+      if (conversations.length > 0) {
+        const existingConversation = conversations.find(conv => 
+          conv.user?.id === targetUserId || conv.user?._id === targetUserId
+        );
+        
+        if (existingConversation) {
+          setSelectedConversation(existingConversation);
+          return;
+        }
+      }
+      
+      // If no existing conversation, create new one
+      try {
+        const response = await dmAPI.createConversation(targetUserId);
+        let conv = null;
+        
+        if (response.success && response.data?.conversation) {
+          conv = response.data.conversation;
+        } else if (response.conversation) {
+          // Handle direct response format
+          conv = response.conversation;
+        }
+        
+        if (conv) {
+          // Find the other participant (not current user)
+          const otherParticipant = conv.participants?.find(p => 
+            (p._id || p.id) !== user.id && (p._id || p.id) !== user._id
+          );
+          
+          // Format the conversation to match DirectMessages format
+          const formattedConversation = {
+            id: conv.id || conv._id,
+            type: 'dm',
+            user: {
+              id: otherParticipant?._id || otherParticipant?.id || targetUserId,
+              username: otherParticipant?.username || conv.name || 'Unknown User',
+              displayName: otherParticipant?.displayName || otherParticipant?.username || conv.name || 'Unknown User',
+              avatar: otherParticipant?.avatar || conv.avatar,
+              status: otherParticipant?.status || 'offline'
+            },
+            participants: conv.participants,
+            lastMessage: null,
+            lastActivity: conv.lastActivity || new Date(),
+            unreadCount: 0
+          };
+          
+          setSelectedConversation(formattedConversation);
+          // Refresh conversations to include the new one
+          loadConversations();
+        }
+      } catch (error) {
+        console.error('Error creating conversation with target user:', error);
+      }
+    };
+    
+    handleTargetUser();
+  }, [targetUserId, conversations, loadConversations]);
+
+  // Handle clearSelection prop - clear selected conversation when manually going to DMs
+  useEffect(() => {
+    if (clearSelection) {
+      setSelectedConversation(null);
+      setShowFriends(false); // Also close friends panel
+    }
+  }, [clearSelection]);
+
   // WebSocket connection status listener
   useEffect(() => {
     if (!on) return;
@@ -162,7 +243,8 @@ const DirectMessages = ({ onChannelSelect }) => {
   useEffect(() => {
     if (!isAuthenticated || !isAuthenticated() || !on || !socketConnected) return;
 
-    let unsubscribeNewConversation, unsubscribeConversationUpdate;
+    let unsubscribeNewConversation, unsubscribeConversationUpdate, unsubscribeFriendRequest, 
+        unsubscribeFriendAccepted, unsubscribeFriendAdded, unsubscribeFriendRemoved;
 
     try {
       unsubscribeNewConversation = on('newConversation', (conversation) => {
@@ -191,10 +273,38 @@ const DirectMessages = ({ onChannelSelect }) => {
         );
       });
 
+      // Friend request received
+      unsubscribeFriendRequest = on('friendRequestReceived', (data) => {
+        console.log('📬 Friend request received:', data);
+        loadFriendsData(); // Reload friends data to show new request
+      });
+
+      // Friend request accepted
+      unsubscribeFriendAccepted = on('friendRequestAccepted', (data) => {
+        console.log('🤝 Friend request accepted:', data);
+        loadFriendsData(); // Reload friends data
+      });
+
+      // Friend added
+      unsubscribeFriendAdded = on('friendAdded', (data) => {
+        console.log('✅ Friend added:', data);
+        loadFriendsData(); // Reload friends data
+      });
+
+      // Friend removed
+      unsubscribeFriendRemoved = on('friendRemoved', (data) => {
+        console.log('💔 Friend removed:', data);
+        loadFriendsData(); // Reload friends data
+      });
+
       return () => {
         try {
           if (unsubscribeNewConversation) unsubscribeNewConversation();
           if (unsubscribeConversationUpdate) unsubscribeConversationUpdate();
+          if (unsubscribeFriendRequest) unsubscribeFriendRequest();
+          if (unsubscribeFriendAccepted) unsubscribeFriendAccepted();
+          if (unsubscribeFriendAdded) unsubscribeFriendAdded();
+          if (unsubscribeFriendRemoved) unsubscribeFriendRemoved();
         } catch (error) {
           console.warn('Error unsubscribing from WebSocket events:', error);
         }
@@ -569,6 +679,26 @@ const DirectMessages = ({ onChannelSelect }) => {
 
         {/* Direct Messages - Enhanced */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
+          {/* Friends Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowFriends(!showFriends)}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                showFriends 
+                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' 
+                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              <span className="font-medium">Arkadaşlar</span>
+              {pendingRequests.length > 0 && (
+                <Badge className="ml-auto bg-red-600 text-white text-xs">
+                  {pendingRequests.length}
+                </Badge>
+              )}
+            </button>
+          </div>
+
           <div className="mb-4 pb-2 border-b border-white/10">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-white font-semibold text-base flex items-center space-x-3">
@@ -652,18 +782,21 @@ const DirectMessages = ({ onChannelSelect }) => {
         </div>
       </div>
 
-      {/* Main Content Area - Chat or Welcome Screen */}
+      {/* Main Content Area - Chat, Friends, or Welcome Screen */}
       <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
-        {selectedConversation ? (
+        {showFriends ? (
+          /* Friends Panel */
+          <FriendsPanel onBack={() => setShowFriends(false)} />
+        ) : selectedConversation ? (
           /* Chat Interface */
           <div className="flex-1 flex flex-col relative h-full max-h-full overflow-hidden">
-            {/* Mobile Back Button */}
-            <div className="md:hidden absolute top-4 left-4 z-10">
+            {/* Back Button - Always visible */}
+            <div className="absolute top-4 left-4 z-10">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleBack}
-                className="w-10 h-10 bg-black/50 backdrop-blur-md border border-white/20 text-gray-400 hover:text-white"
+                className="w-10 h-10 bg-gray-800/90 backdrop-blur-md border border-gray-600/50 text-gray-300 hover:text-white hover:bg-gray-700/90 shadow-lg"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>

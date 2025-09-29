@@ -734,6 +734,10 @@ const FluxyApp = () => {
       setActiveServer(null);
       setActiveChannel(null);
       setShowVoiceScreen(false); // Hide voice screen when going to DMs, but stay connected
+      setTargetUserId(null); // Clear target user when manually going to DMs
+      setClearDMSelection(true); // Clear selected conversation
+      // Reset clearSelection flag after a brief delay
+      setTimeout(() => setClearDMSelection(false), 100);
     } else {
       setIsDirectMessages(false);
 
@@ -890,6 +894,21 @@ const FluxyApp = () => {
     ));
   };
 
+  // Handle direct message navigation from UserProfileModal
+  const [targetUserId, setTargetUserId] = useState(null);
+  const [clearDMSelection, setClearDMSelection] = useState(false);
+  
+  const handleDirectMessageNavigation = (userId) => {
+    // Switch to direct messages view
+    setIsDirectMessages(true);
+    setActiveServer(null);
+    setActiveChannel(null);
+    setShowVoiceScreen(false);
+    
+    // Set target user ID for DirectMessages component
+    setTargetUserId(userId);
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800 flex items-center justify-center">
@@ -919,14 +938,25 @@ const FluxyApp = () => {
           servers={servers}
           activeServerId={isDirectMessages ? null : activeServerId}
           onServerSelect={handleServerSelect}
-          onDirectMessages={() => setIsDirectMessages(true)}
+          onDirectMessages={() => {
+            setIsDirectMessages(true);
+            setTargetUserId(null); // Clear target user when manually going to DMs
+            setClearDMSelection(true); // Clear selected conversation
+            // Reset clearSelection flag after a brief delay
+            setTimeout(() => setClearDMSelection(false), 100);
+          }}
           user={user}
         />
 
         {isDirectMessages ? (
           <DirectMessages 
             user={user}
-            onBack={() => setIsDirectMessages(false)}
+            onBack={() => {
+              setIsDirectMessages(false);
+              setTargetUserId(null); // Clear target user when going back
+            }}
+            targetUserId={targetUserId}
+            clearSelection={clearDMSelection}
           />
         ) : (
           <>
@@ -1023,6 +1053,7 @@ const FluxyApp = () => {
                     server={activeServer}
                     channel={activeChannel}
                     user={user}
+                    onDirectMessageNavigation={handleDirectMessageNavigation}
                   />
                 </div>
               )}
