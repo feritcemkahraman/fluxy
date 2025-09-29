@@ -20,6 +20,8 @@ import { useAuth } from "../context/AuthContext";
 import voiceChatService from "../services/voiceChat";
 import { useAudio } from "../hooks/useAudio";
 import { serverAPI } from "../services/api";
+import ScreenSharePicker from "./ScreenSharePicker";
+import electronAPI from "../utils/electronAPI";
 
 const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], onClose }) => {
   const { user: currentUser } = useAuth();
@@ -48,12 +50,16 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     toggleMute,
     toggleDeafen,
     clearError,
-    setParticipants
+    setParticipants,
+    startScreenShare,
+    stopScreenShare,
+    adjustScreenQuality
   } = useVoiceChat();
 
   const [expandedScreenShare, setExpandedScreenShare] = useState(null);
   const [screenShareVideos, setScreenShareVideos] = useState(new Map());
   const [missingUsers, setMissingUsers] = useState(new Map()); // Cache for fetched user data
+  const [showScreenPicker, setShowScreenPicker] = useState(false);
 
   // Effect to fetch missing user data
   useEffect(() => {
@@ -269,12 +275,36 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
   const handleScreenShare = async () => {
     try {
       if (isCurrentUserScreenSharing) {
-        await voiceChatService.stopScreenShare();
+        await stopScreenShare();
+        console.log('🖥️ Screen sharing stopped');
       } else {
-        await voiceChatService.startScreenShare();
+        // Show Discord-style picker for Electron, direct start for browser
+        if (electronAPI.isElectron()) {
+          setShowScreenPicker(true);
+        } else {
+          await startScreenShare();
+          console.log('🖥️ Screen sharing started');
+        }
       }
     } catch (error) {
+      console.error('❌ Screen share error:', error);
+    }
+  };
+
+  const handleScreenSourceSelect = async ({ source, includeAudio }) => {
+    try {
+      console.log('🖥️ Starting screen share with source:', source.name);
       
+      // Pass source info to voiceChatService
+      await startScreenShare({
+        sourceId: source.id,
+        sourceName: source.name,
+        includeAudio
+      });
+      
+      console.log('✅ Screen sharing started with Discord-style picker');
+    } catch (error) {
+      console.error('❌ Screen share with picker failed:', error);
     }
   };
 
@@ -378,6 +408,29 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                           </div>
                           
                           <div className="flex items-center space-x-1">
+                            {/* Quality Controls - Only for current user */}
+                            {userId === (currentUser?._id || currentUser?.id) && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-6 h-6 text-gray-400 hover:text-white hover:bg-white/10"
+                                  onClick={() => adjustScreenQuality('high')}
+                                  title="Yüksek Kalite (1080p)"
+                                >
+                                  <span className="text-xs font-bold">HD</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-6 h-6 text-gray-400 hover:text-white hover:bg-white/10"
+                                  onClick={() => adjustScreenQuality('medium')}
+                                  title="Orta Kalite (720p)"
+                                >
+                                  <span className="text-xs font-bold">SD</span>
+                                </Button>
+                              </>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -615,6 +668,12 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         </div>
       )}
 
+      {/* Discord-Style Screen Share Picker */}
+      <ScreenSharePicker
+        isOpen={showScreenPicker}
+        onClose={() => setShowScreenPicker(false)}
+        onSelect={handleScreenSourceSelect}
+      />
     </div>
   );
 };

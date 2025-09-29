@@ -483,7 +483,62 @@ const handleConnection = (io) => {
       }
     });
 
-    // Handle disconnect - SIMPLE
+    // Handle screen sharing start
+    socket.on('start-screen-share', async (data) => {
+      try {
+        const { channelId, userId } = data;
+        console.log(`🖥️ User ${socket.user?.username} starting screen share in channel: ${channelId}`);
+        
+        // Join screen share room
+        socket.join(`screen:${channelId}`);
+        
+        // Notify others in the voice channel
+        socket.to(`voice:${channelId}`).emit('screen-share-started', {
+          channelId,
+          userId: socket.userId,
+          user: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username,
+            avatar: socket.user.avatar
+          }
+        });
+        
+        console.log(`✅ Screen share started for user ${socket.user?.username}`);
+      } catch (error) {
+        console.error('Screen share start error:', error);
+        socket.emit('error', { message: 'Failed to start screen sharing' });
+      }
+    });
+
+    // Handle screen sharing stop
+    socket.on('stop-screen-share', async (data) => {
+      try {
+        const { channelId, userId } = data;
+        console.log(`🖥️ User ${socket.user?.username} stopping screen share in channel: ${channelId}`);
+        
+        // Leave screen share room
+        socket.leave(`screen:${channelId}`);
+        
+        // Notify others in the voice channel
+        socket.to(`voice:${channelId}`).emit('screen-share-stopped', {
+          channelId,
+          userId: socket.userId,
+          user: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
+        });
+        
+        console.log(`✅ Screen share stopped for user ${socket.user?.username}`);
+      } catch (error) {
+        console.error('Screen share stop error:', error);
+        socket.emit('error', { message: 'Failed to stop screen sharing' });
+      }
+    });
+
+    // Handle disconnection - SIMPLE
     socket.on('disconnect', async () => {
       // Remove from connected users
       connectedUsers.delete(socket.userId);

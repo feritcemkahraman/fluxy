@@ -53,6 +53,19 @@ class ElectronAPI {
     return null;
   }
 
+  // Screen capture for Electron
+  async getDesktopSources(options = {}) {
+    if (this.api) {
+      return await this.api.getDesktopSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 150, height: 150 },
+        fetchWindowIcons: true,
+        ...options
+      });
+    }
+    return [];
+  }
+
   // Clipboard
   writeClipboard(text) {
     if (this.api) {

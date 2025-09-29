@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeDelete: (key) => ipcRenderer.invoke('electron-store-delete', key),
   storeGetData: () => ipcRenderer.invoke('electron-store-get-data'),
 
+  // Screen capture for Discord-style screen sharing
+  getDesktopSources: (options) => ipcRenderer.invoke('get-desktop-sources', options),
+
   // Check if running in Electron
   isElectron: true
 });

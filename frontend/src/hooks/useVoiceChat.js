@@ -184,6 +184,68 @@ export const useVoiceChat = () => {
     setError(null);
   };
 
+  // Screen sharing actions
+  const startScreenShare = async () => {
+    try {
+      setError(null);
+      const stream = await voiceChatService.startScreenShare();
+      
+      // Add current user to screen sharing users
+      setScreenSharingUsers(prev => {
+        const userId = voiceChatService.currentUserId;
+        if (!prev.includes(userId)) {
+          return [...prev, userId];
+        }
+        return prev;
+      });
+
+      // Add stream to remote streams for display
+      setRemoteScreenStreams(prev => {
+        const newMap = new Map(prev);
+        newMap.set(voiceChatService.currentUserId, stream);
+        return newMap;
+      });
+
+      return stream;
+    } catch (err) {
+      console.error('Screen share start error:', err);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const stopScreenShare = async () => {
+    try {
+      setError(null);
+      await voiceChatService.stopScreenShare();
+      
+      // Remove current user from screen sharing users
+      setScreenSharingUsers(prev => 
+        prev.filter(userId => userId !== voiceChatService.currentUserId)
+      );
+
+      // Remove stream from remote streams
+      setRemoteScreenStreams(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(voiceChatService.currentUserId);
+        return newMap;
+      });
+
+      return true;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const adjustScreenQuality = async (quality) => {
+    try {
+      await voiceChatService.adjustScreenQuality(quality);
+    } catch (err) {
+      console.warn('Quality adjustment failed:', err);
+    }
+  };
+
   return {
     // State
     isConnected,
@@ -204,6 +266,11 @@ export const useVoiceChat = () => {
     toggleMute,
     toggleDeafen,
     clearError,
-    setParticipants
+    setParticipants,
+    
+    // Screen sharing actions
+    startScreenShare,
+    stopScreenShare,
+    adjustScreenQuality
   };
 };

@@ -252,6 +252,200 @@ class VoiceChatService {
     });
   }
 
+  // Screen sharing functionality
+  async startScreenShare(options = {}) {
+    try {
+      console.log('🖥️ Starting screen share...');
+      
+      let constraints;
+      
+      // Electron-specific screen picker
+      if (electronAPI.isElectron()) {
+        console.log('🖥️ Using Electron screen picker...');
+        
+        let sourceId;
+        
+        // If source is provided from picker, use it
+        if (options.sourceId) {
+          sourceId = options.sourceId;
+          console.log('🖥️ Using selected source:', options.sourceName);
+        } else {
+          // Fallback: get available sources and use first screen
+          const sources = await electronAPI.getDesktopSources();
+          
+          if (!sources || sources.length === 0) {
+            throw new Error('No screen sources available');
+          }
+          
+          const primaryScreen = sources.find(source => source.id.startsWith('screen:')) || sources[0];
+          sourceId = primaryScreen.id;
+        }
+        
+        constraints = {
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              // Enhanced quality for Electron
+              minWidth: 1280,
+              maxWidth: 1920,
+              minHeight: 720,
+              maxHeight: 1080,
+              minFrameRate: 15,
+              maxFrameRate: 60
+            }
+          },
+          audio: options.includeAudio ? {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false
+            }
+          } : false
+        };
+        
+        console.log('🖥️ Electron screen source selected:', options.sourceName || 'Primary Screen');
+      } else {
+        // Web browser fallback
+        constraints = {
+          video: {
+            mediaSource: 'screen',
+            // High quality settings
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 30, max: 60 },
+            cursor: 'always',
+            displaySurface: 'monitor'
+          },
+          audio: {
+            // Include system audio if available
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            sampleRate: 48000
+          }
+        };
+      }
+
+      // Get screen stream with enhanced quality
+      this.screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      
+      console.log('✅ Screen capture successful:', {
+        video: this.screenStream.getVideoTracks()[0]?.getSettings(),
+        audio: this.screenStream.getAudioTracks()[0]?.getSettings()
+      });
+
+      // Notify server
+      if (websocketService.socket?.connected && this.currentChannel) {
+        websocketService.socket.emit('start-screen-share', {
+          channelId: this.currentChannel,
+          userId: this.currentUserId
+        });
+      }
+
+      // Handle stream end (user stops sharing)
+      this.screenStream.getVideoTracks()[0].onended = () => {
+        console.log('🖥️ Screen share ended by user');
+        this.stopScreenShare();
+      };
+
+      this.emit('screen-share-started', {
+        userId: this.currentUserId,
+        stream: this.screenStream
+      });
+
+      return this.screenStream;
+    } catch (error) {
+      console.error('❌ Screen share failed:', error);
+      
+      // User-friendly error messages
+      let errorMessage = 'Ekran paylaşımı başlatılamadı';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Ekran paylaşımı izni reddedildi';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'Paylaşılacak ekran bulunamadı';
+      }
+
+      if (electronAPI.isElectron()) {
+        electronAPI.showNotification('Fluxy - Ekran Paylaşımı', errorMessage);
+      }
+      
+      throw new Error(errorMessage);
+    }
+  }
+
+  // Stop screen sharing
+  async stopScreenShare() {
+    try {
+      console.log('🖥️ Stopping screen share...');
+      
+      if (this.screenStream) {
+        this.screenStream.getTracks().forEach(track => track.stop());
+        this.screenStream = null;
+      }
+
+      // Notify server
+      if (websocketService.socket?.connected && this.currentChannel) {
+        websocketService.socket.emit('stop-screen-share', {
+          channelId: this.currentChannel,
+          userId: this.currentUserId
+        });
+      }
+
+      this.emit('screen-share-stopped', {
+        userId: this.currentUserId
+      });
+
+      console.log('✅ Screen share stopped');
+      return true;
+    } catch (error) {
+      console.error('❌ Stop screen share failed:', error);
+      throw error;
+    }
+  }
+
+  // Check if currently screen sharing
+  isScreenSharing() {
+    return this.screenStream && this.screenStream.active;
+  }
+
+  // Get screen sharing quality settings
+  getScreenQuality() {
+    if (!this.screenStream) return null;
+    
+    const videoTrack = this.screenStream.getVideoTracks()[0];
+    if (!videoTrack) return null;
+    
+    return videoTrack.getSettings();
+  }
+
+  // Adjust screen sharing quality
+  async adjustScreenQuality(quality = 'high') {
+    if (!this.screenStream) return;
+    
+    const videoTrack = this.screenStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const constraints = {
+      high: { width: 1920, height: 1080, frameRate: 30 },
+      medium: { width: 1280, height: 720, frameRate: 24 },
+      low: { width: 854, height: 480, frameRate: 15 }
+    };
+
+    try {
+      await videoTrack.applyConstraints({
+        ...constraints[quality],
+        mediaSource: 'screen'
+      });
+      
+      console.log(`🖥️ Screen quality adjusted to: ${quality}`);
+    } catch (error) {
+      console.warn('⚠️ Quality adjustment failed:', error);
+    }
+  }
+
   // Desktop-specific: Check if running in Electron
   isElectronApp() {
     return electronAPI.isElectron();

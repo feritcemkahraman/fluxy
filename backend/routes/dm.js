@@ -15,7 +15,7 @@ router.get('/conversations', auth, async (req, res) => {
     const conversations = await Conversation.find({
       participants: req.user.id
     })
-    .populate('participants', 'username avatar status discriminator')
+    .populate('participants', 'username displayName avatar status discriminator')
     .populate('lastMessage')
     .sort({ lastActivity: -1 });
 
@@ -201,7 +201,7 @@ router.post('/send', auth, [
     });
 
     await message.save();
-    await message.populate('author', 'username avatar discriminator');
+    await message.populate('author', 'username displayName avatar discriminator');
 
     // Update conversation
     conversation.lastMessage = message._id;

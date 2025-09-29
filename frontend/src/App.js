@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
-import AuthWrapper from './components/AuthWrapper';
+import { AuthWrapper } from './features/auth';
 import { initPerformanceOptimizations } from './utils/performance';
 // import performanceMonitor from './utils/performanceMonitor';
 import './index.css';

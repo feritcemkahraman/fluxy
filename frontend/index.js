@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeTheme, Notification, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeTheme, Notification, Menu, desktopCapturer } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const { autoUpdater } = require('electron-updater');
@@ -351,6 +351,33 @@ ipcMain.handle('read-clipboard', () => {
 
 ipcMain.on('set-theme', (event, theme) => {
   nativeTheme.themeSource = theme;
+});
+
+// Screen capture for Discord-style screen sharing
+ipcMain.handle('get-desktop-sources', async (event, options = {}) => {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 300, height: 200 },
+      fetchWindowIcons: true,
+      ...options
+    });
+    
+    // Convert thumbnails to data URLs for frontend
+    const sourcesWithDataUrls = sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      thumbnail: source.thumbnail ? source.thumbnail.toDataURL() : null,
+      display_id: source.display_id,
+      appIcon: source.appIcon ? source.appIcon.toDataURL() : null
+    }));
+    
+    console.log(`🖥️ Found ${sourcesWithDataUrls.length} desktop sources`);
+    return sourcesWithDataUrls;
+  } catch (error) {
+    console.error('❌ Failed to get desktop sources:', error);
+    throw error;
+  }
 });
 
 // Theme change listener - Limit event frequency

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { dmAPI, serverAPI } from "../services/api";
+import { messageService } from "../features/messages/services/messageService";
 import friendsAPI from '../services/friendsAPI';
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -31,7 +32,7 @@ import {
   Filter,
   Plus
 } from "lucide-react";
-import DirectMessageChat from "./DirectMessageChat";
+import { DirectMessageChat } from "../features/messages";
 
 const DirectMessages = ({ onChannelSelect }) => {
   const { user } = useAuth();
@@ -56,8 +57,17 @@ const DirectMessages = ({ onChannelSelect }) => {
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await dmAPI.getConversations();
-      setConversations(response.data.conversations || []);
+      console.log('🔄 Loading conversations with messageService...');
+      const response = await messageService.getConversations();
+      console.log('📥 Conversations response:', response);
+      
+      if (response.success) {
+        setConversations(response.data.conversations || []);
+      } else {
+        console.error('Failed to load conversations:', response.error);
+        setConversations([]);
+        toast.error('Sohbetler yüklenirken hata oluştu');
+      }
     } catch (error) {
       console.error('Failed to load conversations:', error);
       setConversations([]);
@@ -539,7 +549,7 @@ const DirectMessages = ({ onChannelSelect }) => {
   // Discord-style layout: Always show sidebar, chat on the right when selected
 
   return (
-    <div className="flex-1 flex h-full">
+    <div className="flex-1 flex h-full max-h-screen overflow-hidden">
       {/* Direct Messages Sidebar - Always Visible on Desktop, Hidden on Mobile when Chat is Open */}
       <div className={`w-72 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col h-full flex-shrink-0 ${
         selectedConversation ? 'hidden md:flex' : 'flex'
@@ -626,7 +636,7 @@ const DirectMessages = ({ onChannelSelect }) => {
       <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
         {selectedConversation ? (
           /* Chat Interface */
-          <div className="flex-1 flex flex-col relative">
+          <div className="flex-1 flex flex-col relative h-full max-h-full overflow-hidden">
             {/* Mobile Back Button */}
             <div className="md:hidden absolute top-4 left-4 z-10">
               <Button
