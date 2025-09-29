@@ -567,12 +567,25 @@ const DirectMessages = ({ onChannelSelect }) => {
           </div>
         </div>
 
-        {/* Direct Messages */}
+        {/* Direct Messages - Enhanced */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">
-            Direkt Mesajlar
-          </h3>
-          <div className="space-y-1">
+          <div className="mb-4 pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-white font-semibold text-base flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <MessageCircle className="w-4 h-4 text-blue-400" />
+                </div>
+                <span>Direkt Mesajlar</span>
+              </h3>
+              <div className="flex items-center space-x-2">
+                <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 text-xs">
+                  {conversations.length} sohbet
+                </Badge>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
             {conversations
               .filter(dm => 
                 dm.user?.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -580,53 +593,60 @@ const DirectMessages = ({ onChannelSelect }) => {
                 dm.name?.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map((dm) => (
-                <Button
+                <div
                   key={dm.id}
-                  variant="ghost"
                   onClick={() => handleConversationSelect(dm)}
-                  className="w-full justify-start p-3 text-left hover:bg-white/10 transition-colors rounded-md"
+                  className={`relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:from-gray-700/40 hover:to-gray-800/40 hover:border-white/20 hover:shadow-lg hover:shadow-black/20 transition-all duration-300 cursor-pointer group ${
+                    (dm.unreadCount > 0 || dm.unread > 0) ? 'ring-1 ring-blue-400/50 shadow-md shadow-blue-400/20' : ''
+                  }`}
                 >
-                  <div className="flex items-center space-x-2.5 w-full">
+                  <div className="flex items-center space-x-4">
                     {dm.type === "dm" ? (
                       <div className="relative">
-                        <Avatar className="w-8 h-8 ring-1 ring-white/10">
-                          <AvatarImage src={null} alt={dm.user?.username || "User"} />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                            {(dm.user?.username || "U").charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black/50 ${getStatusColor(dm.user?.status)}`} />
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
+                          <Avatar className="w-full h-full">
+                            <AvatarImage src={null} alt={dm.user?.username || "User"} />
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
+                              {(dm.user?.username || "U").charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        {/* Status dot removed as requested */}
                       </div>
                     ) : (
-                      <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                        <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
-                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white text-sm">
-                          {(dm.name || "G").charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
+                        <Avatar className="w-full h-full">
+                          <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
+                          <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-bold">
+                            {(dm.name || "G").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     )}
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-white truncate">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-white truncate">
                           {getDisplayName(dm.user, dm.name)}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                           {formatLastActivity(dm.lastMessage?.timestamp || dm.lastActivity)}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-sm text-gray-400 truncate">
                         {formatMessageContent(dm.lastMessage)}
                       </p>
                     </div>
                     
                     {(dm.unreadCount > 0 || dm.unread > 0) && (
-                      <Badge variant="destructive" className="text-xs px-1.5 py-0.5 min-w-[16px] h-4 flex items-center justify-center">
-                        {dm.unreadCount || dm.unread}
-                      </Badge>
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="destructive" className="bg-red-500/90 text-white text-xs px-2 py-1 min-w-[20px] h-5 flex items-center justify-center shadow-lg shadow-red-500/30">
+                          {dm.unreadCount || dm.unread}
+                        </Badge>
+                      </div>
                     )}
                   </div>
-                </Button>
+                </div>
               ))}
           </div>
         </div>
@@ -723,43 +743,65 @@ const DirectMessages = ({ onChannelSelect }) => {
               </div>
             </div>
 
-            {/* Recent Conversations */}
+            {/* Recent Conversations - Enhanced */}
             {conversations.length > 0 && (
               <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
                 <div className="p-4 border-b border-white/10">
-                  <h3 className="text-lg font-semibold text-white">Son Sohbetler</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-white font-semibold text-lg flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <MessageSquare className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <span>Son Sohbetler</span>
+                    </h3>
+                    <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 text-xs">
+                      {Math.min(conversations.length, 5)} / {conversations.length}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="p-4 space-y-3">
                   {conversations.slice(0, 5).map((dm) => (
                     <div 
                       key={dm.id}
                       onClick={() => handleConversationSelect(dm)}
-                      className="flex items-center space-x-3 p-4 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                      className="relative bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:from-gray-700/30 hover:to-gray-800/30 hover:border-white/20 hover:shadow-lg hover:shadow-black/20 transition-all duration-300 cursor-pointer group"
                     >
-                      {dm.type === "dm" ? (
-                        <div className="relative">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={null} alt={dm.user?.username || "User"} />
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                              {(dm.user?.username || "U").charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-black/50 ${getStatusColor(dm.user?.status)}`} />
+                      <div className="flex items-center space-x-4">
+                        {dm.type === "dm" ? (
+                          <div className="relative">
+                            <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
+                              <Avatar className="w-full h-full">
+                                <AvatarImage src={null} alt={dm.user?.username || "User"} />
+                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
+                                  {(dm.user?.username || "U").charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                            {/* Status dot removed */}
+                          </div>
+                        ) : (
+                          <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
+                            <Avatar className="w-full h-full">
+                              <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
+                              <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-bold">
+                                {(dm.name || "G").charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold text-white truncate">
+                              {getDisplayName(dm.user, dm.name)}
+                            </span>
+                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                              {formatLastActivity(dm.lastActivity)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400 truncate">
+                            {formatMessageContent(dm.lastMessage)}
+                          </p>
                         </div>
-                      ) : (
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
-                          <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white">
-                            {(dm.name || "G").charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium">{getDisplayName(dm.user, dm.name)}</div>
-                        <div className="text-sm text-gray-400 truncate">{formatMessageContent(dm.lastMessage)}</div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatLastActivity(dm.lastActivity)}
                       </div>
                     </div>
                   ))}
