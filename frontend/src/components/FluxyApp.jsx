@@ -726,20 +726,14 @@ const FluxyApp = () => {
   }, []); // Empty dependency - set up listeners only once
 
   const handleServerSelect = async (server) => {
-    // Leave voice channel when switching servers or going to DMs
-    if (isVoiceConnected && currentVoiceChannel) {
-      try {
-        await leaveVoiceChannel();
-      } catch (error) {
-        console.warn('Error leaving voice channel when switching servers:', error);
-      }
-    }
-
+    // Discord-like behavior: Stay in voice channel when switching servers/sections
+    // Only hide voice screen UI, don't leave the voice channel
+    
     if (server === "home") {
       setIsDirectMessages(true);
       setActiveServer(null);
       setActiveChannel(null);
-      setShowVoiceScreen(false); // Hide voice screen when going to DMs
+      setShowVoiceScreen(false); // Hide voice screen when going to DMs, but stay connected
     } else {
       setIsDirectMessages(false);
 
@@ -749,7 +743,7 @@ const FluxyApp = () => {
       }
 
       setActiveServer(server);
-      setShowVoiceScreen(false); // Hide voice screen when switching servers
+      setShowVoiceScreen(false); // Hide voice screen when switching servers, but stay connected
 
       // Find first text channel instead of just first channel
       if (server.channels && server.channels.length > 0) {
@@ -1039,7 +1033,7 @@ const FluxyApp = () => {
 
       {/* User Panel - Fixed at bottom */}
       {user && (
-        <UserPanel user={user} server={activeServer} />
+        <UserPanel user={user} server={activeServer} servers={servers} />
       )}
     </div>
   );

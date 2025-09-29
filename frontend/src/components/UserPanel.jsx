@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVoiceChat } from '../hooks/useVoiceChat';
 import { useAudio } from '../hooks/useAudio';
 
-const UserPanel = ({ user, server }) => {
+const UserPanel = ({ user, server, servers }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -141,11 +141,29 @@ const UserPanel = ({ user, server }) => {
     }
   };
 
-  // Get current channel name for display
+  // Get current channel name for display - search across all servers
   const getCurrentChannelName = () => {
-    if (!currentChannel || !server?.channels) return null;
-    const channel = server.channels.find(c => (c._id || c.id) === currentChannel);
-    return channel?.name || 'Bilinmeyen Kanal';
+    if (!currentChannel) return null;
+    
+    // First try current server (for performance)
+    if (server?.channels) {
+      const channel = server.channels.find(c => (c._id || c.id) === currentChannel);
+      if (channel) return channel.name;
+    }
+    
+    // If not found in current server, search all servers
+    if (servers && servers.length > 0) {
+      for (const srv of servers) {
+        if (srv.channels) {
+          const channel = srv.channels.find(c => (c._id || c.id) === currentChannel);
+          if (channel) {
+            return `${channel.name} (${srv.name})`;
+          }
+        }
+      }
+    }
+    
+    return 'Bilinmeyen Kanal';
   };
 
   if (!user) return null;
