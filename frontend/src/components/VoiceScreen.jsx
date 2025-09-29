@@ -211,8 +211,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     };
   }, [channel, currentUser]);
 
-  // Get current user's screen sharing status
-  const isCurrentUserScreenSharing = screenSharingUsers.includes(currentUser?._id || currentUser?.id);
+  // Screen sharing status will be calculated in render section
 
   // Handle remote screen streams
   useEffect(() => {
@@ -224,6 +223,55 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
       videoElement.autoplay = true;
       videoElement.playsInline = true;
       videoElement.muted = false; // Screen share can have audio
+      
+      // Adaptive playback for different refresh rates
+      videoElement.style.maxWidth = '100%';
+      videoElement.style.maxHeight = '100%';
+      videoElement.style.objectFit = 'contain';
+      
+      // Performance optimization for lower-end devices
+      videoElement.addEventListener('loadedmetadata', () => {
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          const settings = track.getSettings();
+          console.log('📺 Receiving stream:', {
+            width: settings.width,
+            height: settings.height,
+            frameRate: settings.frameRate,
+            displayRefreshRate: screen.refreshRate || 'Unknown',
+            isElectron: electronAPI?.isElectron() || false
+          });
+          
+          // Electron-specific optimizations
+          if (electronAPI?.isElectron()) {
+            // Enable hardware acceleration hints
+            videoElement.style.willChange = 'transform';
+            videoElement.style.backfaceVisibility = 'hidden';
+            videoElement.style.perspective = '1000px';
+            
+            // Check for hardware acceleration
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            const hasHardwareAccel = gl && gl.getParameter(gl.RENDERER).indexOf('Software') === -1;
+            
+            console.log('🖥️ Electron video optimization:', {
+              hardwareAcceleration: hasHardwareAccel,
+              gpuRenderer: gl?.getParameter(gl.RENDERER) || 'Unknown'
+            });
+            
+            if (!hasHardwareAccel && settings.frameRate > 60) {
+              console.warn('⚠️ High FPS without hardware acceleration - performance may be limited');
+              console.warn('💡 Enable --enable-gpu-rasterization flag for better performance');
+            }
+          }
+          
+          // Adaptive quality based on display capability
+          if (screen.refreshRate && settings.frameRate > screen.refreshRate * 1.5) {
+            console.log('💡 High FPS stream on lower refresh display - auto-adaptation active');
+          }
+        }
+      });
+      
       newVideos.set(userId, videoElement);
     });
     
@@ -278,12 +326,15 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         await stopScreenShare();
         console.log('🖥️ Screen sharing stopped');
       } else {
-        // Show Discord-style picker for Electron, direct start for browser
+        // ELECTRON-FIRST: Always use picker for Electron, fallback for browser
         if (electronAPI.isElectron()) {
+          console.log('🖥️ Opening Electron screen picker (primary method)');
           setShowScreenPicker(true);
         } else {
+          console.warn('⚠️ Browser fallback: Using basic screen sharing');
+          console.warn('💡 For advanced features, use the desktop app');
           await startScreenShare();
-          console.log('🖥️ Screen sharing started');
+          console.log('🖥️ Basic screen sharing started');
         }
       }
     } catch (error) {
@@ -291,15 +342,20 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     }
   };
 
-  const handleScreenSourceSelect = async ({ source, includeAudio }) => {
+  const handleScreenSourceSelect = async ({ source, includeAudio, quality }) => {
     try {
-      console.log('🖥️ Starting screen share with source:', source.name);
+      console.log('🖥️ Starting screen share with source:', source.name, 'Quality:', quality?.label);
       
       // Pass source info to voiceChatService
       await startScreenShare({
         sourceId: source.id,
         sourceName: source.name,
-        includeAudio
+        includeAudio,
+        quality: quality || {
+          width: 1920,
+          height: 1080,
+          frameRate: 60
+        }
       });
       
       console.log('✅ Screen sharing started with Discord-style picker');
@@ -308,12 +364,33 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     }
   };
 
+  // Full screen functionality
+  const handleFullScreen = (videoElement) => {
+    if (!videoElement) return;
+    
+    try {
+      if (videoElement.requestFullscreen) {
+        videoElement.requestFullscreen();
+      } else if (videoElement.webkitRequestFullscreen) {
+        videoElement.webkitRequestFullscreen();
+      } else if (videoElement.mozRequestFullScreen) {
+        videoElement.mozRequestFullScreen();
+      } else if (videoElement.msRequestFullscreen) {
+        videoElement.msRequestFullscreen();
+      }
+      console.log('🖥️ Entered full screen mode');
+    } catch (error) {
+      console.error('❌ Full screen failed:', error);
+    }
+  };
+
   if (!channel || channel.type !== 'voice') {
     return null;
   }
 
   const isInThisChannel = currentChannel === channel._id;
-
+  const currentUserId = voiceChatService.currentUserId;
+  const isCurrentUserScreenSharing = screenSharingUsers.includes(currentUserId);
   const hasScreenShares = screenSharingUsers.length > 0 || remoteScreenStreams.size > 0;
 
   return (
@@ -436,8 +513,18 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                               size="icon"
                               className="w-6 h-6 text-gray-400 hover:text-white hover:bg-white/10"
                               onClick={() => setExpandedScreenShare(isExpanded ? null : userId)}
+                              title={isExpanded ? "Küçült" : "Büyüt"}
                             >
                               {isExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-6 h-6 text-gray-400 hover:text-white hover:bg-white/10"
+                              onClick={() => handleFullScreen(videoElement)}
+                              title="Tam Ekran"
+                            >
+                              <Monitor className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
@@ -448,11 +535,14 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                             <div
                               ref={(ref) => {
                                 if (ref && videoElement && !ref.contains(videoElement)) {
-                                  videoElement.className = "w-full h-full object-contain rounded-lg";
+                                  videoElement.className = "w-full h-full object-contain rounded-lg cursor-pointer";
+                                  videoElement.addEventListener('dblclick', () => handleFullScreen(videoElement));
                                   ref.appendChild(videoElement);
                                 }
                               }}
-                              className="w-full h-full rounded-lg overflow-hidden"
+                              className="w-full h-full rounded-lg overflow-hidden cursor-pointer"
+                              onDoubleClick={() => handleFullScreen(videoElement)}
+                              title="Tam ekran için çift tıklayın"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-black/40 rounded-lg">
@@ -489,13 +579,22 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
             </div>
           ) : (
             <div className="p-4">
-              {/* Voice Participants Header */}
+              {/* Voice Participants Header - Enhanced */}
               {hasScreenShares && (
-                <div className="mb-4 pb-2 border-b border-white/10">
-                  <h3 className="text-white font-medium text-sm flex items-center space-x-2">
-                    <Volume2 className="w-4 h-4" />
-                    <span>Ses Katılımcıları ({participants.length})</span>
-                  </h3>
+                <div className="mb-6 pb-3 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-white font-semibold text-base flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                        <Volume2 className="w-4 h-4 text-green-400" />
+                      </div>
+                      <span>Ses Katılımcıları</span>
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 text-xs">
+                        {participants.length} kişi
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
               )}
               
@@ -503,78 +602,98 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                 {participants.map((participant) => (
                   <div
                     key={participant.user._id || participant.user.id}
-                    className={`relative bg-black/40 backdrop-blur-sm rounded-lg border-2 border-white/20 p-4 hover:bg-black/50 hover:border-white/30 hover:shadow-lg hover:shadow-white/10 transition-all duration-200 group min-w-[200px] min-h-[220px] hover-optimized ${
-                      hasScreenShares ? 'flex items-center space-x-3' : 'aspect-[4/5] flex flex-col items-center justify-center'
-                    } shadow-md`}
+                    className={`relative bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:from-gray-700/60 hover:to-gray-800/60 hover:border-white/20 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 group ${
+                      hasScreenShares ? 'flex items-center space-x-4 min-h-[70px]' : 'aspect-[4/5] flex flex-col items-center justify-center min-h-[180px]'
+                    } ${
+                      participant.isSpeaking ? 'ring-2 ring-green-400/50 shadow-lg shadow-green-400/20' : ''
+                    } ${
+                      participant.isCurrentUser ? 'ring-2 ring-blue-400/50 shadow-lg shadow-blue-400/20' : ''
+                    }`}
                   >
-                    {/* User Avatar Container */}
-                    <div className={`relative ${hasScreenShares ? '' : 'flex flex-col items-center mb-5'}`}>
-                      <div className={`relative ${hasScreenShares ? 'w-12 h-12' : 'w-20 h-20 md:w-24 md:h-24'} rounded-full overflow-hidden transition-all duration-200 ${
+                    {/* User Avatar Container - Enhanced */}
+                    <div className={`relative ${hasScreenShares ? '' : 'flex flex-col items-center mb-4'}`}>
+                      <div className={`relative ${hasScreenShares ? 'w-14 h-14' : 'w-24 h-24 md:w-28 md:h-28'} rounded-full overflow-hidden transition-all duration-300 ${
                         participant.isSpeaking
-                          ? 'ring-4 ring-green-400 ring-opacity-80 shadow-xl shadow-green-400/40 animate-pulse'
-                          : 'ring-2 ring-white/20 group-hover:ring-white/30'
+                          ? 'ring-3 ring-green-400 ring-opacity-90 shadow-2xl shadow-green-400/50 scale-105'
+                          : participant.isCurrentUser
+                            ? 'ring-3 ring-blue-400 ring-opacity-70 shadow-xl shadow-blue-400/30'
+                            : 'ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105'
                       }`}>
                         <Avatar className="w-full h-full">
                           <AvatarImage
-                            src={null}
+                            src={participant.user.avatar}
                             alt={participant.user.username || participant.user.displayName}
                             className="object-cover"
                           />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg font-semibold">
+                          <AvatarFallback className={`text-white font-bold text-lg ${
+                            participant.isCurrentUser 
+                              ? 'bg-gradient-to-br from-blue-500 to-blue-700'
+                              : participant.isSpeaking
+                                ? 'bg-gradient-to-br from-green-500 to-green-700'
+                                : 'bg-gradient-to-br from-gray-600 to-gray-800'
+                          }`}>
                             {(participant.user.username || participant.user.displayName || 'U').charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </div>
 
-                      {/* Speaking Animation - Static Green Ring */}
+                      {/* Status Indicators */}
                       {participant.isSpeaking && (
-                        <div className="absolute inset-0 rounded-full ring-4 ring-green-400 ring-opacity-80 shadow-lg shadow-green-400/50" />
+                        <div className="absolute -inset-1 rounded-full bg-green-400/20 animate-ping" />
                       )}
+                      
+                      {/* Online Status Dot */}
+                      <div className={`absolute ${hasScreenShares ? 'bottom-0 right-0' : 'bottom-1 right-1'} w-4 h-4 bg-green-500 border-2 border-gray-900 rounded-full`} />
                     </div>
 
-                    {/* User Info */}
+                    {/* User Info - Enhanced */}
                     <div className={`${hasScreenShares ? 'flex-1' : 'text-center w-full'}`}>
-                      <p className={`text-sm font-medium ${hasScreenShares ? '' : 'truncate'} ${
-                        participant.isCurrentUser
-                          ? 'text-white'
-                          : participant.isSpeaking
-                            ? 'text-green-400'
-                            : 'text-gray-300'
-                      }`}>
-                        {participant.user.displayName || participant.user.username}
-                      </p>
-                      {participant.isCurrentUser && (
-                        <p className="text-sm text-gray-400 mt-1">(Sen)</p>
-                      )}
+                      <div className="flex flex-col items-center space-y-1">
+                        <p className={`font-semibold ${hasScreenShares ? 'text-sm' : 'text-base'} ${hasScreenShares ? '' : 'truncate max-w-full'} ${
+                          participant.isCurrentUser
+                            ? 'text-blue-300'
+                            : participant.isSpeaking
+                              ? 'text-green-300'
+                              : 'text-white'
+                        }`}>
+                          {participant.user.displayName || participant.user.username}
+                        </p>
+                        
+                        {/* Status Badges */}
+                        <div className="flex items-center space-x-1">
+                          {participant.isCurrentUser && (
+                            <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs px-2 py-0.5">
+                              Sen
+                            </Badge>
+                          )}
+                          {participant.isSpeaking && (
+                            <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30 text-xs px-2 py-0.5 animate-pulse">
+                              Konuşuyor
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Mute/Deafen Status - Larger and Fixed Size */}
+                    {/* Mute/Deafen Status - Enhanced */}
                     {(participant.isMuted || participant.isDeafened) && (
-                      <div className={`flex ${hasScreenShares ? 'space-x-1' : 'space-x-2 absolute bottom-3 left-1/2 transform -translate-x-1/2'}`}>
+                      <div className={`flex ${hasScreenShares ? 'space-x-1' : 'space-x-2 absolute bottom-2 right-2'}`}>
                         {participant.isMuted && (
                           <div className={`${
                             hasScreenShares 
-                              ? 'w-4 h-4' 
-                              : 'w-6 h-6'
-                          } bg-red-500 rounded-full flex items-center justify-center border border-black/30 shadow-lg`}>
-                            <MicOff className={`${
-                              hasScreenShares 
-                                ? 'w-2.5 h-2.5' 
-                                : 'w-4 h-4'
-                            } text-white`} />
+                              ? 'w-5 h-5' 
+                              : 'w-7 h-7'
+                          } bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-red-400/50 shadow-lg shadow-red-500/30`}>
+                            <MicOff className={`${hasScreenShares ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} />
                           </div>
                         )}
                         {participant.isDeafened && (
                           <div className={`${
                             hasScreenShares 
-                              ? 'w-4 h-4' 
-                              : 'w-6 h-6'
-                          } bg-red-500 rounded-full flex items-center justify-center border border-black/30 shadow-lg`}>
-                            <HeadphonesIcon className={`${
-                              hasScreenShares 
-                                ? 'w-2.5 h-2.5' 
-                                : 'w-4 h-4'
-                            } text-white`} />
+                              ? 'w-5 h-5' 
+                              : 'w-7 h-7'
+                          } bg-gray-600/90 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-gray-500/50 shadow-lg shadow-gray-600/30`}>
+                            <HeadphonesIcon className={`${hasScreenShares ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} />
                           </div>
                         )}
                       </div>

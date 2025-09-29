@@ -8,7 +8,9 @@ import {
   X, 
   Check,
   Volume2,
-  VolumeX
+  VolumeX,
+  Settings,
+  Zap
 } from 'lucide-react';
 import electronAPI from '../utils/electronAPI';
 
@@ -17,10 +19,53 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
   const [selectedSource, setSelectedSource] = useState(null);
   const [includeAudio, setIncludeAudio] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState('HD');
+  const [isElectronApp, setIsElectronApp] = useState(false);
+
+  // Quality options with constraints
+  const qualityOptions = [
+    {
+      id: 'SD',
+      label: '720p SD',
+      description: 'Standard Definition',
+      width: 1280,
+      height: 720,
+      frameRate: 30,
+      icon: Settings
+    },
+    {
+      id: 'HD',
+      label: '1080p HD',
+      description: 'High Definition',
+      width: 1920,
+      height: 1080,
+      frameRate: 60,
+      icon: Monitor
+    },
+    {
+      id: '144Hz',
+      label: '1080p 144Hz',
+      description: 'Ultra High Refresh',
+      width: 1920,
+      height: 1080,
+      frameRate: 144,
+      icon: Zap,
+      note: '60Hz ekranlar otomatik uyum sağlar'
+    }
+  ];
 
   useEffect(() => {
-    if (isOpen && electronAPI.isElectron()) {
-      loadSources();
+    // Detect Electron environment
+    const isElectron = electronAPI.isElectron();
+    setIsElectronApp(isElectron);
+    
+    if (isOpen) {
+      if (isElectron) {
+        loadSources();
+      } else {
+        console.warn('⚠️ Screen picker opened in browser - limited functionality');
+        console.warn('💡 Download the desktop app for full screen sharing features');
+      }
     }
   }, [isOpen]);
 
@@ -37,6 +82,7 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
       const screens = desktopSources.filter(source => source.id.startsWith('screen:'));
       const windows = desktopSources.filter(source => source.id.startsWith('window:'));
       
+      // Combine with screens first
       setSources([...screens, ...windows]);
       
       // Auto-select first screen if available
@@ -52,9 +98,14 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
 
   const handleSelect = () => {
     if (selectedSource) {
+      const qualityConfig = qualityOptions.find(q => q.id === selectedQuality);
       onSelect({
         source: selectedSource,
-        includeAudio
+        includeAudio,
+        quality: {
+          ...qualityConfig,
+          id: selectedQuality
+        }
       });
       onClose();
     }
@@ -84,11 +135,25 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
         </div>
 
         {/* Content */}
-        <div className="p-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
+        <div className="flex-1 overflow-y-auto p-4">
+          {!isElectronApp ? (
+            // Browser fallback message
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center max-w-md">
+                <Monitor className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h3 className="text-white text-lg font-semibold mb-2">Desktop App Gerekli</h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  Gelişmiş ekran paylaşımı özellikleri için Fluxy desktop uygulamasını indirin.
+                </p>
+                <p className="text-gray-500 text-xs">
+                  Tarayıcı sürümü temel ekran paylaşımını destekler ancak pencere seçimi ve kalite kontrolü mevcut değildir.
+                </p>
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
                 <p className="text-gray-400">Ekranlar yükleniyor...</p>
               </div>
             </div>
@@ -117,23 +182,16 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
                             src={source.thumbnail}
                             alt={source.name}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextElementSibling.style.display = 'flex';
-                            }}
                           />
-                        ) : null}
-                        {/* Fallback icon if no thumbnail */}
-                        <div 
-                          className={`absolute inset-0 w-full h-full flex items-center justify-center ${source.thumbnail ? 'hidden' : 'flex'}`}
-                          style={{ display: source.thumbnail ? 'none' : 'flex' }}
-                        >
-                          {source.id.startsWith('screen:') ? (
-                            <Monitor className="w-12 h-12 text-gray-500" />
-                          ) : (
-                            <AppWindow className="w-12 h-12 text-gray-500" />
-                          )}
-                        </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            {isScreen ? (
+                              <Monitor className="w-12 h-12 text-gray-400" />
+                            ) : (
+                              <AppWindow className="w-12 h-12 text-gray-400" />
+                            )}
+                          </div>
+                        )}
                       </div>
                       
                       {/* Info */}
@@ -193,6 +251,43 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
                   </p>
                 </div>
               </div>
+
+              {/* Quality Selector */}
+              <div className="mb-6">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Settings className="w-4 h-4 text-blue-400" />
+                  <p className="text-white font-medium">Kalite Ayarları</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {qualityOptions.map((option) => {
+                    const IconComponent = option.icon;
+                    const isSelected = selectedQuality === option.id;
+                    
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => setSelectedQuality(option.id)}
+                        className={`p-3 rounded-lg border transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                            : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:bg-gray-700/50 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center space-y-1">
+                          <IconComponent className="w-5 h-5" />
+                          <span className="text-xs font-medium">{option.label}</span>
+                          <span className="text-xs opacity-70">{option.description}</span>
+                          {option.note && (
+                            <span className="text-xs opacity-50 text-center leading-tight">
+                              {option.note}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -200,18 +295,27 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-gray-700">
           <p className="text-gray-400 text-sm">
-            {selectedSource ? `Seçili: ${selectedSource.name}` : 'Paylaşmak istediğiniz ekran veya pencereyi seçin'}
+            {!isElectronApp 
+              ? 'Electron desktop app gerekli - tarayıcıda sınırlı özellikler'
+              : selectedSource 
+                ? `Seçili: ${selectedSource.name}` 
+                : 'Paylaşmak istediğiniz ekran veya pencereyi seçin'
+            }
           </p>
           <div className="flex space-x-3">
-            <Button variant="ghost" onClick={handleCancel}>
+            <Button 
+              variant="ghost" 
+              onClick={handleCancel}
+              className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600"
+            >
               İptal
             </Button>
             <Button 
               onClick={handleSelect}
-              disabled={!selectedSource || loading}
-              className="bg-blue-600 hover:bg-blue-700"
+              disabled={(!selectedSource || loading) && isElectronApp}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Paylaş
+              {isElectronApp ? 'Paylaş' : 'Temel Paylaşım'}
             </Button>
           </div>
         </div>

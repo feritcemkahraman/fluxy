@@ -252,24 +252,27 @@ class VoiceChatService {
     });
   }
 
-  // Screen sharing functionality
+  // Screen sharing functionality - ELECTRON-FIRST APPROACH
   async startScreenShare(options = {}) {
     try {
-      console.log('🖥️ Starting screen share...');
+      console.log('🖥️ Starting screen share (Electron-First)...');
       
-      let constraints;
+      let constraints = null;
       
-      // Electron-specific screen picker
+      // PRIMARY: Electron native implementation
       if (electronAPI.isElectron()) {
         console.log('🖥️ Using Electron screen picker...');
         
         let sourceId;
         
+        console.log('🔍 Screen share options received:', options);
+        
         // If source is provided from picker, use it
         if (options.sourceId) {
           sourceId = options.sourceId;
-          console.log('🖥️ Using selected source:', options.sourceName);
+          console.log('🖥️ Using selected source ID:', sourceId, 'Name:', options.sourceName);
         } else {
+          console.log('⚠️ No sourceId provided, using fallback');
           // Fallback: get available sources and use first screen
           const sources = await electronAPI.getDesktopSources();
           
@@ -279,6 +282,20 @@ class VoiceChatService {
           
           const primaryScreen = sources.find(source => source.id.startsWith('screen:')) || sources[0];
           sourceId = primaryScreen.id;
+          console.log('🔄 Fallback to:', sourceId);
+        }
+        
+        // For window sharing, audio often fails - try video first
+        const isWindowShare = sourceId.startsWith('window:');
+        
+        // Apply quality settings from options
+        const quality = options.quality || { width: 1920, height: 1080, frameRate: 60 };
+        console.log('🎯 Applying quality settings:', quality);
+        
+        // 144Hz optimization - add minimum constraints for high refresh
+        const is144Hz = quality.frameRate >= 144;
+        if (is144Hz) {
+          console.log('⚡ 144Hz mode detected - applying optimizations');
         }
         
         constraints = {
@@ -286,16 +303,19 @@ class VoiceChatService {
             mandatory: {
               chromeMediaSource: 'desktop',
               chromeMediaSourceId: sourceId,
-              // Enhanced quality for Electron
-              minWidth: 1280,
-              maxWidth: 1920,
-              minHeight: 720,
-              maxHeight: 1080,
-              minFrameRate: 15,
-              maxFrameRate: 60
+              // Dynamic quality constraints based on user selection
+              maxWidth: quality.width,
+              maxHeight: quality.height,
+              maxFrameRate: quality.frameRate,
+              // 144Hz optimization - force minimum frame rate
+              ...(is144Hz && {
+                minFrameRate: 120, // Minimum 120 FPS for 144Hz mode
+                minWidth: quality.width,
+                minHeight: quality.height
+              })
             }
           },
-          audio: options.includeAudio ? {
+          audio: (options.includeAudio && !isWindowShare) ? {
             mandatory: {
               chromeMediaSource: 'desktop',
               chromeMediaSourceId: sourceId,
@@ -306,36 +326,88 @@ class VoiceChatService {
           } : false
         };
         
+        // Log warning for window audio
+        if (options.includeAudio && isWindowShare) {
+          console.warn('⚠️ Audio sharing not supported for window capture, using video only');
+        }
+        
         console.log('🖥️ Electron screen source selected:', options.sourceName || 'Primary Screen');
+        console.log('🔧 Electron constraints:', JSON.stringify(constraints, null, 2));
       } else {
-        // Web browser fallback
+        // FALLBACK: Web browser (limited functionality)
+        console.warn('⚠️ Running in browser mode - limited screen sharing capabilities');
+        console.warn('💡 For best experience, use the Electron desktop app');
+        
+        const quality = options.quality || { width: 1920, height: 1080, frameRate: 60 };
+        console.log('🌐 Browser fallback quality:', quality);
+        
+        // Simplified constraints for browser fallback
         constraints = {
           video: {
-            mediaSource: 'screen',
-            // High quality settings
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 },
-            frameRate: { ideal: 30, max: 60 },
-            cursor: 'always',
-            displaySurface: 'monitor'
+            width: { ideal: Math.min(quality.width, 1920) }, // Limit browser resolution
+            height: { ideal: Math.min(quality.height, 1080) },
+            frameRate: { ideal: Math.min(quality.frameRate, 60) }, // Limit browser FPS
+            cursor: 'always'
           },
-          audio: {
-            // Include system audio if available
+          audio: options.includeAudio !== false ? {
             echoCancellation: false,
             noiseSuppression: false,
-            autoGainControl: false,
-            sampleRate: 48000
-          }
+            autoGainControl: false
+          } : false
         };
+        
+        // Browser limitations warning
+        if (quality.frameRate > 60) {
+          console.warn('⚠️ Browser fallback: 144Hz not supported, using 60Hz');
+        }
       }
 
       // Get screen stream with enhanced quality
-      this.screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      if (electronAPI.isElectron()) {
+        // For Electron, use getUserMedia with desktop source
+        try {
+          this.screenStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (audioError) {
+          // If audio fails, try video only
+          if (audioError.name === 'NotReadableError' && constraints.audio) {
+            console.warn('⚠️ Audio capture failed, retrying with video only:', audioError.message);
+            const videoOnlyConstraints = {
+              ...constraints,
+              audio: false
+            };
+            this.screenStream = await navigator.mediaDevices.getUserMedia(videoOnlyConstraints);
+          } else {
+            throw audioError;
+          }
+        }
+      } else {
+        // Use getDisplayMedia for browser
+        this.screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      }
+      
+      const videoTrack = this.screenStream.getVideoTracks()[0];
+      const audioTrack = this.screenStream.getAudioTracks()[0];
       
       console.log('✅ Screen capture successful:', {
-        video: this.screenStream.getVideoTracks()[0]?.getSettings(),
-        audio: this.screenStream.getAudioTracks()[0]?.getSettings()
+        video: videoTrack?.getSettings(),
+        audio: audioTrack?.getSettings()
       });
+
+      // 144Hz performance monitoring
+      if (videoTrack && options.quality?.frameRate >= 144) {
+        const settings = videoTrack.getSettings();
+        console.log('⚡ 144Hz Performance Check:', {
+          actualFrameRate: settings.frameRate,
+          actualWidth: settings.width,
+          actualHeight: settings.height,
+          isOptimal: settings.frameRate >= 120
+        });
+        
+        if (settings.frameRate < 120) {
+          console.warn('⚠️ 144Hz mode aktif ama gerçek FPS düşük:', settings.frameRate);
+          console.warn('💡 Sistem performansını kontrol edin (GPU, CPU kullanımı)');
+        }
+      }
 
       // Notify server
       if (websocketService.socket?.connected && this.currentChannel) {
@@ -359,6 +431,12 @@ class VoiceChatService {
       return this.screenStream;
     } catch (error) {
       console.error('❌ Screen share failed:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        constraints: constraints
+      });
       
       // User-friendly error messages
       let errorMessage = 'Ekran paylaşımı başlatılamadı';
@@ -366,6 +444,10 @@ class VoiceChatService {
         errorMessage = 'Ekran paylaşımı izni reddedildi';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'Paylaşılacak ekran bulunamadı';
+      } else if (error.message.includes('min constraints')) {
+        errorMessage = 'Ekran paylaşımı ayarları desteklenmiyor';
+      } else if (error.message.includes('getDisplayMedia')) {
+        errorMessage = 'Tarayıcı ekran paylaşımını desteklemiyor';
       }
 
       if (electronAPI.isElectron()) {

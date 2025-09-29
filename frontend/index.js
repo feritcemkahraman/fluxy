@@ -14,6 +14,19 @@ if (process.platform === 'win32') {
   app.commandLine.appendSwitch('--no-sandbox');
 }
 
+// GPU and video optimization for high FPS screen sharing
+app.commandLine.appendSwitch('--enable-gpu-rasterization');
+app.commandLine.appendSwitch('--enable-zero-copy');
+app.commandLine.appendSwitch('--enable-hardware-overlays');
+app.commandLine.appendSwitch('--enable-accelerated-video-decode');
+app.commandLine.appendSwitch('--enable-accelerated-mjpeg-decode');
+app.commandLine.appendSwitch('--enable-gpu-memory-buffer-video-frames');
+app.commandLine.appendSwitch('--disable-software-rasterizer');
+
+// High refresh rate display support
+app.commandLine.appendSwitch('--disable-frame-rate-limit');
+app.commandLine.appendSwitch('--disable-gpu-vsync');
+
 // Completely suppress ALL Electron security warnings
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 process.env.ELECTRON_ENABLE_SECURITY_WARNINGS = 'false';

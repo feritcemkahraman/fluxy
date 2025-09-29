@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import voiceChatService from '../services/voiceChat';
 import websocketService from '../services/websocket';
 
 export const useVoiceChat = () => {
+  // State management
   const [isConnected, setIsConnected] = useState(false);
   const [currentChannel, setCurrentChannel] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -15,110 +16,144 @@ export const useVoiceChat = () => {
   const [remoteScreenStreams, setRemoteScreenStreams] = useState(new Map());
   const [screenSharingUsers, setScreenSharingUsers] = useState([]);
 
-  // Use refs to prevent infinite loops
-  const handlersRef = useRef({});
+  // Refs for cleanup and preventing memory leaks
   const mountedRef = useRef(true);
+  const updateTimeoutRef = useRef(null);
+
+  // Screen sharing event handlers - Defined at component level
+  const handleScreenShareStarted = useCallback((data) => {
+    if (!mountedRef.current) return;
+    
+    console.log('🖥️ Screen share started:', data);
+    const { userId, stream } = data;
+    
+    setScreenSharingUsers(prev => {
+      if (!prev.includes(userId)) {
+        return [...prev, userId];
+      }
+      return prev;
+    });
+
+    if (stream) {
+      setRemoteScreenStreams(prev => {
+        const newMap = new Map(prev);
+        newMap.set(userId, stream);
+        return newMap;
+      });
+    }
+  }, []);
+
+  const handleScreenShareStopped = useCallback((data) => {
+    if (!mountedRef.current) return;
+    
+    console.log('🖥️ Screen share stopped:', data);
+    const { userId } = data;
+    
+    setScreenSharingUsers(prev => prev.filter(id => id !== userId));
+    setRemoteScreenStreams(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(userId);
+      return newMap;
+    });
+  }, []);
+
+  // Voice service event handlers - Component level for clean scope
+  const handleConnected = useCallback(({ channelId }) => {
+    if (!mountedRef.current) return;
+    setIsConnected(true);
+    setCurrentChannel(channelId);
+    setError(null);
+  }, []);
+
+  const handleDisconnected = useCallback(({ channelId }) => {
+    if (!mountedRef.current) return;
+    setIsConnected(false);
+    setCurrentChannel(null);
+    setParticipants([]);
+    setError(null);
+  }, []);
+
+  const handleParticipantsChanged = useCallback((newParticipants) => {
+    if (!mountedRef.current) return;
+    setParticipants(prev => {
+      // Prevent unnecessary updates
+      if (JSON.stringify(prev) === JSON.stringify(newParticipants)) {
+        return prev;
+      }
+      return newParticipants;
+    });
+  }, []);
+
+  const handleMuteChanged = useCallback((muted) => {
+    if (!mountedRef.current) return;
+    setIsMuted(muted);
+  }, []);
+
+  const handleDeafenChanged = useCallback((deafened) => {
+    if (!mountedRef.current) return;
+    setIsDeafened(deafened);
+  }, []);
+
+  // WebSocket event handlers with throttling - Component level
+  const handleVoiceChannelUpdate = useCallback((data) => {
+    if (!mountedRef.current) return;
+    
+    // Throttle updates to prevent stack overflow
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    updateTimeoutRef.current = setTimeout(() => {
+      const { channelId, users, action, userId } = data;
+      
+      // Update participants based on server data with full user info
+      const newParticipants = users.map(userInfo => {
+        // Handle both old format (userId string) and new format (user object)
+        if (typeof userInfo === 'string') {
+          return {
+            user: { id: userInfo, username: 'Unknown User' },
+            isMuted: false,
+            isDeafened: false,
+            isCurrentUser: userInfo === voiceChatService.currentUserId,
+            isSpeaking: false
+          };
+        } else {
+          // New format with full user details
+          return {
+            user: {
+              id: userInfo.id || userInfo._id,
+              _id: userInfo._id || userInfo.id,
+              username: userInfo.username || 'Unknown User',
+              displayName: userInfo.displayName || userInfo.username || 'Unknown User',
+              avatar: userInfo.avatar,
+              status: userInfo.status
+            },
+            isMuted: userInfo.isMuted || false,
+            isDeafened: userInfo.isDeafened || false,
+            isCurrentUser: userInfo.isCurrentUser || (userInfo.id === voiceChatService.currentUserId),
+            isSpeaking: userInfo.isSpeaking || false
+          };
+        }
+      });
+      
+      setParticipants(newParticipants);
+      
+      // If current user left, disconnect
+      if (action === 'leave' && userId === voiceChatService.currentUserId) {
+        setIsConnected(false);
+        setParticipants([]);
+      }
+    }, 50); // 50ms throttle
+  }, []);
 
   useEffect(() => {
-    // Voice service event handlers - Remove mounted check
-    const handleConnected = ({ channelId }) => {
-      setIsConnected(true);
-      setCurrentChannel(channelId);
-      setError(null);
-    };
 
-    const handleDisconnected = ({ channelId }) => {
-      setIsConnected(false);
-      setCurrentChannel(null);
-      setParticipants([]);
-      setError(null);
-    };
 
-    const handleParticipantsChanged = (newParticipants) => {
-      setParticipants(prev => {
-        // Prevent unnecessary updates
-        if (JSON.stringify(prev) === JSON.stringify(newParticipants)) {
-          return prev;
-        }
-        return newParticipants;
-      });
-    };
-
-    const handleMuteChanged = (muted) => {
-      setIsMuted(muted);
-    };
-
-    const handleDeafenChanged = (deafened) => {
-      setIsDeafened(deafened);
-    };
-
-    // WebSocket event handlers with throttling
-    let updateTimeout;
-    const handleVoiceChannelUpdate = (data) => {
-      if (!mountedRef.current) return;
-      
-      // Throttle updates to prevent stack overflow
-      if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(() => {
-        const { channelId, users, action, userId } = data;
-        
-        // Update participants based on server data with full user info
-        const newParticipants = users.map(userInfo => {
-          // Handle both old format (userId string) and new format (user object)
-          if (typeof userInfo === 'string') {
-            return {
-              user: { id: userInfo, username: 'Unknown User' },
-              isMuted: false,
-              isDeafened: false,
-              isCurrentUser: userInfo === voiceChatService.currentUserId,
-              isSpeaking: false
-            };
-          } else {
-            // New format with full user details
-            return {
-              user: {
-                id: userInfo.id || userInfo._id,
-                _id: userInfo._id || userInfo.id,
-                username: userInfo.username || 'Unknown User',
-                displayName: userInfo.displayName || userInfo.username || 'Unknown User',
-                avatar: userInfo.avatar,
-                status: userInfo.status
-              },
-              isMuted: userInfo.isMuted || false,
-              isDeafened: userInfo.isDeafened || false,
-              isCurrentUser: userInfo.isCurrentUser || (userInfo.id === voiceChatService.currentUserId),
-              isSpeaking: userInfo.isSpeaking || false
-            };
-          }
-        });
-        
-        setParticipants(newParticipants);
-        
-        // If current user left, disconnect
-        if (action === 'leave' && userId === voiceChatService.currentUserId) {
-          setIsConnected(false);
-          setCurrentChannel(null);
-          setParticipants([]);
-        }
-      }, 50); // 50ms throttle
-    };
-
-    // Store handlers in ref to prevent recreation
-    handlersRef.current = {
-      handleConnected,
-      handleDisconnected,
-      handleParticipantsChanged,
-      handleMuteChanged,
-      handleDeafenChanged,
-      handleVoiceChannelUpdate
-    };
-
-    // Add voice service listeners
+    // Setup event listeners
     voiceChatService.on('connected', handleConnected);
     voiceChatService.on('disconnected', handleDisconnected);
     voiceChatService.on('participantsChanged', handleParticipantsChanged);
     voiceChatService.on('muteChanged', handleMuteChanged);
     voiceChatService.on('deafenChanged', handleDeafenChanged);
+    voiceChatService.on('screen-share-started', handleScreenShareStarted);
+    voiceChatService.on('screen-share-stopped', handleScreenShareStopped);
 
     // Add websocket listeners
     websocketService.on('voiceChannelUpdate', handleVoiceChannelUpdate);
@@ -135,20 +170,33 @@ export const useVoiceChat = () => {
       console.warn('Failed to get initial voice chat state:', error);
     }
 
-    // Cleanup
+    // Cleanup function
     return () => {
       mountedRef.current = false;
-      if (updateTimeout) clearTimeout(updateTimeout);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
       
-      const handlers = handlersRef.current;
-      voiceChatService.off('connected', handlers.handleConnected);
-      voiceChatService.off('disconnected', handlers.handleDisconnected);
-      voiceChatService.off('participantsChanged', handlers.handleParticipantsChanged);
-      voiceChatService.off('muteChanged', handlers.handleMuteChanged);
-      voiceChatService.off('deafenChanged', handlers.handleDeafenChanged);
-      websocketService.off('voiceChannelUpdate', handlers.handleVoiceChannelUpdate);
+      // Remove event listeners
+      voiceChatService.off('connected', handleConnected);
+      voiceChatService.off('disconnected', handleDisconnected);
+      voiceChatService.off('participantsChanged', handleParticipantsChanged);
+      voiceChatService.off('muteChanged', handleMuteChanged);
+      voiceChatService.off('deafenChanged', handleDeafenChanged);
+      voiceChatService.off('screen-share-started', handleScreenShareStarted);
+      voiceChatService.off('screen-share-stopped', handleScreenShareStopped);
+      websocketService.off('voiceChannelUpdate', handleVoiceChannelUpdate);
     };
-  }, []); // Empty dependency array to run only once
+  }, [
+    handleConnected,
+    handleDisconnected,
+    handleParticipantsChanged,
+    handleMuteChanged,
+    handleDeafenChanged,
+    handleScreenShareStarted,
+    handleScreenShareStopped,
+    handleVoiceChannelUpdate
+  ]); // Dependencies for all handlers
 
   // Actions
   const joinChannel = async (channelId) => {
@@ -184,11 +232,13 @@ export const useVoiceChat = () => {
     setError(null);
   };
 
+
   // Screen sharing actions
-  const startScreenShare = async () => {
+  const startScreenShare = async (options = {}) => {
     try {
       setError(null);
-      const stream = await voiceChatService.startScreenShare();
+      console.log('🎯 useVoiceChat startScreenShare called with options:', options);
+      const stream = await voiceChatService.startScreenShare(options);
       
       // Add current user to screen sharing users
       setScreenSharingUsers(prev => {
