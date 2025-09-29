@@ -39,7 +39,12 @@ export function useSocket() {
     return socketService.isAuth();
   }, []);
 
+  const getSocket = useCallback(() => {
+    return socketService.getSocket();
+  }, []);
+
   return {
+    socket: socketService.getSocket(), // Direct socket access
     sendMessage,
     joinChannel,
     leaveChannel,
@@ -48,6 +53,7 @@ export function useSocket() {
     updateStatus,
     on,
     isConnected,
-    isAuthenticated
+    isAuthenticated,
+    getSocket
   };
 }

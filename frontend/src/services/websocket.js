@@ -522,6 +522,10 @@ class WebSocketService {
     return this.isAuthenticated;
   }
 
+  getSocket() {
+    return this.socket;
+  }
+
   getCurrentChannel() {
     return this.currentChannel;
   }

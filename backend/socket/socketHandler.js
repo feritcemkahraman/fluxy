@@ -651,6 +651,18 @@ const handleConnection = (io) => {
       }
     });
 
+    // Voice activity - speaking status
+    socket.on('voiceCall:speaking', async ({ targetUserId, isSpeaking }) => {
+      try {
+        io.to(`user_${targetUserId}`).emit('voiceCall:remoteSpeaking', {
+          userId: socket.userId,
+          isSpeaking
+        });
+      } catch (error) {
+        console.error('Voice activity error:', error);
+      }
+    });
+
     // ==================== END VOICE CALL EVENTS ====================
 
     // Handle disconnect

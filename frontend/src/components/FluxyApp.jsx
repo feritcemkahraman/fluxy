@@ -5,13 +5,14 @@ import ChatArea from "./ChatArea";
 import MemberList from "./MemberList";
 import DirectMessages from "./DirectMessages";
 import VoiceScreen from "./VoiceScreen";
-import VoiceCallModal from "./VoiceCallModal";
 import DesktopTitleBar from "./DesktopTitleBar";
 import DesktopNotifications from "./DesktopNotifications";
 import UserPanel from "./UserPanel";
+import IncomingCallModal from "./IncomingCallModal";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import voiceChatService from "../services/voiceChat";
+import voiceCallService from "../services/voiceCallService";
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { useVoiceCall } from "../hooks/useVoiceCall";
 import { serverAPI, channelAPI } from "../services/api";
@@ -22,19 +23,35 @@ import electronAPI from "../utils/electronAPI";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
-  const { isConnected, on } = useSocket();
+  const { socket, isConnected, on } = useSocket();
   const { 
     isConnected: isVoiceConnected, 
     currentChannel: currentVoiceChannel,
     participants: voiceParticipants,
     connectedUsers,
-    isMuted,
+    isMuted: isVoiceChatMuted,
     isDeafened,
     joinChannel: joinVoiceChannel,
     leaveChannel: leaveVoiceChannel
   } = useVoiceChat();
   
-  const { incomingCall, currentCall } = useVoiceCall();
+  const { 
+    incomingCall, 
+    currentCall, 
+    callState, 
+    initiateCall: initiateVoiceCall,
+    acceptCall,
+    rejectCall, 
+    endCall, 
+    toggleMute, 
+    isSpeaking, 
+    remoteSpeaking, 
+    isMuted,
+    callDuration,
+    isScreenSharing,
+    startScreenShare
+  } = useVoiceCall();
+  
   
   const [servers, setServers] = useState([]);
   const [activeServer, setActiveServer] = useState(null);
@@ -48,6 +65,14 @@ const FluxyApp = () => {
   const activeServerId = activeServer?._id || activeServer?.id;
   const activeChannelId = activeChannel?._id || activeChannel?.id;
   
+  // Initialize voice call service when socket is ready
+  useEffect(() => {
+    if (socket && socket.connected && user) {
+      console.log('🎤 Initializing voice call service in FluxyApp');
+      voiceCallService.initialize(socket);
+    }
+  }, [socket, socket?.connected, user]);
+
   // Create voiceChannelParticipants Map from voiceParticipants array
   const voiceChannelParticipants = useMemo(() => {
     const participantsMap = new Map();
@@ -961,6 +986,17 @@ const FluxyApp = () => {
             }}
             targetUserId={targetUserId}
             clearSelection={clearDMSelection}
+            initiateVoiceCall={initiateVoiceCall}
+            currentCall={currentCall}
+            callState={callState}
+            endCall={endCall}
+            toggleMute={toggleMute}
+            isSpeaking={isSpeaking}
+            remoteSpeaking={remoteSpeaking}
+            isMuted={isMuted}
+            callDuration={callDuration}
+            isScreenSharing={isScreenSharing}
+            startScreenShare={startScreenShare}
           />
         ) : (
           <>
@@ -1071,12 +1107,20 @@ const FluxyApp = () => {
         <UserPanel user={user} server={activeServer} servers={servers} />
       )}
 
-      {/* Voice Call Modal - Incoming or Outgoing Call */}
-      {(incomingCall || currentCall) && (
-        <VoiceCallModal
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <IncomingCallModal
           isOpen={true}
-          onClose={() => {}}
-          callData={incomingCall || currentCall}
+          callData={incomingCall}
+          onAccept={async () => {
+            const result = await acceptCall();
+            if (!result.success) {
+              toast.error(result.error || 'Arama kabul edilemedi');
+            }
+          }}
+          onReject={() => {
+            rejectCall();
+          }}
         />
       )}
     </div>

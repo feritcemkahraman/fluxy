@@ -98,6 +98,11 @@ class VoiceCallService {
       console.error('❌ Voice call error:', data.message);
       this.emit('callError', data);
     });
+
+    // Remote speaking status
+    this.socket.on('voiceCall:remoteSpeaking', (data) => {
+      this.emit('remoteSpeaking', data);
+    });
   }
 
   // Initiate a call
@@ -336,28 +341,91 @@ class VoiceCallService {
 
   // Mute/unmute microphone
   toggleMute() {
-    if (!this.localStream) return false;
+    if (!this.localStream) return { isMuted: false };
     
     const audioTrack = this.localStream.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
-      this.emit('muteToggled', !audioTrack.enabled);
-      return !audioTrack.enabled;
+      const isMuted = !audioTrack.enabled;
+      this.emit('muteToggled', isMuted);
+      return { isMuted };
     }
-    return false;
+    return { isMuted: false };
   }
 
   // Enable/disable video
   toggleVideo() {
-    if (!this.localStream) return false;
+    if (!this.localStream) return { isVideoOff: false };
     
     const videoTrack = this.localStream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
-      this.emit('videoToggled', !videoTrack.enabled);
-      return !videoTrack.enabled;
+      const isVideoOff = !videoTrack.enabled;
+      this.emit('videoToggled', isVideoOff);
+      return { isVideoOff };
     }
-    return false;
+    return { isVideoOff: false };
+  }
+
+  /**
+   * Send speaking status to remote user
+   * @param {string} targetUserId - Target user ID
+   * @param {boolean} isSpeaking - Whether user is currently speaking
+   */
+  sendSpeakingStatus(targetUserId, isSpeaking) {
+    if (!this.socket) return;
+    
+    this.socket.emit('voiceCall:speaking', {
+      targetUserId,
+      isSpeaking
+    });
+  }
+
+  /**
+   * Start screen sharing
+   * @returns {Promise<{success: boolean, stream?: MediaStream, error?: string}>}
+   */
+  async startScreenShare() {
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: 'always',
+          displaySurface: 'monitor'
+        },
+        audio: false
+      });
+
+      // Replace video track in peer connection
+      if (this.peerConnection && this.localStream) {
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        
+        if (sender) {
+          await sender.replaceTrack(screenTrack);
+        } else {
+          this.peerConnection.addTrack(screenTrack, screenStream);
+        }
+
+        // Store original video track
+        const originalVideoTrack = this.localStream.getVideoTracks()[0];
+        
+        // Handle screen share stop
+        screenTrack.onended = async () => {
+          if (sender && originalVideoTrack) {
+            await sender.replaceTrack(originalVideoTrack);
+          }
+          this.emit('screenShareEnded');
+        };
+
+        this.emit('screenShareStarted', screenStream);
+        return { success: true, stream: screenStream };
+      }
+
+      return { success: false, error: 'No peer connection' };
+    } catch (error) {
+      console.error('Screen share error:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // Event emitter
