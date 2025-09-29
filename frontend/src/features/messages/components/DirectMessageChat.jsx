@@ -21,6 +21,7 @@ import { useDirectMessages } from '../hooks/useDirectMessages';
 import MessageItem from './MessageItem';
 import MessageInput from './MessageInput';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
+import { useVoiceCall } from '../../../hooks/useVoiceCall';
 
 /**
  * DirectMessageChat Component - Discord Style
@@ -28,6 +29,7 @@ import LoadingSpinner from '../../../shared/components/LoadingSpinner';
  */
 const DirectMessageChat = ({ conversation }) => {
   const { user } = useAuth();
+  const { initiateCall } = useVoiceCall();
   const messagesEndRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
@@ -167,10 +169,42 @@ const DirectMessageChat = ({ conversation }) => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-gray-400 hover:text-white"
+            onClick={async () => {
+              const result = await initiateCall(
+                otherUser?.id || otherUser?._id,
+                otherUser?.displayName || otherUser?.username,
+                otherUser?.avatar,
+                'voice'
+              );
+              if (!result.success) {
+                toast.error(result.error || 'Arama başlatılamadı');
+              }
+            }}
+            title="Sesli Arama"
+          >
             <Phone className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-gray-400 hover:text-white"
+            onClick={async () => {
+              const result = await initiateCall(
+                otherUser?.id || otherUser?._id,
+                otherUser?.displayName || otherUser?.username,
+                otherUser?.avatar,
+                'video'
+              );
+              if (!result.success) {
+                toast.error(result.error || 'Arama başlatılamadı');
+              }
+            }}
+            title="Görüntülü Arama"
+          >
             <Video className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">

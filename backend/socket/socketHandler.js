@@ -533,12 +533,127 @@ const handleConnection = (io) => {
         
         console.log(`✅ Screen share stopped for user ${socket.user?.username}`);
       } catch (error) {
-        console.error('Screen share stop error:', error);
-        socket.emit('error', { message: 'Failed to stop screen sharing' });
+        console.error('Stop screen share error:', error);
       }
     });
 
-    // Handle disconnection - SIMPLE
+    // ==================== VOICE CALL EVENTS ====================
+    
+    // Initiate voice call
+    socket.on('voiceCall:initiate', async ({ targetUserId, callType = 'voice' }) => {
+      try {
+        console.log(`📞 Voice call initiated by ${socket.userId} to ${targetUserId}`);
+        
+        // Notify target user about incoming call
+        io.to(`user_${targetUserId}`).emit('voiceCall:incoming', {
+          callerId: socket.userId,
+          callerUsername: socket.user.username,
+          callerAvatar: socket.user.avatar,
+          callType,
+          timestamp: new Date()
+        });
+        
+        // Confirm to caller that call is ringing
+        socket.emit('voiceCall:ringing', {
+          targetUserId,
+          callType
+        });
+      } catch (error) {
+        console.error('Voice call initiate error:', error);
+        socket.emit('voiceCall:error', { message: 'Failed to initiate call' });
+      }
+    });
+
+    // Accept voice call
+    socket.on('voiceCall:accept', async ({ callerId }) => {
+      try {
+        console.log(`✅ Call accepted by ${socket.userId} from ${callerId}`);
+        
+        // Notify caller that call was accepted
+        io.to(`user_${callerId}`).emit('voiceCall:accepted', {
+          userId: socket.userId,
+          username: socket.user.username,
+          avatar: socket.user.avatar
+        });
+      } catch (error) {
+        console.error('Voice call accept error:', error);
+        socket.emit('voiceCall:error', { message: 'Failed to accept call' });
+      }
+    });
+
+    // Reject voice call
+    socket.on('voiceCall:reject', async ({ callerId }) => {
+      try {
+        console.log(`❌ Call rejected by ${socket.userId} from ${callerId}`);
+        
+        // Notify caller that call was rejected
+        io.to(`user_${callerId}`).emit('voiceCall:rejected', {
+          userId: socket.userId,
+          username: socket.user.username
+        });
+      } catch (error) {
+        console.error('Voice call reject error:', error);
+      }
+    });
+
+    // End voice call
+    socket.on('voiceCall:end', async ({ targetUserId }) => {
+      try {
+        console.log(`📴 Call ended by ${socket.userId} with ${targetUserId}`);
+        
+        // Notify other user that call ended
+        io.to(`user_${targetUserId}`).emit('voiceCall:ended', {
+          userId: socket.userId,
+          username: socket.user.username
+        });
+      } catch (error) {
+        console.error('Voice call end error:', error);
+      }
+    });
+
+    // WebRTC signaling - offer
+    socket.on('voiceCall:offer', async ({ targetUserId, offer }) => {
+      try {
+        console.log(`🔄 WebRTC offer from ${socket.userId} to ${targetUserId}`);
+        
+        io.to(`user_${targetUserId}`).emit('voiceCall:offer', {
+          callerId: socket.userId,
+          offer
+        });
+      } catch (error) {
+        console.error('WebRTC offer error:', error);
+      }
+    });
+
+    // WebRTC signaling - answer
+    socket.on('voiceCall:answer', async ({ targetUserId, answer }) => {
+      try {
+        console.log(`🔄 WebRTC answer from ${socket.userId} to ${targetUserId}`);
+        
+        io.to(`user_${targetUserId}`).emit('voiceCall:answer', {
+          userId: socket.userId,
+          answer
+        });
+      } catch (error) {
+        console.error('WebRTC answer error:', error);
+      }
+    });
+
+    // WebRTC signaling - ICE candidate
+    socket.on('voiceCall:iceCandidate', async ({ targetUserId, candidate }) => {
+      try {
+        io.to(`user_${targetUserId}`).emit('voiceCall:iceCandidate', {
+          userId: socket.userId,
+          candidate
+        });
+      } catch (error) {
+        console.error('ICE candidate error:', error);
+      }
+    });
+
+    // ==================== END VOICE CALL EVENTS ====================
+
+    // Handle disconnect
     socket.on('disconnect', async () => {
       // Remove from connected users
       connectedUsers.delete(socket.userId);

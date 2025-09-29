@@ -5,6 +5,7 @@ import ChatArea from "./ChatArea";
 import MemberList from "./MemberList";
 import DirectMessages from "./DirectMessages";
 import VoiceScreen from "./VoiceScreen";
+import VoiceCallModal from "./VoiceCallModal";
 import DesktopTitleBar from "./DesktopTitleBar";
 import DesktopNotifications from "./DesktopNotifications";
 import UserPanel from "./UserPanel";
@@ -12,6 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import voiceChatService from "../services/voiceChat";
 import { useVoiceChat } from "../hooks/useVoiceChat";
+import { useVoiceCall } from "../hooks/useVoiceCall";
 import { serverAPI, channelAPI } from "../services/api";
 import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
@@ -31,6 +33,8 @@ const FluxyApp = () => {
     joinChannel: joinVoiceChannel,
     leaveChannel: leaveVoiceChannel
   } = useVoiceChat();
+  
+  const { incomingCall, currentCall } = useVoiceCall();
   
   const [servers, setServers] = useState([]);
   const [activeServer, setActiveServer] = useState(null);
@@ -1065,6 +1069,15 @@ const FluxyApp = () => {
       {/* User Panel - Fixed at bottom */}
       {user && (
         <UserPanel user={user} server={activeServer} servers={servers} />
+      )}
+
+      {/* Voice Call Modal - Incoming or Outgoing Call */}
+      {(incomingCall || currentCall) && (
+        <VoiceCallModal
+          isOpen={true}
+          onClose={() => {}}
+          callData={incomingCall || currentCall}
+        />
       )}
     </div>
   );
