@@ -621,7 +621,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                       }`}>
                         <Avatar className="w-full h-full">
                           <AvatarImage
-                            src={participant.user.avatar}
+                            src={null}
                             alt={participant.user.username || participant.user.displayName}
                             className="object-cover"
                           />
@@ -637,13 +637,10 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                         </Avatar>
                       </div>
 
-                      {/* Status Indicators */}
+                      {/* Speaking Animation - Geri eklendi */}
                       {participant.isSpeaking && (
                         <div className="absolute -inset-1 rounded-full bg-green-400/20 animate-ping" />
                       )}
-                      
-                      {/* Online Status Dot */}
-                      <div className={`absolute ${hasScreenShares ? 'bottom-0 right-0' : 'bottom-1 right-1'} w-4 h-4 bg-green-500 border-2 border-gray-900 rounded-full`} />
                     </div>
 
                     {/* User Info - Enhanced */}
@@ -692,7 +689,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                             hasScreenShares 
                               ? 'w-5 h-5' 
                               : 'w-7 h-7'
-                          } bg-gray-600/90 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-gray-500/50 shadow-lg shadow-gray-600/30`}>
+                          } bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-red-400/50 shadow-lg shadow-red-500/30`}>
                             <HeadphonesIcon className={`${hasScreenShares ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} />
                           </div>
                         )}
