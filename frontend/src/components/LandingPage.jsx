@@ -265,11 +265,10 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   <div className="grid gap-8 md:grid-cols-4">
                     {/* Brand Section */}
                     <div className="md:col-span-2 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
-                          <Sparkles className="h-5 w-5 text-white" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">Fluxy</h3>
+                      <div className="relative">
+                        <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
+                          FLUXY
+                        </h1>
                       </div>
                       <p className="text-slate-300 leading-relaxed max-w-md">
                         Modern sesli sohbet platformu. Topluluklarını büyüt, arkadaşlarınla bağ kur.
