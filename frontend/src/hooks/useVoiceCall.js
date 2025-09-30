@@ -114,16 +114,17 @@ export const useVoiceCall = () => {
   // End current call
   const endCall = useCallback(() => {
     try {
-      voiceCallService.endCall();
+      voiceCallService.endCall(callDuration);
       setIncomingCall(null);
       setCurrentCall(null);
       setCallState('idle');
+      setCallDuration(0);
       return { success: true };
     } catch (error) {
       console.error('Failed to end call:', error);
       return { success: false, error: error.message };
     }
-  }, []);
+  }, [callDuration]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {

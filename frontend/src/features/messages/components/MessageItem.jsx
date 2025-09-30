@@ -8,7 +8,10 @@ import {
   Trash2, 
   Copy,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Phone,
+  PhoneOff,
+  PhoneMissed
 } from 'lucide-react';
 
 import { MESSAGE_REACTIONS } from '../constants';
@@ -35,6 +38,7 @@ const MessageItem = ({
   const isOptimistic = message.isOptimistic;
   const isFailed = message.status === 'failed';
   const isSending = message.status === 'sending';
+  const isCallMessage = message.messageType === 'call';
 
   const formatTime = useCallback((timestamp) => {
     try {
@@ -64,6 +68,48 @@ const MessageItem = ({
       onRetry(message.id);
     }
   }, [message.id, onRetry, isFailed]);
+
+  // Special render for call messages
+  if (isCallMessage) {
+    const isMissed = message.metadata?.isMissed;
+    const callDuration = message.metadata?.callDuration || 0;
+    const mins = Math.floor(callDuration / 60);
+    const secs = callDuration % 60;
+    
+    return (
+      <div className="px-4 py-3">
+        <div className="flex items-center space-x-3 text-sm">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            isMissed ? 'bg-red-500/20' : 'bg-green-500/20'
+          }`}>
+            {isMissed ? (
+              <PhoneMissed className="w-4 h-4 text-red-400" />
+            ) : (
+              <Phone className="w-4 h-4 text-green-400" />
+            )}
+          </div>
+          <div className="flex-1">
+            <p className={`font-medium ${isMissed ? 'text-red-400' : 'text-green-400'}`}>
+              {isMissed ? (
+                <>
+                  <span className="font-bold">{message.author?.displayName || message.author?.username}</span>
+                  {' '}kullanıcısından gelen cevapsız arama
+                </>
+              ) : (
+                <>
+                  <span className="font-bold">{message.author?.displayName || message.author?.username}</span>
+                  {' '}ile {mins} dakika {secs} saniye süren bir arama başlattı
+                </>
+              )}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {formatTime(message.timestamp || message.createdAt)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

@@ -182,19 +182,32 @@ export const useDirectMessages = (conversationId) => {
     if (!socket || !isConnected || !conversationId) return;
 
     const handleNewDirectMessage = (message) => {
-      if (message.conversationId === conversationId) {
+      // Normalize message format
+      const normalizedMessage = {
+        ...message,
+        id: message.id || message._id,
+        conversationId: message.conversation || message.conversationId,
+        timestamp: message.timestamp || message.createdAt
+      };
+
+      // Compare as strings to handle ObjectId
+      if (String(normalizedMessage.conversationId) === String(conversationId)) {
         setMessages(prev => {
           // Check if message already exists (avoid duplicates)
-          const exists = prev.some(m => m.id === message.id);
+          const exists = prev.some(m => 
+            (m.id === normalizedMessage.id) || 
+            (m._id === normalizedMessage._id)
+          );
           if (exists) return prev;
           
           // Remove any optimistic message with same content
           const filtered = prev.filter(m => 
-            !(m.isOptimistic && m.content === message.content && 
-              Math.abs(new Date(message.timestamp) - new Date(m.timestamp)) < 5000)
+            !(m.isOptimistic && m.content === normalizedMessage.content && 
+              Math.abs(new Date(normalizedMessage.timestamp) - new Date(m.timestamp)) < 5000)
           );
           
-          return [message, ...filtered];
+          // Add new message at the end (newest at bottom)
+          return [...filtered, normalizedMessage];
         });
       }
     };
@@ -202,8 +215,9 @@ export const useDirectMessages = (conversationId) => {
     // Join DM conversation room
     socket.emit('joinDMConversation', { conversationId });
 
-    // Register socket listeners
+    // Register socket listeners - listen to both events
     socket.on('newDirectMessage', handleNewDirectMessage);
+    socket.on('newMessage', handleNewDirectMessage); // Backend sends this for call messages
     socket.on('dmTyping', handleDMTyping);
 
     return () => {
@@ -211,6 +225,7 @@ export const useDirectMessages = (conversationId) => {
       socket.emit('leaveDMConversation', { conversationId });
       
       socket.off('newDirectMessage', handleNewDirectMessage);
+      socket.off('newMessage', handleNewDirectMessage);
       socket.off('dmTyping', handleDMTyping);
     };
   }, [socket, isConnected, conversationId, handleDMTyping]);

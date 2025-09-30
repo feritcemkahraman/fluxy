@@ -535,6 +535,7 @@ router.post('/join-by-invite', auth, [
           content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin! 🎉`,
           author: null, // System message
           channel: firstChannel._id,
+          server: server._id,
           isSystemMessage: true,
           systemMessageType: 'member_join',
           createdAt: new Date()

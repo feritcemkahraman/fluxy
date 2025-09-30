@@ -437,20 +437,59 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                     </div>
                   )}
                   
-                  {/* System Message */}
+                  {/* System Message - Discord Style */}
                   {msg.isSystemMessage ? (
-                    <div className="flex items-center justify-center py-2">
-                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2 max-w-lg">
-                        <div className="text-green-400 text-sm font-medium text-center">
-                          {msg.content}
+                    <div className="px-4 py-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            msg.systemMessageType === 'member_join' ? 'bg-green-500/20' :
+                            msg.systemMessageType === 'member_leave' ? 'bg-red-500/20' :
+                            msg.systemMessageType === 'server_boost' ? 'bg-purple-500/20' :
+                            'bg-blue-500/20'
+                          }`}>
+                            {msg.systemMessageType === 'member_join' && (
+                              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                              </svg>
+                            )}
+                            {msg.systemMessageType === 'member_leave' && (
+                              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                              </svg>
+                            )}
+                            {msg.systemMessageType === 'server_boost' && (
+                              <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                            )}
+                            {msg.systemMessageType === 'channel_created' && (
+                              <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                              </svg>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-green-400/60 text-xs text-center mt-1">
-                          {formatTime(msg.createdAt)}
+                        <div className="flex-1">
+                          <div className="text-sm">
+                            <span className={`font-medium ${
+                              msg.systemMessageType === 'member_join' ? 'text-green-400' :
+                              msg.systemMessageType === 'member_leave' ? 'text-red-400' :
+                              msg.systemMessageType === 'server_boost' ? 'text-purple-400' :
+                              'text-blue-400'
+                            }`} dangerouslySetInnerHTML={{ 
+                              __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+                            }} />
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {formatTime(msg.createdAt)}
+                          </div>
                         </div>
                       </div>
                     </div>
                   ) : (
                     /* Regular Message */
+                    msg.author && (
                     <div className="flex space-x-3 group hover:bg-white/5 transition-colors px-3 pt-2 pb-0"
                     onContextMenu={(e) => handleRightClick(e, "message", msg)}
                     >
@@ -510,6 +549,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                       )}
                     </div>
                     </div>
+                    )
                   )}
                 </div>
               );

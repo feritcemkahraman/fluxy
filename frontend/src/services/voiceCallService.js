@@ -175,11 +175,14 @@ class VoiceCallService {
   }
 
   // End current call
-  endCall() {
+  endCall(callDuration = 0) {
     console.log('📴 Ending call');
     
     if (this.currentCall && this.socket) {
-      this.socket.emit('voiceCall:end', { targetUserId: this.currentCall.userId });
+      this.socket.emit('voiceCall:end', { 
+        targetUserId: this.currentCall.userId,
+        callDuration 
+      });
     }
     
     // Close peer connection

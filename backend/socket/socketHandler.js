@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Server = require('../models/Server');
 const Channel = require('../models/Channel');
 const Message = require('../models/Message');
+const DirectMessage = require('../models/DirectMessage');
 const VoiceChannelManager = require('../managers/VoiceChannelManager');
 const cacheManager = require('../utils/cache');
 
@@ -586,6 +587,56 @@ const handleConnection = (io) => {
       try {
         console.log(`❌ Call rejected by ${socket.userId} from ${callerId}`);
         
+        // Find or create conversation
+        const Conversation = require('../models/Conversation');
+        let conversation = await Conversation.findOne({
+          participants: { $all: [callerId, socket.userId] }
+        });
+
+        if (!conversation) {
+          conversation = await Conversation.create({
+            participants: [callerId, socket.userId],
+            lastMessage: null
+          });
+        }
+
+        // Save missed call as a system message
+        const callMessage = new DirectMessage({
+          conversation: conversation._id,
+          author: callerId,
+          content: `📞 Cevapsız arama`,
+          messageType: 'call',
+          metadata: {
+            callDuration: 0,
+            callType: 'voice',
+            isAnswered: false,
+            isMissed: true
+          }
+        });
+        await callMessage.save();
+
+        // Populate author
+        await callMessage.populate('author', 'username displayName avatar');
+
+        // Format message for frontend
+        const formattedMessage = {
+          id: callMessage._id.toString(),
+          _id: callMessage._id.toString(),
+          conversation: callMessage.conversation.toString(),
+          conversationId: callMessage.conversation.toString(),
+          author: callMessage.author,
+          content: callMessage.content,
+          messageType: callMessage.messageType,
+          metadata: callMessage.metadata,
+          timestamp: callMessage.createdAt,
+          createdAt: callMessage.createdAt
+        };
+
+
+        // Emit to both users
+        io.to(`user_${callerId}`).emit('newMessage', formattedMessage);
+        io.to(`user_${socket.userId}`).emit('newMessage', formattedMessage);
+        
         // Notify caller that call was rejected
         io.to(`user_${callerId}`).emit('voiceCall:rejected', {
           userId: socket.userId,
@@ -597,9 +648,66 @@ const handleConnection = (io) => {
     });
 
     // End voice call
-    socket.on('voiceCall:end', async ({ targetUserId }) => {
+    socket.on('voiceCall:end', async ({ targetUserId, callDuration }) => {
       try {
-        console.log(`📴 Call ended by ${socket.userId} with ${targetUserId}`);
+        console.log(`📴 Call ended by ${socket.userId} with ${targetUserId}, duration: ${callDuration}`);
+        
+        // Save call history as a system message (only if call was connected)
+        if (callDuration !== undefined && callDuration >= 0) {
+          const Conversation = require('../models/Conversation');
+          let conversation = await Conversation.findOne({
+            participants: { $all: [socket.userId, targetUserId] }
+          });
+
+          if (!conversation) {
+            conversation = await Conversation.create({
+              participants: [socket.userId, targetUserId],
+              lastMessage: null
+            });
+          }
+
+          // Determine if call was answered based on duration
+          const isAnswered = callDuration > 0;
+          const content = isAnswered 
+            ? `📞 Sesli arama - ${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, '0')} dakika`
+            : `📞 Cevapsız arama`;
+
+          const callMessage = new DirectMessage({
+            conversation: conversation._id,
+            author: socket.userId,
+            content,
+            messageType: 'call',
+            metadata: {
+              callDuration,
+              callType: 'voice',
+              isAnswered,
+              isMissed: !isAnswered
+            }
+          });
+          await callMessage.save();
+
+          // Populate author
+          await callMessage.populate('author', 'username displayName avatar');
+
+          // Format message for frontend
+          const formattedMessage = {
+            id: callMessage._id.toString(),
+            _id: callMessage._id.toString(),
+            conversation: callMessage.conversation.toString(),
+            conversationId: callMessage.conversation.toString(),
+            author: callMessage.author,
+            content: callMessage.content,
+            messageType: callMessage.messageType,
+            metadata: callMessage.metadata,
+            timestamp: callMessage.createdAt,
+            createdAt: callMessage.createdAt
+          };
+
+
+          // Emit to both users
+          io.to(`user_${socket.userId}`).emit('newMessage', formattedMessage);
+          io.to(`user_${targetUserId}`).emit('newMessage', formattedMessage);
+        }
         
         // Notify other user that call ended
         io.to(`user_${targetUserId}`).emit('voiceCall:ended', {

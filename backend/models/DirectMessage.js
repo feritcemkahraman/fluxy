@@ -16,6 +16,15 @@ const directMessageSchema = new mongoose.Schema({
     required: true,
     maxlength: 2000
   },
+  messageType: {
+    type: String,
+    enum: ['text', 'call', 'system'],
+    default: 'text'
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   attachments: [{
     filename: String,
     url: String,
