@@ -18,6 +18,7 @@ export default function AuthWrapper() {
   // Electron uygulaması mı kontrol et
   const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
   
+  // Electron: Login göster (tab'lı), Web: Landing page göster
   const [currentMode, setCurrentMode] = useState(
     isElectron ? AUTH_MODES.LOGIN : 'landing'
   );
@@ -55,7 +56,7 @@ export default function AuthWrapper() {
         return (
           <RegisterForm
             onToggleMode={showLogin}
-            onBack={!isElectron ? showLanding : null}
+            onBack={!isElectron ? showLanding : null}  // Web'de landing'e dön
           />
         );
       

@@ -73,14 +73,10 @@ const LandingPage = ({ onLogin, onRegister }) => {
         <div className="relative flex min-h-screen flex-col">
           <header className="relative z-20 flex items-center justify-between px-6 py-8 md:px-12">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
-                <Waves className="h-6 w-6 text-cyan-300" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/40">
-                  Türkiye'nin Sesli Topluluğu
-                </p>
-                <h1 className="text-2xl font-bold tracking-tight text-white">Fluxy</h1>
+              <div className="relative">
+                <h1 className="text-4xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
+                  FLUXY
+                </h1>
               </div>
             </div>
 
@@ -99,17 +95,8 @@ const LandingPage = ({ onLogin, onRegister }) => {
             <div className="flex items-center gap-3">
               <InteractiveHoverButton
                 type="button"
-                onClick={() => onLogin?.()}
-                className="border-transparent bg-cyan-500/80 text-sm font-semibold text-white hover:bg-cyan-400/80"
-                icon={LogIn}
-              >
-                Giriş Yap
-              </InteractiveHoverButton>
-              <InteractiveHoverButton
-                type="button"
                 onClick={() => onRegister?.()}
                 className="border-transparent bg-cyan-500/80 text-sm font-semibold text-white hover:bg-cyan-400/80"
-                icon={Sparkles}
               >
                 Ücretsiz Katıl
               </InteractiveHoverButton>
@@ -134,16 +121,13 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   type="button"
                   onClick={() => onRegister?.()}
                   className="w-full justify-center border-transparent bg-cyan-500/80 px-8 py-3 text-base font-semibold text-white hover:bg-cyan-400/80 sm:w-auto"
-                  icon={Sparkles}
                 >
-                  Hemen Başla
+                  Ücretsiz Katıl
                 </InteractiveHoverButton>
                 <InteractiveHoverButton
                   type="button"
                   onClick={() => alert('İndirme bağlantısı yakında eklenecek!')}
                   className="w-full justify-center border-transparent bg-cyan-500/80 px-8 py-3 text-base font-semibold text-white hover:bg-cyan-400/80 sm:w-auto"
-                  icon={Download}
-                  showArrow={false}
                 >
                   Şimdi İndir
                 </InteractiveHoverButton>

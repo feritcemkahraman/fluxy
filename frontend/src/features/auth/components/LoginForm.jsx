@@ -27,8 +27,8 @@ export default function LoginForm({ onToggleMode, onBack }) {
     handleSubmit
   } = useAuthForm(
     {
-      email: 'test@fluxy.com', // Pre-filled for testing
-      password: 'test123', // Pre-filled for testing
+      email: '',
+      password: '',
     },
     ['email', 'password']
   );
@@ -52,8 +52,19 @@ export default function LoginForm({ onToggleMode, onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-4 relative overflow-hidden">
-      <GridBeams className="absolute inset-0 opacity-30" />
+    <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
+      <GridBeams
+        className="absolute inset-0"
+        gridSize={48}
+        gridColor="rgba(94, 234, 212, 0.18)"
+        rayCount={20}
+        rayOpacity={0.45}
+        raySpeed={1.3}
+        rayLength="60vh"
+        gridFadeStart={10}
+        gridFadeEnd={85}
+        backgroundColor="#030712"
+      />
       
       <div className="w-full max-w-md relative z-10">
         <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-8 border border-white/10 shadow-2xl">
@@ -68,8 +79,10 @@ export default function LoginForm({ onToggleMode, onBack }) {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">F</span>
+              <div className="relative">
+                <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
+                  FLUXY
+                </h1>
               </div>
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Tekrar Hoş Geldin!</h1>
@@ -94,7 +107,7 @@ export default function LoginForm({ onToggleMode, onBack }) {
                   className={`w-full pl-10 pr-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     errors.email 
                       ? 'border-red-500 focus:ring-red-500/50' 
-                      : 'border-gray-600 focus:ring-purple-500/50'
+                      : 'border-gray-600 focus:ring-cyan-500/50'
                   }`}
                   placeholder="ornek@email.com"
                 />
@@ -120,7 +133,7 @@ export default function LoginForm({ onToggleMode, onBack }) {
                   className={`w-full pl-10 pr-12 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
                     errors.password 
                       ? 'border-red-500 focus:ring-red-500/50' 
-                      : 'border-gray-600 focus:ring-purple-500/50'
+                      : 'border-gray-600 focus:ring-cyan-500/50'
                   }`}
                   placeholder="••••••••"
                 />
@@ -138,20 +151,22 @@ export default function LoginForm({ onToggleMode, onBack }) {
             </div>
 
             {/* Submit Button */}
-            <InteractiveHoverButton
-              type="submit"
-              disabled={isSubmitting || !isValid}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Giriş yapılıyor...
-                </div>
-              ) : (
-                'Giriş Yap'
-              )}
-            </InteractiveHoverButton>
+            <div className="flex justify-center">
+              <InteractiveHoverButton
+                type="submit"
+                disabled={!isValid || isSubmitting}
+                className="border-transparent bg-cyan-500/80 text-base font-semibold text-white hover:bg-cyan-400/80"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Giriş yapılıyor...
+                  </>
+                ) : (
+                  'Giriş Yap'
+                )}
+              </InteractiveHoverButton>
+            </div>
           </form>
 
           {/* Footer */}
@@ -160,7 +175,7 @@ export default function LoginForm({ onToggleMode, onBack }) {
               Hesabın yok mu?{' '}
               <button
                 onClick={onToggleMode}
-                className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
                 Kayıt ol
               </button>
