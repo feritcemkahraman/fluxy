@@ -367,58 +367,74 @@ const FriendsPanel = ({ onBack }) => {
           <h2 className="text-white text-xl font-semibold">Arkadaşlar</h2>
         </div>
         
-        {/* Tabs */}
-        <div className="flex space-x-4 mt-4">
+        {/* Tabs - Discord Style */}
+        <div className="flex space-x-2 mt-4">
           <button
             onClick={() => setActiveTab('online')}
-            className={`px-3 py-1 rounded text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'online' 
-                ? 'bg-gray-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-green-600/20 text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20' 
+                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/70 hover:text-white border-2 border-transparent'
             }`}
           >
             Çevrimiçi
+            {friends.filter(f => f.status === 'online').length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded-full">
+                {friends.filter(f => f.status === 'online').length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-3 py-1 rounded text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'all' 
-                ? 'bg-gray-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-blue-600/20 text-blue-400 border-2 border-blue-500/50 shadow-lg shadow-blue-500/20' 
+                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/70 hover:text-white border-2 border-transparent'
             }`}
           >
             Tümü
+            {friends.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded-full">
+                {friends.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-3 py-1 rounded text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'pending' 
-                ? 'bg-gray-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-yellow-600/20 text-yellow-400 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' 
+                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/70 hover:text-white border-2 border-transparent'
             }`}
           >
-            Bekleyen {pendingRequests.length > 0 && (
-              <span className="ml-1 px-2 py-1 bg-red-600 text-xs rounded-full">
+            Bekleyen
+            {pendingRequests.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full animate-pulse">
                 {pendingRequests.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab('blocked')}
-            className={`px-3 py-1 rounded text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'blocked' 
-                ? 'bg-gray-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-red-600/20 text-red-400 border-2 border-red-500/50 shadow-lg shadow-red-500/20' 
+                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/70 hover:text-white border-2 border-transparent'
             }`}
           >
             Engellenen
+            {blockedUsers.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-red-500/30 text-red-300 text-xs rounded-full">
+                {blockedUsers.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('add')}
-            className={`px-3 py-1 rounded text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'add' 
-                ? 'bg-green-600 text-white' 
-                : 'text-green-400 hover:text-white'
+                ? 'bg-green-600 text-white border-2 border-green-500 shadow-lg shadow-green-500/30' 
+                : 'bg-gray-800/50 text-green-400 hover:bg-green-600/20 hover:text-green-300 border-2 border-transparent hover:border-green-500/30'
             }`}
           >
             Arkadaş Ekle

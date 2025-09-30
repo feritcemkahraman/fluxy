@@ -679,20 +679,26 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
 
         {/* Direct Messages - Enhanced */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          {/* Friends Button */}
+          {/* Friends Button - Discord Style */}
           <div className="mb-4">
             <button
               onClick={() => setShowFriends(!showFriends)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                 showFriends 
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' 
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-white border-2 border-blue-500/50 shadow-lg shadow-blue-500/20' 
+                  : 'bg-gray-800/50 hover:bg-gray-700/70 text-gray-300 hover:text-white border-2 border-transparent hover:border-gray-600/50'
               }`}
             >
-              <Users className="w-5 h-5" />
-              <span className="font-medium">Arkadaşlar</span>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                showFriends 
+                  ? 'bg-blue-500/30' 
+                  : 'bg-gray-700/50 group-hover:bg-gray-600/70'
+              }`}>
+                <Users className={`w-5 h-5 ${showFriends ? 'text-blue-300' : 'text-gray-400 group-hover:text-white'}`} />
+              </div>
+              <span className="font-semibold text-base flex-1 text-left">Arkadaşlar</span>
               {pendingRequests.length > 0 && (
-                <Badge className="ml-auto bg-red-600 text-white text-xs">
+                <Badge className="bg-red-600 text-white text-xs px-2 py-1 rounded-full animate-pulse">
                   {pendingRequests.length}
                 </Badge>
               )}
