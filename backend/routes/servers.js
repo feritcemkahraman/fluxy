@@ -169,14 +169,14 @@ router.get('/discover', async (req, res) => {
       isPublic: true  // Only show public servers
     })
     .populate('owner', 'username avatar discriminator')
-    .populate('members.user', '_id')
+    .populate('members.user', '_id status')  // Include status field
     .sort({ memberCount: -1 })  // Sort by member count descending
     .select('name description icon memberCount createdAt tags isPublic inviteCode members');
 
     const discoveryServers = servers.map(server => {
-      // Count online members (members with status 'online' or 'idle')
+      // Count online members (members with user status 'online' or 'idle')
       const onlineCount = server.members.filter(member => 
-        member.status === 'online' || member.status === 'idle'
+        member.user && (member.user.status === 'online' || member.user.status === 'idle')
       ).length;
 
       return {
