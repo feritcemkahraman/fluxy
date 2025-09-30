@@ -187,41 +187,93 @@ const FriendsPanel = ({ onBack }) => {
   };
 
   const renderPendingRequests = () => (
-    <div className="space-y-2">
-      {pendingRequests.map(request => (
-        <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={null} alt={request.from.displayName || request.from.username} />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                {(request.from.displayName || request.from.username)[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="text-white font-medium">{request.from.displayName || request.from.username}</div>
-              <div className="text-gray-400 text-sm">#{request.from.discriminator}</div>
-              {request.message && (
-                <div className="text-gray-300 text-sm mt-1">{request.message}</div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => handleAcceptRequest(request.id)}
-              className="p-2 bg-green-600 hover:bg-green-700 rounded-full"
-            >
-              <Check size={16} className="text-white" />
-            </button>
-            <button 
-              onClick={() => handleDeclineRequest(request.id)}
-              className="p-2 bg-red-600 hover:bg-red-700 rounded-full"
-            >
-              <X size={16} className="text-white" />
-            </button>
+    <div className="space-y-4">
+      {/* Alınan İstekler */}
+      {pendingRequests.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2 px-2">
+            Gelen İstekler — {pendingRequests.length}
+          </h3>
+          <div className="space-y-2">
+            {pendingRequests.map(request => (
+              <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg border border-green-500/20">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={null} alt={request.from.displayName || request.from.username} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                      {(request.from.displayName || request.from.username)[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-white font-medium">{request.from.displayName || request.from.username}</div>
+                    <div className="text-gray-400 text-sm">#{request.from.discriminator}</div>
+                    {request.message && (
+                      <div className="text-gray-300 text-sm mt-1">{request.message}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => handleAcceptRequest(request.id)}
+                    className="p-2 bg-green-600 hover:bg-green-700 rounded-full transition-colors"
+                    title="Kabul Et"
+                  >
+                    <Check size={16} className="text-white" />
+                  </button>
+                  <button 
+                    onClick={() => handleDeclineRequest(request.id)}
+                    className="p-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
+                    title="Reddet"
+                  >
+                    <X size={16} className="text-white" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
-      {pendingRequests.length === 0 && (
+      )}
+
+      {/* Gönderilen İstekler */}
+      {sentRequests.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2 px-2">
+            Gönderilen İstekler — {sentRequests.length}
+          </h3>
+          <div className="space-y-2">
+            {sentRequests.map(request => (
+              <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg border border-yellow-500/20">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={null} alt={request.to.displayName || request.to.username} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                      {(request.to.displayName || request.to.username)[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-white font-medium">{request.to.displayName || request.to.username}</div>
+                    <div className="text-gray-400 text-sm">#{request.to.discriminator}</div>
+                    <div className="text-yellow-400 text-xs mt-1 flex items-center">
+                      <Send size={12} className="mr-1" />
+                      Bekliyor...
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDeclineRequest(request.id)}
+                  className="p-2 bg-gray-600 hover:bg-gray-700 rounded-full transition-colors"
+                  title="İsteği Geri Çek"
+                >
+                  <X size={16} className="text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hiç istek yok */}
+      {pendingRequests.length === 0 && sentRequests.length === 0 && (
         <div className="text-center py-8 text-gray-400">
           <UserCheck size={48} className="mx-auto mb-4 opacity-50" />
           <p>Bekleyen arkadaşlık isteği yok</p>
@@ -408,9 +460,9 @@ const FriendsPanel = ({ onBack }) => {
             }`}
           >
             Bekleyen
-            {pendingRequests.length > 0 && (
+            {(pendingRequests.length + sentRequests.length) > 0 && (
               <span className="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full animate-pulse">
-                {pendingRequests.length}
+                {pendingRequests.length + sentRequests.length}
               </span>
             )}
           </button>
