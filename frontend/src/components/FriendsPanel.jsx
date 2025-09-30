@@ -317,9 +317,9 @@ const FriendsPanel = ({ onBack }) => {
 
   const renderAddFriend = () => (
     <div className="space-y-4">
-      <div className="bg-blue-600 p-4 rounded-lg">
-        <h3 className="text-white font-medium mb-2">Arkadaş Ekle</h3>
-        <p className="text-blue-100 text-sm mb-4">
+      <div className="bg-black/40 backdrop-blur-sm p-6 rounded-lg border border-white/10">
+        <h3 className="text-white font-semibold text-lg mb-2">Arkadaş Ekle</h3>
+        <p className="text-gray-400 text-sm mb-4">
           Kullanıcı adlarıyla arkadaş ekleyebilirsiniz.
         </p>
         <div className="flex space-x-2">
@@ -328,15 +328,16 @@ const FriendsPanel = ({ onBack }) => {
             value={addFriendQuery}
             onChange={(e) => setAddFriendQuery(e.target.value)}
             placeholder="Kullanıcı adı girin"
-            className="flex-1 bg-gray-700 text-white px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 bg-gray-800/50 text-white px-4 py-3 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             onKeyPress={(e) => e.key === 'Enter' && handleSendFriendRequest(addFriendQuery)}
           />
           <button
             onClick={() => handleSendFriendRequest(addFriendQuery)}
             disabled={!addFriendQuery.trim()}
-            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white"
+            className="px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg text-white transition-all shadow-lg disabled:shadow-none"
+            title="Arkadaş Ekle"
           >
-            <Send size={16} />
+            <UserPlus size={20} />
           </button>
         </div>
       </div>
