@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   Shield,
   MessageCircle,
-  ArrowLeft
+  ArrowLeft,
+  Clock
 } from 'lucide-react';
 import friendsAPI from '../services/friendsAPI';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -253,9 +254,9 @@ const FriendsPanel = ({ onBack }) => {
                   <div>
                     <div className="text-white font-medium">{request.to.displayName || request.to.username}</div>
                     <div className="text-gray-400 text-sm">#{request.to.discriminator}</div>
-                    <div className="text-yellow-400 text-xs mt-1 flex items-center">
-                      <Send size={12} className="mr-1" />
-                      Bekliyor...
+                    <div className="mt-1.5 inline-flex items-center px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full">
+                      <Clock size={12} className="mr-1.5 text-yellow-400 animate-pulse" />
+                      <span className="text-yellow-400 text-xs font-medium">Bekliyor...</span>
                     </div>
                   </div>
                 </div>

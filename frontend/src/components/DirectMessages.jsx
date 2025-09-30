@@ -41,19 +41,15 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [showFriends, setShowFriends] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
+  
+  // Friends panel is always visible (no toggle needed)
+  const showFriends = !selectedConversation; // Show friends when no conversation is selected
 
-  // Friends data states
-  const [friends, setFriends] = useState([]);
+  // Pending requests count for badge (loaded separately for sidebar)
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [sentRequests, setSentRequests] = useState([]);
-  const [blockedUsers, setBlockedUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [addFriendQuery, setAddFriendQuery] = useState('');
-  const [friendsError, setFriendsError] = useState('');
 
   // Load conversations from API
   const loadConversations = useCallback(async () => {
@@ -79,23 +75,13 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
     }
   }, []);
 
-  // Load friends data
-  const loadFriendsData = useCallback(async () => {
+  // Load pending requests count for sidebar badge
+  const loadPendingRequestsCount = useCallback(async () => {
     try {
-      const [friendsData, pendingData, sentData, blockedData] = await Promise.all([
-        friendsAPI.getFriends(),
-        friendsAPI.getPendingRequests(),
-        friendsAPI.getSentRequests(),
-        friendsAPI.getBlockedUsers()
-      ]);
-      
-      setFriends(friendsData.data || []);
+      const pendingData = await friendsAPI.getPendingRequests();
       setPendingRequests(pendingData.data || []);
-      setSentRequests(sentData.data || []);
-      setBlockedUsers(blockedData.data || []);
     } catch (error) {
-      console.error('Error loading friends data:', error);
-      toast.error('Arkadaş verileri yüklenirken hata oluştu');
+      console.error('Error loading pending requests:', error);
     }
   }, []);
   
@@ -110,9 +96,9 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   useEffect(() => {
     if (user) {
       loadConversations();
-      loadFriendsData();
+      loadPendingRequestsCount();
     }
-  }, [user, loadConversations, loadFriendsData]);
+  }, [user, loadConversations, loadPendingRequestsCount]);
 
   // Handle targetUserId prop - auto-open conversation with specific user
   useEffect(() => {
@@ -122,8 +108,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       return;
     }
     
-    // Close friends panel when opening a conversation
-    setShowFriends(false);
+    // Friends panel will auto-close when conversation is selected
     
     const handleTargetUser = async () => {
       // First, try to find existing conversation
@@ -189,7 +174,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   useEffect(() => {
     if (clearSelection) {
       setSelectedConversation(null);
-      setShowFriends(false); // Also close friends panel
+      // Friends panel will auto-show when conversation is cleared
     }
   }, [clearSelection]);
 
@@ -273,28 +258,28 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
         );
       });
 
-      // Friend request received
+      // Friend request received - update badge count
       unsubscribeFriendRequest = on('friendRequestReceived', (data) => {
         console.log('📬 Friend request received:', data);
-        loadFriendsData(); // Reload friends data to show new request
+        loadPendingRequestsCount(); // Update badge count
       });
 
-      // Friend request accepted
+      // Friend request accepted - update badge count
       unsubscribeFriendAccepted = on('friendRequestAccepted', (data) => {
         console.log('🤝 Friend request accepted:', data);
-        loadFriendsData(); // Reload friends data
+        loadPendingRequestsCount(); // Update badge count
       });
 
-      // Friend added
+      // Friend added - update badge count
       unsubscribeFriendAdded = on('friendAdded', (data) => {
         console.log('✅ Friend added:', data);
-        loadFriendsData(); // Reload friends data
+        loadPendingRequestsCount(); // Update badge count
       });
 
-      // Friend removed
+      // Friend removed - update badge count
       unsubscribeFriendRemoved = on('friendRemoved', (data) => {
         console.log('💔 Friend removed:', data);
-        loadFriendsData(); // Reload friends data
+        loadPendingRequestsCount(); // Update badge count
       });
 
       return () => {
@@ -323,54 +308,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   }, [on, isAuthenticated, socketConnected]);
 
 
-  // Friends management functions
-
-  const handleSendFriendRequest = async (username) => {
-    try {
-      await friendsAPI.sendFriendRequest(username);
-      setAddFriendQuery('');
-      await loadFriendsData();
-      setFriendsError('');
-    } catch (error) {
-      setFriendsError(error.response?.data?.message || 'Failed to send friend request');
-    }
-  };
-
-  const handleAcceptRequest = async (requestId) => {
-    try {
-      await friendsAPI.acceptFriendRequest(requestId);
-      await loadFriendsData();
-    } catch (error) {
-      setFriendsError('Failed to accept friend request');
-    }
-  };
-
-  const handleDeclineRequest = async (requestId) => {
-    try {
-      await friendsAPI.declineFriendRequest(requestId);
-      await loadFriendsData();
-    } catch (error) {
-      setFriendsError('Failed to decline friend request');
-    }
-  };
-
-  const handleRemoveFriend = async (friendId) => {
-    try {
-      await friendsAPI.removeFriend(friendId);
-      await loadFriendsData();
-    } catch (error) {
-      setFriendsError('Failed to remove friend');
-    }
-  };
-
-  const handleBlockUser = async (userId) => {
-    try {
-      await friendsAPI.blockUser(userId);
-      await loadFriendsData();
-    } catch (error) {
-      setFriendsError('Failed to block user');
-    }
-  };
+  // Friends management is now handled by FriendsPanel component
 
   // Discover servers functions
   const loadDiscoverServers = async () => {
@@ -679,22 +617,11 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
 
         {/* Direct Messages - Enhanced */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          {/* Friends Button - Discord Style */}
+          {/* Friends Button - Always Active (Non-clickable) */}
           <div className="mb-4">
-            <button
-              onClick={() => setShowFriends(!showFriends)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                showFriends 
-                  ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-white border-2 border-blue-500/50 shadow-lg shadow-blue-500/20' 
-                  : 'bg-gray-800/50 hover:bg-gray-700/70 text-gray-300 hover:text-white border-2 border-transparent hover:border-gray-600/50'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                showFriends 
-                  ? 'bg-blue-500/30' 
-                  : 'bg-gray-700/50 group-hover:bg-gray-600/70'
-              }`}>
-                <Users className={`w-5 h-5 ${showFriends ? 'text-blue-300' : 'text-gray-400 group-hover:text-white'}`} />
+            <div className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-white border-2 border-blue-500/50 shadow-lg shadow-blue-500/20 cursor-default">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-500/30">
+                <Users className="w-5 h-5 text-blue-300" />
               </div>
               <span className="font-semibold text-base flex-1 text-left">Arkadaşlar</span>
               {pendingRequests.length > 0 && (
@@ -702,7 +629,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                   {pendingRequests.length}
                 </Badge>
               )}
-            </button>
+            </div>
           </div>
 
           <div className="mb-4 pb-2 border-b border-white/10">
@@ -791,12 +718,27 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       {/* Main Content Area - Chat, Friends, or Welcome Screen */}
       <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
         {showFriends ? (
-          /* Friends Panel */
-          <FriendsPanel onBack={() => setShowFriends(false)} />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Discover Servers Button */}
+            <div className="p-4 border-b border-white/10 flex-shrink-0">
+              <Button
+                onClick={() => {
+                  setShowDiscover(true);
+                  loadDiscoverServers();
+                }}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg"
+              >
+                <Compass className="w-5 h-5 mr-2" />
+                Herkese Açık Tüm Sunucuları Keşfet
+              </Button>
+            </div>
+            {/* Friends Panel */}
+            <div className="flex-1 overflow-hidden">
+              <FriendsPanel />
+            </div>
+          </div>
         ) : selectedConversation ? (
-          /* Chat Interface */
           <div className="flex-1 flex flex-col relative h-full max-h-full overflow-hidden">
-            {/* Back Button - Always visible */}
             <div className="absolute top-4 left-4 z-10">
               <Button
                 variant="ghost"
@@ -823,235 +765,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
               startScreenShare={startScreenShare}
             />
           </div>
-        ) : (
-          /* Welcome Screen with Friends Management */
-          <>
-        {/* Welcome Header */}
-        <div className="p-6 border-b border-white/10">
-          <div className="max-w-4xl mx-auto">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Direkt Mesajlara Hoş Geldiniz</h1>
-              <p className="text-gray-400">Arkadaşlarınızla sohbet edin ve yeni bağlantılar kurun</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Friends Management Section */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Discover Servers Button */}
-            <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10 p-4">
-              <Button
-                onClick={() => {
-                  setShowDiscover(true);
-                  loadDiscoverServers(); // Keşfet butonuna tıklandığında sunucuları yükle
-                }}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02]"
-              >
-                <Compass className="w-5 h-5 mr-2" />
-                Keşfet
-                <span className="ml-2 text-sm opacity-80">- Sunucuları keşfedin</span>
-              </Button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-black/40 backdrop-blur-md rounded-lg p-4 border border-white/10">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <Users className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{friends.filter(f => f.status === 'online').length}</div>
-                    <div className="text-sm text-gray-400">Çevrimiçi Arkadaş</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-black/40 backdrop-blur-md rounded-lg p-4 border border-white/10">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                    <UserCheck className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{pendingRequests.length}</div>
-                    <div className="text-sm text-gray-400">Bekleyen İstek</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-black/40 backdrop-blur-md rounded-lg p-4 border border-white/10">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
-                    <Plus className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{friends.length}</div>
-                    <div className="text-sm text-gray-400">Toplam Arkadaş</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Conversations - Enhanced */}
-            {conversations.length > 0 && (
-              <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
-                <div className="p-4 border-b border-white/10">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-white font-semibold text-lg flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                        <MessageSquare className="w-4 h-4 text-purple-400" />
-                      </div>
-                      <span>Son Sohbetler</span>
-                    </h3>
-                    <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 text-xs">
-                      {Math.min(conversations.length, 5)} / {conversations.length}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="p-4 space-y-3">
-                  {conversations.slice(0, 5).map((dm) => (
-                    <div 
-                      key={dm.id}
-                      onClick={() => handleConversationSelect(dm)}
-                      className="relative bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:from-gray-700/30 hover:to-gray-800/30 hover:border-white/20 hover:shadow-lg hover:shadow-black/20 transition-all duration-300 cursor-pointer group"
-                    >
-                      <div className="flex items-center space-x-4">
-                        {dm.type === "dm" ? (
-                          <div className="relative">
-                            <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
-                              <Avatar className="w-full h-full">
-                                <AvatarImage src={null} alt={dm.user?.username || "User"} />
-                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                                  {(dm.user?.username || "U").charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
-                            {/* Status dot removed */}
-                          </div>
-                        ) : (
-                          <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
-                            <Avatar className="w-full h-full">
-                              <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
-                              <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-bold">
-                                {(dm.name || "G").charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-white truncate">
-                              {getDisplayName(dm.user, dm.name)}
-                            </span>
-                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                              {formatLastActivity(dm.lastActivity)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-400 truncate">
-                            {formatMessageContent(dm.lastMessage)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Add Friend Section */}
-            <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
-              <div className="p-4 border-b border-white/10">
-                <h3 className="text-lg font-semibold text-white">Arkadaş Ekle</h3>
-                <p className="text-sm text-gray-400 mt-1">Kullanıcı adıyla yeni arkadaş ekleyin</p>
-              </div>
-              <div className="p-4">
-                <div className="flex space-x-2">
-                  <Input
-                    value={addFriendQuery}
-                    onChange={(e) => setAddFriendQuery(e.target.value)}
-                    placeholder="Kullanıcı adı girin"
-                    className="flex-1 bg-black/30 border-white/20 text-white placeholder-gray-400 focus:border-blue-500"
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendFriendRequest(addFriendQuery)}
-                  />
-                  <Button
-                    onClick={() => handleSendFriendRequest(addFriendQuery)}
-                    disabled={!addFriendQuery.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {friendsError && (
-                  <div className="mt-2 text-sm text-red-400">
-                    {friendsError}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Pending Requests */}
-            {pendingRequests.length > 0 && (
-              <div className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
-                <div className="p-4 border-b border-white/10">
-                  <h3 className="text-lg font-semibold text-white">Bekleyen İstekler</h3>
-                </div>
-                <div className="p-4 space-y-3">
-                  {pendingRequests.map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={null} alt={request.from.displayName || request.from.username} />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                            {(request.from.displayName || request.from.username).charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="text-white font-medium">{request.from.displayName || request.from.username}</div>
-                          {request.message && (
-                            <div className="text-sm text-gray-400">{request.message}</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button 
-                          onClick={() => handleAcceptRequest(request.id)}
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          onClick={() => handleDeclineRequest(request.id)}
-                          size="sm"
-                          variant="outline"
-                          className="border-red-500 text-red-400 hover:bg-red-500/10"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {conversations.length === 0 && friends.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 mx-auto bg-white/10 rounded-full backdrop-blur-md flex items-center justify-center mb-4">
-                  <MessageSquare className="w-10 h-10 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Henüz hiç sohbet yok</h3>
-                <p className="text-gray-400 max-w-md mx-auto">
-                  Arkadaşlarınızla sohbet etmek için yukarıdaki arama kutusunu kullanın veya yeni arkadaş ekleyin.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-        </>
-        )}
+        ) : null}
       </div>
 
       {/* Discover Servers Modal */}
