@@ -319,124 +319,39 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       const response = await serverAPI.discoverServers();
       
       // API response'unu uygun formata çevir
-      const formattedServers = response.data.servers.map(server => ({
-        id: server.id,
+      let formattedServers = response.data.servers.map(server => ({
+        id: server.id || server._id,
         name: server.name,
         description: server.description || 'Açıklama yok',
-        icon: server.icon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&h=150&fit=crop',
+        icon: server.icon || null,
         members: server.memberCount || 0,
-        online: Math.floor((server.memberCount || 0) * 0.3), // Estimate online members
+        online: server.onlineCount || 0, // Gerçek çevrimiçi sayısı
         category: server.tags?.[0] || 'Community',
-        featured: server.memberCount >= 1, // 1 veya daha fazla üyesi olan sunucular featured olabilir
+        featured: false, // Will be set below
         tags: server.tags || ['Community'],
         inviteCode: server.inviteCode,
         isMember: server.isMember || false // Backend'den gelen member status
       }));
       
+      // Kullanıcının katıldığı sunucuları filtrele
+      formattedServers = formattedServers.filter(server => !server.isMember);
+      
+      // Kullanıcı sayısına göre azalan sıralama
+      formattedServers.sort((a, b) => b.members - a.members);
+      
+      // Öne çıkan sunucuları belirle: En fazla üyeye sahip ilk 5 sunucu veya 50+ üyesi olanlar
+      const topServerIds = formattedServers.slice(0, 5).map(s => s.id);
+      formattedServers = formattedServers.map(server => ({
+        ...server,
+        featured: topServerIds.includes(server.id) || server.members >= 50
+      }));
+      
       setDiscoverServers(formattedServers);
       
-      // Fallback olarak mock data kullan eğer API'den veri gelmazse
-      if (formattedServers.length === 0) {
-        const mockServers = [
-          {
-            id: '1',
-            name: 'Genshin Impact Official',
-            description: 'Welcome to Teyvat, Traveler! This is the place to discuss with others about your favorite game, Genshin Impact!',
-            icon: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=150&h=150&fit=crop',
-            members: 340150,
-            online: 2135047,
-            category: 'Gaming',
-            featured: true,
-            tags: ['Gaming', 'Anime', 'Community']
-          },
-          {
-            id: '2',
-            name: 'VALORANT',
-            description: 'The official Discord server for VALORANT! Find the latest news and discuss the game!',
-            icon: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&h=150&fit=crop',
-            members: 714435,
-            online: 173376,
-            category: 'Gaming',
-            featured: true,
-            tags: ['Gaming', 'FPS', 'Competitive']
-          },
-          {
-            id: '3',
-            name: 'Midjourney',
-            description: 'The official server for Midjourney, a text-to-image AI where your imagination is the only limit.',
-            icon: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=150&h=150&fit=crop',
-            members: 728398,
-            online: 20515749,
-            category: 'Technology',
-            featured: true,
-            tags: ['AI', 'Art', 'Technology']
-          },
-          {
-            id: '4',
-            name: 'Lofi Hip Hop',
-            description: 'A chill community for lofi lovers to study, work, and relax together.',
-            icon: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop',
-            members: 45230,
-            online: 12450,
-            category: 'Music',
-            featured: false,
-            tags: ['Music', 'Chill', 'Study']
-          },
-          {
-            id: '5',
-            name: 'Coding Community',
-            description: 'Learn, share, and grow together as developers. All programming languages welcome!',
-            icon: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=150&h=150&fit=crop',
-            members: 67890,
-            online: 8234,
-            category: 'Technology',
-            featured: false,
-            tags: ['Programming', 'Learning', 'Community']
-          },
-          {
-            id: '6',
-            name: 'Art & Design Hub',
-            description: 'Share your artwork, get feedback, and connect with fellow artists and designers.',
-            icon: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=150&h=150&fit=crop',
-            members: 23456,
-            online: 3456,
-            category: 'Art',
-            featured: false,
-            tags: ['Art', 'Design', 'Creative']
-          }
-        ];
-        setDiscoverServers(mockServers);
-      }
     } catch (error) {
       console.error('Failed to load discover servers:', error);
       console.error('Error details:', error.response?.data || error.message);
-      
-      // Hata durumunda mock data kullan
-      const mockServers = [
-        {
-          id: '1',
-          name: 'Genshin Impact Official',
-          description: 'Welcome to Teyvat, Traveler! This is the place to discuss with others about your favorite game, Genshin Impact!',
-          icon: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=150&h=150&fit=crop',
-          members: 340150,
-          online: 2135047,
-          category: 'Gaming',
-          featured: true,
-          tags: ['Gaming', 'Anime', 'Community']
-        },
-        {
-          id: '2',
-          name: 'VALORANT',
-          description: 'The official Discord server for VALORANT! Find the latest news and discuss the game!',
-          icon: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&h=150&fit=crop',
-          members: 714435,
-          online: 173376,
-          category: 'Gaming',
-          featured: true,
-          tags: ['Gaming', 'FPS', 'Competitive']
-        }
-      ];
-      setDiscoverServers(mockServers);
+      toast.error('Sunucular yüklenirken hata oluştu');
     } finally {
       setDiscoverLoading(false);
     }
@@ -843,7 +758,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                         <Star className="w-5 h-5 text-yellow-400" />
                         <h3 className="text-lg font-semibold text-white">Öne Çıkan Sunucular</h3>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                         {getFilteredServers()
                           .filter(server => server.featured)
                           .map((server) => (
@@ -915,7 +830,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                         <Globe className="w-5 h-5 text-blue-400" />
                         <h3 className="text-lg font-semibold text-white">Diğer Sunucular</h3>
                       </div>
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {getFilteredServers()
                           .filter(server => !server.featured)
                           .map((server) => (
@@ -923,40 +838,40 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                               key={server.id}
                               className="bg-black/40 backdrop-blur-md rounded-lg border border-white/10 p-4 hover:bg-white/5 transition-colors"
                             >
-                              <div className="flex items-center space-x-4">
+                              <div className="flex items-start space-x-4">
                                 <img
                                   src={server.icon}
                                   alt={server.name}
-                                  className="w-12 h-12 rounded-lg object-cover"
+                                  className="w-16 h-16 rounded-lg object-cover"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <h4 className="text-base font-semibold text-white truncate">{server.name}</h4>
+                                  <h4 className="text-lg font-semibold text-white truncate mb-2">{server.name}</h4>
+                                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">{server.description}</p>
+                                  <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-4 text-sm">
                                       <div className="flex items-center space-x-1">
                                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                                        <span className="text-gray-400">{formatMemberCount(server.online)}</span>
+                                        <span className="text-gray-400">{formatMemberCount(server.online)} çevrimiçi</span>
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <Users className="w-3 h-3 text-gray-400" />
-                                        <span className="text-gray-400">{formatMemberCount(server.members)}</span>
+                                        <span className="text-gray-400">{formatMemberCount(server.members)} üye</span>
                                       </div>
-                                      <Button
-                                        onClick={() => handleJoinServer(server.id)}
-                                        size="sm"
-                                        className={
-                                          server.isMember
-                                            ? "bg-gray-600 text-gray-300 cursor-not-allowed"
-                                            : "bg-green-600 hover:bg-green-700 text-white"
-                                        }
-                                        disabled={server.isMember}
-                                      >
-                                        {server.isMember ? "Katıldın" : "Katıl"}
-                                      </Button>
                                     </div>
+                                    <Button
+                                      onClick={() => handleJoinServer(server.id)}
+                                      size="sm"
+                                      className={
+                                        server.isMember
+                                          ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                                          : "bg-green-600 hover:bg-green-700 text-white"
+                                      }
+                                      disabled={server.isMember}
+                                    >
+                                      {server.isMember ? "Zaten Katıldın" : "Katıl"}
+                                    </Button>
                                   </div>
-                                  <p className="text-gray-400 text-sm mb-2 line-clamp-1">{server.description}</p>
-                                  <div className="flex flex-wrap gap-1">
+                                  <div className="flex flex-wrap gap-1 mt-3">
                                     {server.tags.slice(0, 3).map((tag, index) => (
                                       <span
                                         key={index}

@@ -148,7 +148,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // @route   GET /api/servers/discover
-// @desc    Get top 10 servers by member count for discovery
+// @desc    Get all public servers by member count for discovery
 // @access  Public (auth optional for member check)
 router.get('/discover', async (req, res) => {
   try {
@@ -171,23 +171,30 @@ router.get('/discover', async (req, res) => {
     .populate('owner', 'username avatar discriminator')
     .populate('members.user', '_id')
     .sort({ memberCount: -1 })  // Sort by member count descending
-    .limit(10)  // Top 10 servers
     .select('name description icon memberCount createdAt tags isPublic inviteCode members');
 
-    const discoveryServers = servers.map(server => ({
-      id: server._id,
-      name: server.name,
-      description: server.description || 'Açıklama yok',
-      icon: server.icon,
-      memberCount: server.memberCount || 0,
-      owner: server.owner,
-      tags: server.tags || [],
-      inviteCode: server.inviteCode,
-      createdAt: server.createdAt,
-      isMember: currentUserId ? server.members.some(member => 
-        member.user._id.toString() === currentUserId.toString()
-      ) : false
-    }));
+    const discoveryServers = servers.map(server => {
+      // Count online members (members with status 'online' or 'idle')
+      const onlineCount = server.members.filter(member => 
+        member.status === 'online' || member.status === 'idle'
+      ).length;
+
+      return {
+        id: server._id,
+        name: server.name,
+        description: server.description || 'Açıklama yok',
+        icon: server.icon,
+        memberCount: server.memberCount || 0,
+        onlineCount: onlineCount,
+        owner: server.owner,
+        tags: server.tags || [],
+        inviteCode: server.inviteCode,
+        createdAt: server.createdAt,
+        isMember: currentUserId ? server.members.some(member => 
+          member.user._id.toString() === currentUserId.toString()
+        ) : false
+      };
+    });
 
     res.json({
       servers: discoveryServers,
