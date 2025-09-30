@@ -1,12 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   motion,
   useAnimationFrame,
   useMotionValue,
+  useScroll,
   useSpring,
   useTransform,
+  useVelocity,
 } from "motion/react";
 
 import { cn } from "@/lib/utils";
@@ -23,30 +25,9 @@ export function ScrollVelocityContainer({
   className,
   ...props
 }) {
-  const scrollY = useMotionValue(0)
-  const velocity = useMotionValue(0)
-  const prevScroll = useRef(0)
-  const prevTime = useRef(0)
-
-  useEffect(() => {
-    const updateScroll = () => scrollY.set(window.scrollY)
-    updateScroll()
-    window.addEventListener('scroll', updateScroll, { passive: true })
-    return () => window.removeEventListener('scroll', updateScroll)
-  }, [scrollY])
-
-  useAnimationFrame((t) => {
-    const currentScroll = scrollY.get()
-    const deltaScroll = currentScroll - prevScroll.current
-    const deltaTime = t - prevTime.current
-    if (deltaTime > 0) {
-      velocity.set((deltaScroll / deltaTime) * 1000) // pixels per second
-    }
-    prevScroll.current = currentScroll
-    prevTime.current = t
-  })
-
-  const smoothVelocity = useSpring(velocity, {
+  const { scrollY } = useScroll()
+  const scrollVelocity = useVelocity(scrollY)
+  const smoothVelocity = useSpring(scrollVelocity, {
     damping: 50,
     stiffness: 400,
   })
@@ -146,7 +127,7 @@ function ScrollVelocityRowImpl({
   const x = useTransform([baseX, unitWidth], ([v, bw]) => {
     const width = Number(bw) || 1
     const offset = Number(v) || 0
-    return `${-wrap(0, width, offset)}px`
+    return `${-wrap(0, width, offset)}px` 
   })
 
   useAnimationFrame((_, delta) => {
