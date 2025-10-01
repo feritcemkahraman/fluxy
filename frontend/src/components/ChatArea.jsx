@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
+import { UserProfileModal } from "./UserProfileModal";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { devLog } from "../utils/devLogger";
@@ -26,9 +27,12 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const [userDisplayNames, setUserDisplayNames] = useState(new Map()); // username -> displayName mapping
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [memberActionDialog, setMemberActionDialog] = useState({ open: false, action: '', member: null });
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const serverMembersCache = useRef(null); // Cache server members for faster profile opening
   
   // Refs to avoid dependency issues
   const channelRef = useRef(channel);
@@ -90,30 +94,18 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
     // If already authenticated, join immediately (but only once)
     if (channel?._id && joinChannel && isAuthenticated()) {
-      console.log('🔗 Joining channel room:', channel._id);
       joinChannel(channel._id);
-    } else {
-      console.log('⚠️ Cannot join channel:', { 
-        hasChannel: !!channel?._id, 
-        hasJoinChannel: !!joinChannel, 
-        isAuth: isAuthenticated() 
-      });
     }
 
-    console.log('🎧 Setting up newMessage event listener for channel:', channel?._id);
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
-      console.log('📨 newMessage event received:', newMessage);
-      
       // Handle system messages first
       if (newMessage.type === 'system' || newMessage.isSystemMessage) {
-        console.log('🔔 System message detected');
         newMessage.isSystemMessage = true;
         newMessage.systemMessageType = newMessage.systemMessageType || 'member_join';
       }
       
       // Only add message if it belongs to the current channel OR it's a system message
       if (newMessage.channel === channel?._id || newMessage.type === 'system' || newMessage.isSystemMessage) {
-        console.log('✅ Message belongs to current channel or is system message');
         
         // Fix displayName using our mapping
         if (newMessage.author && newMessage.author.username) {
@@ -192,18 +184,10 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       // Process messages - handle system messages
       newMessages.forEach(message => {
         if (message.type === 'system' || message.isSystemMessage) {
-          console.log('✅ Setting isSystemMessage for loaded message:', message._id);
           message.isSystemMessage = true;
           message.systemMessageType = message.systemMessageType || 'member_join';
         }
       });
-      
-      console.log('📦 Loaded messages:', newMessages.map(m => ({ 
-        id: m._id, 
-        isSystem: m.isSystemMessage, 
-        type: m.type,
-        content: m.content?.substring(0, 30) 
-      })));
 
       // Update displayName mapping from loaded messages
       const newDisplayNames = new Map();
@@ -523,10 +507,55 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                                     <>
                                       {parts[0]}
                                       <button
-                                        onClick={() => {
-                                          // Open user profile modal
-                                          setSelectedMember(msg.author);
-                                          setMemberActionDialog({ open: true, action: 'view', member: msg.author });
+                                        onClick={async () => {
+                                          if (msg.author) {
+                                            setSelectedMember(msg.author);
+                                            setMemberActionDialog({ open: true, action: 'view', member: msg.author });
+                                          } else {
+                                            // If author is null, try to find user from server members by username
+                                            try {
+                                              const serverId = server?._id || channel?.server;
+                                              if (!serverId) {
+                                                toast.error('Server bilgisi bulunamadı');
+                                                return;
+                                              }
+                                              
+                                              // Use cached members if available
+                                              let members;
+                                              if (serverMembersCache.current) {
+                                                members = serverMembersCache.current;
+                                              } else {
+                                                const response = await fetch(`http://localhost:5000/api/servers/${serverId}/members`, {
+                                                  headers: {
+                                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                  }
+                                                });
+                                                const data = await response.json();
+                                                members = data.members || data;
+                                                serverMembersCache.current = members; // Cache for next time
+                                              }
+                                              
+                                              const member = members?.find(m => 
+                                                m.username === username || m.displayName === username
+                                              );
+                                              
+                                              if (member) {
+                                                const userData = {
+                                                  _id: member.id,
+                                                  username: member.username,
+                                                  displayName: member.displayName,
+                                                  avatar: member.avatar,
+                                                  status: member.status
+                                                };
+                                                setSelectedMember(userData);
+                                                setMemberActionDialog({ open: true, action: 'view', member: userData });
+                                              } else {
+                                                toast.info('Kullanıcı bilgisi bulunamadı');
+                                              }
+                                            } catch (error) {
+                                              toast.error('Kullanıcı bilgisi alınamadı');
+                                            }
+                                          }
                                         }}
                                         className="font-bold text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer transition-colors"
                                       >
@@ -665,6 +694,23 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
         <FileUploadArea
           onFileUpload={handleFileUpload}
           onClose={() => setShowFileUpload(false)}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {memberActionDialog.open && memberActionDialog.member && (
+        <UserProfileModal
+          open={memberActionDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setMemberActionDialog({ open: false, action: '', member: null });
+              setSelectedMember(null);
+            }
+          }}
+          user={memberActionDialog.member}
+          currentUser={user}
+          showMessageButton={true}
+          showFriendButton={true}
         />
       )}
     </div>

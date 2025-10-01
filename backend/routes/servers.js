@@ -403,7 +403,7 @@ router.post('/:id/join', auth, [
         const userSocket = io.sockets.sockets.get(userConnection.socketId);
         if (userSocket) {
           userSocket.join(`server_${server._id}`);
-          console.log(`✅ User ${req.user.username} joined server room: server_${server._id}`);
+          console.log(`✅ User  joined server room: server_${server._id}`);
         }
       }
     }
@@ -415,7 +415,7 @@ router.post('/:id/join', auth, [
     if (firstTextChannel && io) {
       const Message = require('../models/Message');
       const welcomeMessage = new Message({
-        content: `🎉 **${req.user.username}** sunucuya katıldı! Hoş geldin!`,
+        content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin!`,
         author: req.user._id,
         channel: firstTextChannel._id,
         server: server._id,
@@ -576,7 +576,7 @@ router.post('/join-by-invite', auth, [
         const userSocket = io.sockets.sockets.get(userConnection.socketId);
         if (userSocket) {
           userSocket.join(`server_${server._id}`);
-          console.log(`✅ User ${req.user.username} joined server room: server_${server._id}`);
+          console.log(`✅ User  joined server room: server_${server._id}`);
         }
       }
     }
@@ -589,7 +589,7 @@ router.post('/join-by-invite', auth, [
       const Message = require('../models/Message');
       const Channel = require('../models/Channel');
       const welcomeMessage = new Message({
-        content: `🎉 **${req.user.username}** sunucuya katıldı! Hoş geldin!`,
+        content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin!`,
         author: req.user._id,
         channel: firstTextChannel._id,
         server: server._id,
@@ -773,7 +773,7 @@ router.delete('/:id/leave', auth, async (req, res) => {
         const userSocket = io.sockets.sockets.get(userConnection.socketId);
         if (userSocket) {
           userSocket.leave(`server_${server._id}`);
-          console.log(`✅ User ${req.user.username} left server room: server_${server._id}`);
+          console.log(`✅ User  left server room: server_${server._id}`);
         }
       }
     }

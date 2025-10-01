@@ -55,14 +55,11 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading conversations with messageService...');
       const response = await messageService.getConversations();
-      console.log('📥 Conversations response:', response);
       
       if (response.success) {
         setConversations(response.data.conversations || []);
       } else {
-        console.error('Failed to load conversations:', response.error);
         setConversations([]);
         toast.error('Sohbetler yüklenirken hata oluştu');
       }
