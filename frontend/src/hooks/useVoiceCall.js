@@ -24,6 +24,7 @@ export const useVoiceCall = () => {
         type: 'incoming',
         userId: data.callerId,
         username: data.callerUsername,
+        displayName: data.callerDisplayName,
         avatar: data.callerAvatar,
         callType: data.callType
       });

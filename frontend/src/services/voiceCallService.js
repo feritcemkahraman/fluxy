@@ -280,7 +280,16 @@ class VoiceCallService {
     try {
       if (!this.currentCall) return;
       
-      this.createPeerConnection(this.currentCall.userId);
+      // Only create peer connection if it doesn't exist
+      if (!this.peerConnection) {
+        this.createPeerConnection(this.currentCall.userId);
+      }
+      
+      // Check if we already have a local description (offer already created)
+      if (this.peerConnection.localDescription) {
+        console.log('⚠️ Offer already created, skipping');
+        return;
+      }
       
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
