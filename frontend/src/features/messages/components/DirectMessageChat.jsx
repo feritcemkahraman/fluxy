@@ -20,6 +20,8 @@ import MessageItem from './MessageItem';
 import MessageInput from './MessageInput';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
 import notificationSound from '../../../utils/notificationSound';
+import voiceCallService from '../../../services/voiceCallService';
+import ScreenSharePicker from '../../../components/ScreenSharePicker';
 
 /**
  * DirectMessageChat Component - Discord Style
@@ -29,6 +31,10 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
   const { user } = useAuth();
   const messagesEndRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showScreenSharePicker, setShowScreenSharePicker] = useState(false);
+  const [isScreenShareFullscreen, setIsScreenShareFullscreen] = useState(false);
+  const screenShareVideoRef = useRef(null);
+  const fullscreenVideoRef = useRef(null);
 
   const conversationId = conversation?.id || conversation?._id;
   const otherUser = conversation?.participants?.find(p => p.id !== user?.id) || 
@@ -48,6 +54,55 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Listen for screen share stream
+  useEffect(() => {
+    const handleScreenShareStarted = (stream) => {
+      console.log('📺 Screen share stream received:', stream);
+      
+      // Set stream to both video elements
+      if (screenShareVideoRef.current) {
+        screenShareVideoRef.current.srcObject = stream;
+        screenShareVideoRef.current.play().catch(e => console.error('Video play error:', e));
+      }
+      
+      if (fullscreenVideoRef.current) {
+        fullscreenVideoRef.current.srcObject = stream;
+        fullscreenVideoRef.current.play().catch(e => console.error('Fullscreen video play error:', e));
+      }
+    };
+
+    const handleScreenShareEnded = () => {
+      console.log('📺 Screen share ended');
+      if (screenShareVideoRef.current) {
+        screenShareVideoRef.current.srcObject = null;
+      }
+      if (fullscreenVideoRef.current) {
+        fullscreenVideoRef.current.srcObject = null;
+      }
+    };
+
+    voiceCallService.on('screenShareStarted', handleScreenShareStarted);
+    voiceCallService.on('screenShareEnded', handleScreenShareEnded);
+
+    // Check if there's already an active screen stream
+    if (voiceCallService.screenStream) {
+      console.log('📺 Setting existing screen stream');
+      if (screenShareVideoRef.current) {
+        screenShareVideoRef.current.srcObject = voiceCallService.screenStream;
+        screenShareVideoRef.current.play().catch(e => console.error('Video play error:', e));
+      }
+      if (fullscreenVideoRef.current) {
+        fullscreenVideoRef.current.srcObject = voiceCallService.screenStream;
+        fullscreenVideoRef.current.play().catch(e => console.error('Fullscreen video play error:', e));
+      }
+    }
+
+    return () => {
+      voiceCallService.off('screenShareStarted', handleScreenShareStarted);
+      voiceCallService.off('screenShareEnded', handleScreenShareEnded);
+    };
+  }, [isScreenSharing]);
 
   const {
     messages,
@@ -268,45 +323,89 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       {/* Voice Call Banner - Discord Style with User Cards */}
       {currentCall && currentCall.userId === (otherUser?.id || otherUser?._id) && (
         <div className="bg-[#030403] border-b border-gray-900/50 px-6 py-6">
-          {/* User Cards Container */}
-          <div className="flex items-center justify-center gap-4 mb-6">
-            {/* Current User Card - Always visible */}
-            <div className="relative">
-              <div className={`relative w-64 h-52 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 ${
-                isSpeaking ? 'ring-4 ring-green-500 ring-opacity-75' : 'border-2 border-gray-700/50'
+          {/* User Cards Container - Wider when screen sharing */}
+          <div className={`flex items-center justify-center gap-4 mb-6 ${isScreenSharing ? 'max-w-6xl mx-auto' : ''}`}>
+            {/* Current User Card - Expands when screen sharing */}
+            <div className={`relative transition-all duration-300 ${isScreenSharing ? 'flex-1' : ''}`}>
+              <div className={`relative ${isScreenSharing ? 'w-full h-96' : 'w-64 h-52'} bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
+                isSpeaking ? 'ring-4 ring-green-500 ring-opacity-75' : isScreenSharing ? 'border-2 border-green-500/50' : 'border-2 border-gray-700/50'
               }`}>
                 {/* Speaking indicator - shows when user is speaking */}
-                {isSpeaking && (
+                {isSpeaking && !isScreenSharing && (
                   <div className="absolute inset-0 rounded-xl border-2 border-green-500 animate-pulse pointer-events-none" />
                 )}
                 
-                <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
-                  <div className="relative">
-                    {user?.avatar ? (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.displayName || user.username}
-                        className="w-36 h-36 mb-3 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                        <span className="text-white text-5xl font-bold">
+                {/* Screen Share Video */}
+                {isScreenSharing ? (
+                  <>
+                    <video
+                      ref={screenShareVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-contain bg-black"
+                    />
+                    
+                    {/* Screen Share Controls Overlay */}
+                    <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-white text-sm font-medium">Ekran Paylaşımı</span>
+                      </div>
+                      
+                      <button
+                        onClick={() => setIsScreenShareFullscreen(true)}
+                        className="bg-black/70 backdrop-blur-sm hover:bg-black/90 rounded-lg p-2 transition-colors"
+                        title="Tam Ekran"
+                      >
+                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* User Info Overlay */}
+                    <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">
                           {user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'M'}
                         </span>
                       </div>
-                    )}
-                    
-                    {/* Mute indicator */}
-                    {isMuted && (
-                      <div className="absolute bottom-2 right-2 bg-red-600 rounded-full p-2 border-2 border-white shadow-lg">
-                        <MicOff className="w-5 h-5 text-white" />
-                      </div>
-                    )}
+                      <span className="text-white text-sm font-medium">
+                        {user?.displayName || user?.username || 'Me'}
+                      </span>
+                      {isMuted && <MicOff className="w-4 h-4 text-red-500" />}
+                    </div>
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
+                    <div className="relative">
+                      {user?.avatar ? (
+                        <img 
+                          src={user.avatar} 
+                          alt={user.displayName || user.username}
+                          className="w-36 h-36 mb-3 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <span className="text-white text-5xl font-bold">
+                            {user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'M'}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Mute indicator */}
+                      {isMuted && (
+                        <div className="absolute bottom-2 right-2 bg-red-600 rounded-full p-2 border-2 border-white shadow-lg">
+                          <MicOff className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-white text-base font-bold text-center drop-shadow-2xl px-4 w-full">
+                      {user?.displayName || user?.username || 'Me'}
+                    </p>
                   </div>
-                  <p className="text-white text-base font-bold text-center drop-shadow-2xl px-4 w-full">
-                    {user?.displayName || user?.username || 'Me'}
-                  </p>
-                </div>
+                )}
               </div>
             </div>
 
@@ -371,13 +470,14 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
 
             {/* Screen Share */}
             <button
-              onClick={async () => {
-                if (!startScreenShare) return;
-                const result = await startScreenShare();
-                if (result.success) {
-                  toast.success('Ekran paylaşımı başlatıldı');
+              onClick={() => {
+                if (isScreenSharing) {
+                  // Stop screen share
+                  voiceCallService.stopScreenShare();
+                  toast.success('Ekran paylaşımı durduruldu');
                 } else {
-                  toast.error(result.error || 'Ekran paylaşımı başlatılamadı');
+                  // Open screen share picker
+                  setShowScreenSharePicker(true);
                 }
               }}
               className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
@@ -385,7 +485,7 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
                   ? 'bg-green-600 hover:bg-green-700' 
                   : 'bg-[#2b2d31] hover:bg-gray-700'
               }`}
-              title={isScreenSharing ? 'Ekran Paylaşımı Aktif' : 'Ekran Paylaş'}
+              title={isScreenSharing ? 'Ekran Paylaşımını Durdur' : 'Ekran Paylaş'}
             >
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -521,6 +621,72 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
         placeholder={`${otherUser?.displayName || otherUser?.username || 'kullanıcı'}ya mesaj gönder`}
         currentUser={user}
       />
+
+      {/* Screen Share Picker Modal */}
+      {showScreenSharePicker && (
+        <ScreenSharePicker
+          isOpen={showScreenSharePicker}
+          onClose={() => setShowScreenSharePicker(false)}
+          onSelect={async (options) => {
+            try {
+              const result = await voiceCallService.startScreenShare(options);
+              if (result.success) {
+                toast.success('Ekran paylaşımı başlatıldı');
+                setShowScreenSharePicker(false);
+              } else {
+                toast.error(result.error || 'Ekran paylaşımı başlatılamadı');
+              }
+            } catch (error) {
+              console.error('Screen share error:', error);
+              toast.error('Ekran paylaşımı hatası');
+            }
+          }}
+        />
+      )}
+
+      {/* Fullscreen Screen Share Modal */}
+      {isScreenShareFullscreen && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+          <video
+            ref={(el) => {
+              fullscreenVideoRef.current = el;
+              if (el && voiceCallService.screenStream) {
+                el.srcObject = voiceCallService.screenStream;
+                el.play().catch(e => console.error('Fullscreen video play error:', e));
+              }
+            }}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-contain"
+          />
+          
+          {/* Close Fullscreen Button */}
+          <button
+            onClick={() => setIsScreenShareFullscreen(false)}
+            className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm hover:bg-black/90 rounded-lg p-3 transition-colors"
+            title="Tam Ekrandan Çık"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          {/* User Info Overlay */}
+          <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <span className="text-white text-lg font-bold">
+                {user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'M'}
+              </span>
+            </div>
+            <div>
+              <p className="text-white font-medium">{user?.displayName || user?.username || 'Me'}</p>
+              <p className="text-gray-400 text-sm">Ekran paylaşımı</p>
+            </div>
+            {isMuted && <MicOff className="w-5 h-5 text-red-500" />}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

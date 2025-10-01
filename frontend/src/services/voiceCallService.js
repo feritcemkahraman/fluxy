@@ -340,10 +340,24 @@ class VoiceCallService {
   // Handle WebRTC answer
   async handleAnswer(answer) {
     try {
-      if (!this.peerConnection) return;
+      if (!this.peerConnection) {
+        console.log('⚠️ No peer connection for answer');
+        return;
+      }
       
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-      console.log('✅ WebRTC answer processed');
+      // Check signaling state
+      if (this.peerConnection.signalingState === 'stable') {
+        console.log('⚠️ Peer connection already stable, ignoring answer');
+        return;
+      }
+      
+      // Only set remote description if we're in the right state
+      if (this.peerConnection.signalingState === 'have-local-offer') {
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ WebRTC answer processed');
+      } else {
+        console.log('⚠️ Wrong signaling state for answer:', this.peerConnection.signalingState);
+      }
     } catch (error) {
       console.error('Failed to handle answer:', error);
       this.endCall();
@@ -413,49 +427,173 @@ class VoiceCallService {
   }
 
   /**
-   * Start screen sharing
+   * Start screen sharing - Electron-First Approach
    * @returns {Promise<{success: boolean, stream?: MediaStream, error?: string}>}
    */
-  async startScreenShare() {
+  async startScreenShare(options = {}) {
     try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          displaySurface: 'monitor'
-        },
-        audio: false
-      });
-
-      // Replace video track in peer connection
-      if (this.peerConnection && this.localStream) {
-        const screenTrack = screenStream.getVideoTracks()[0];
-        const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+      console.log('🖥️ startScreenShare called with options:', options);
+      let constraints = null;
+      let screenStream;
+      
+      // Check if Electron
+      const isElectron = window.electronAPI?.isElectron;
+      
+      if (isElectron) {
+        // Electron native implementation
+        let sourceId;
         
-        if (sender) {
-          await sender.replaceTrack(screenTrack);
+        if (options.source?.id) {
+          sourceId = options.source.id;
+          console.log('✅ Using selected source:', sourceId, 'Name:', options.source.name);
+        } else if (options.sourceId) {
+          sourceId = options.sourceId;
+          console.log('✅ Using selected sourceId:', sourceId);
         } else {
+          // Fallback: get available sources and use first screen
+          const sources = await window.electronAPI.getDesktopSources();
+          
+          if (!sources || sources.length === 0) {
+            return { success: false, error: 'Ekran kaynağı bulunamadı' };
+          }
+          
+          const primaryScreen = sources.find(source => source.id.startsWith('screen:')) || sources[0];
+          sourceId = primaryScreen.id;
+        }
+        
+        const isWindowShare = sourceId.startsWith('window:');
+        const quality = options.quality || { width: 1920, height: 1080, frameRate: 30 };
+        
+        constraints = {
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              maxWidth: quality.width,
+              maxHeight: quality.height,
+              maxFrameRate: quality.frameRate
+            }
+          },
+          audio: (options.includeAudio && !isWindowShare) ? {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false
+            }
+          } : false
+        };
+        
+        // Get screen stream
+        try {
+          screenStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (audioError) {
+          // If audio fails, try video only
+          if (audioError.name === 'NotReadableError' && constraints.audio) {
+            const videoOnlyConstraints = {
+              ...constraints,
+              audio: false
+            };
+            screenStream = await navigator.mediaDevices.getUserMedia(videoOnlyConstraints);
+          } else {
+            throw audioError;
+          }
+        }
+      } else {
+        // Browser fallback
+        const quality = options.quality || { width: 1920, height: 1080, frameRate: 30 };
+        
+        constraints = {
+          video: {
+            width: { ideal: Math.min(quality.width, 1920) },
+            height: { ideal: Math.min(quality.height, 1080) },
+            frameRate: { ideal: Math.min(quality.frameRate, 60) },
+            cursor: 'always'
+          },
+          audio: options.includeAudio !== false ? {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          } : false
+        };
+        
+        screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      }
+
+      // Add screen track to peer connection
+      if (this.peerConnection) {
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const audioTrack = screenStream.getAudioTracks()[0];
+        
+        // Find existing video sender or add new track
+        const videoSender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        
+        if (videoSender) {
+          // Replace existing video track
+          await videoSender.replaceTrack(screenTrack);
+        } else {
+          // Add new video track
           this.peerConnection.addTrack(screenTrack, screenStream);
         }
-
-        // Store original video track
-        const originalVideoTrack = this.localStream.getVideoTracks()[0];
+        
+        // Add audio track if available
+        if (audioTrack) {
+          const audioSender = this.peerConnection.getSenders().find(s => s.track?.kind === 'audio' && s.track !== this.localStream?.getAudioTracks()[0]);
+          if (!audioSender) {
+            this.peerConnection.addTrack(audioTrack, screenStream);
+          }
+        }
+        
+        // Store screen stream and original video track
+        this.screenStream = screenStream;
+        this.originalVideoTrack = videoSender?.track;
         
         // Handle screen share stop
-        screenTrack.onended = async () => {
-          if (sender && originalVideoTrack) {
-            await sender.replaceTrack(originalVideoTrack);
-          }
-          this.emit('screenShareEnded');
+        screenTrack.onended = () => {
+          this.stopScreenShare();
         };
 
         this.emit('screenShareStarted', screenStream);
         return { success: true, stream: screenStream };
       }
 
-      return { success: false, error: 'No peer connection' };
+      return { success: false, error: 'Peer connection yok' };
     } catch (error) {
       console.error('Screen share error:', error);
-      return { success: false, error: error.message };
+      
+      let errorMessage = error.message;
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Ekran paylaşımı izni reddedildi';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Tarayıcı ekran paylaşımını desteklemiyor';
+      } else if (error.message.includes('No screen sources')) {
+        errorMessage = 'Paylaşılacak ekran bulunamadı';
+      }
+      
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Stop screen sharing
+   */
+  async stopScreenShare() {
+    if (this.screenStream) {
+      // Stop screen stream
+      this.screenStream.getTracks().forEach(track => track.stop());
+      
+      // Restore original video track if exists
+      if (this.originalVideoTrack && this.peerConnection) {
+        const videoSender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        if (videoSender) {
+          await videoSender.replaceTrack(this.originalVideoTrack);
+        }
+      }
+      
+      this.screenStream = null;
+      this.originalVideoTrack = null;
+      this.emit('screenShareEnded');
     }
   }
 

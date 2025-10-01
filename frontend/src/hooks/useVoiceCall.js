@@ -176,13 +176,19 @@ export const useVoiceCall = () => {
 
   // Listen for screen share events
   useEffect(() => {
+    const handleScreenShareStarted = () => {
+      setIsScreenSharing(true);
+    };
+
     const handleScreenShareEnded = () => {
       setIsScreenSharing(false);
     };
 
+    voiceCallService.on('screenShareStarted', handleScreenShareStarted);
     voiceCallService.on('screenShareEnded', handleScreenShareEnded);
 
     return () => {
+      voiceCallService.off('screenShareStarted', handleScreenShareStarted);
       voiceCallService.off('screenShareEnded', handleScreenShareEnded);
     };
   }, []);
