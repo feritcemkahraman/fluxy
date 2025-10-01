@@ -19,9 +19,7 @@ class ElectronStorage {
       try {
         if (window.electronAPI && window.electronAPI.storeGet) {
           this.useElectronAPI = true;
-          console.log('✅ Using Electron API for storage');
         } else {
-          console.log('📦 Electron API not available, using localStorage only');
           this.useElectronAPI = false;
         }
       } catch (error) {

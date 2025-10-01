@@ -59,25 +59,22 @@ const FluxyApp = () => {
   const [activeChannel, setActiveChannel] = useState(null);
   const [showMemberList, setShowMemberList] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
-
+  const [loading, setLoading] = useState(true);
   // Derive activeServerId from activeServer
   const activeServerId = activeServer?._id || activeServer?.id;
   const activeChannelId = activeChannel?._id || activeChannel?.id;
   
   // Initialize voice call service when socket is ready
   useEffect(() => {
-    if (socket && socket.connected && user) {
-      console.log('🎤 Initializing voice call service in FluxyApp');
-      voiceCallService.initialize(socket);
+    if (user && socket && socket.connected) {
+      voiceCallService.initialize(socket, user);
     }
-  }, [socket, socket?.connected, user]);
+  }, [user, socket, socket?.connected]);
 
   // Global DM notification listener - works everywhere in the app
   useEffect(() => {
     if (!on || !user) return;
-
     const handleNewDirectMessage = (message) => {
       // Check if message is from another user (not current user)
       const authorId = message.message?.author?.id || message.message?.author?._id ||
@@ -1206,16 +1203,13 @@ const FluxyApp = () => {
           callData={incomingCall}
           onAccept={async () => {
             const result = await acceptCall();
-            console.log('📞 Accept call result:', result);
             if (result.success) {
-              console.log('✅ Navigating to DM with caller:', incomingCall.userId);
               // Navigate to DM with the caller
               setIsDirectMessages(true);
               setActiveServer(null);
               setActiveChannel(null);
               setTargetUserId(incomingCall.userId);
             } else {
-              console.error('❌ Accept call failed:', result.error);
               toast.error(result.error || 'Arama kabul edilemedi');
             }
           }}

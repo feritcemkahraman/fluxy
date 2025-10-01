@@ -17,7 +17,6 @@ class WebSocketService {
   connect(token) {
     // Validate token before attempting connection
     if (this.socket && this.socket.connected) {
-      console.log('Socket already connected, reusing existing connection');
       return;
     }
     
@@ -40,8 +39,6 @@ class WebSocketService {
       if (!process.env.REACT_APP_SOCKET_URL) {
         console.warn('REACT_APP_SOCKET_URL is not configured, using default: http://localhost:5000');
       }
-      
-      console.log('🔌 Attempting to connect to Socket.IO server:', socketUrl);
       
       this.socket = io(socketUrl, {
         auth: {

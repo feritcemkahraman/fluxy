@@ -13,9 +13,6 @@ import './App.css';
 function App() {
   useEffect(() => {
     initPerformanceOptimizations();
-    
-    // Performance monitoring disabled for now
-    console.log('🚀 App started');
   }, []);
 
   return (

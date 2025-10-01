@@ -245,11 +245,6 @@ class VoiceChatService {
   setCurrentUser(user) {
     this.currentUser = user;
     this.currentUserId = user?._id || user?.id;
-    console.log('🎤 Voice chat user set:', {
-      userId: this.currentUserId,
-      username: user?.username,
-      displayName: user?.displayName
-    });
   }
 
   // Screen sharing functionality - ELECTRON-FIRST APPROACH
@@ -261,7 +256,6 @@ class VoiceChatService {
       
       // PRIMARY: Electron native implementation
       if (electronAPI.isElectron()) {
-        console.log('🖥️ Using Electron screen picker...');
         
         let sourceId;
         

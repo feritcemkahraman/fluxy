@@ -282,7 +282,6 @@ export function AuthProvider({ children }) {
     if (state.isAuthenticated && state.token) {
       // Only connect if not already connected/connecting and we have a valid token
       if (!socketService.isConnected() && !socketService.socket?.connecting && state.token.trim() !== '') {
-        console.log('Connecting socket with authentication token');
         
         // Add a small delay to prevent rapid reconnection attempts
         connectionTimeout = setTimeout(() => {
@@ -293,8 +292,6 @@ export function AuthProvider({ children }) {
             // Don't throw error, app should work without real-time features
           }
         }, 100);
-      } else if (socketService.isConnected()) {
-        console.log('Socket already connected, skipping connection attempt');
       }
     } else {
       // Disconnect socket when not authenticated

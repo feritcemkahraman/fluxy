@@ -8,7 +8,6 @@ class MessageService {
   constructor() {
     // Force correct API URL with /api prefix
     this.baseURL = 'http://localhost:5000/api';
-    console.log('🔧 MessageService initialized with baseURL:', this.baseURL);
   }
 
   /**

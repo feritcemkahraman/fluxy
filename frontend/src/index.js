@@ -26,7 +26,6 @@ window.__FLUXY_ENV__ = {
 };
 
 if (isElectron) {
-  console.log('🖥️ Running in Electron environment');
   // Electron-specific optimizations
   document.body.classList.add('electron-app');
 } else {

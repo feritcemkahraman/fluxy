@@ -20,20 +20,18 @@ class VoiceCallService {
     };
   }
 
-  // Initialize with socket
-  initialize(socket) {
+  // Initialize with socket and user
+  initialize(socket, user) {
     this.socket = socket;
-    this.setupSocketListeners();
-    console.log('🎤 Voice call service initialized');
+    this.user = user;
   }
 
   // Setup socket event listeners
   setupSocketListeners() {
     if (!this.socket) return;
 
-    // Incoming call
+    // Listen for incoming calls
     this.socket.on('voiceCall:incoming', (data) => {
-      console.log('📞 Incoming call from:', data.callerUsername);
       this.currentCall = {
         type: 'incoming',
         userId: data.callerId,
@@ -45,40 +43,8 @@ class VoiceCallService {
       this.emit('incomingCall', data);
     });
 
-    // Call ringing
-    this.socket.on('voiceCall:ringing', (data) => {
-      console.log('📱 Call ringing...');
-      this.callState = 'calling';
-      this.emit('callRinging', data);
-    });
-
-    // Call accepted
-    this.socket.on('voiceCall:accepted', async (data) => {
-      console.log('✅ Call accepted by:', data.username);
-      this.callState = 'connected';
-      this.emit('callAccepted', data);
-      
-      // Create offer for WebRTC connection
-      await this.createOffer();
-    });
-
-    // Call rejected
-    this.socket.on('voiceCall:rejected', (data) => {
-      console.log('❌ Call rejected by:', data.username);
-      this.endCall();
-      this.emit('callRejected', data);
-    });
-
-    // Call ended
-    this.socket.on('voiceCall:ended', (data) => {
-      console.log('📴 Call ended by:', data.username);
-      this.endCall();
-      this.emit('callEnded', data);
-    });
-
     // WebRTC offer received
     this.socket.on('voiceCall:offer', async ({ callerId, offer }) => {
-      console.log('🔄 Received WebRTC offer');
       await this.handleOffer(callerId, offer);
     });
 
