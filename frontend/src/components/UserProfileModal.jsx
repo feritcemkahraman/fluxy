@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { 
@@ -223,7 +223,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
           {/* Centered Avatar and Info */}
           <div className="flex flex-col items-center space-y-2">
             <Avatar className="w-32 h-32 border-4 border-gray-900">
-              <AvatarImage src={null} alt={displayUser.username} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-bold">
                 {displayUser.username?.charAt(0) || 'U'}
               </AvatarFallback>
@@ -390,7 +389,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
                     {mutualFriends.map((friend) => (
                       <div key={friend.id} className="flex items-center space-x-2 p-1.5 bg-white/5 rounded-md hover:bg-white/10 transition-colors cursor-pointer">
                         <Avatar className="w-6 h-6">
-                          <AvatarImage src={null} alt={friend.username} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
                             {friend.username.charAt(0)}
                           </AvatarFallback>

@@ -3,6 +3,7 @@ import { useSocket } from '../../../hooks/useSocket';
 import { useAuth } from '../../../context/AuthContext';
 import { messageService } from '../services/messageService';
 import { MESSAGE_ERRORS } from '../constants';
+import notificationSound from '../../../utils/notificationSound';
 
 /**
  * Direct Messages Hook - Discord Style
@@ -174,6 +175,10 @@ export const useDirectMessages = (conversationId) => {
 
       // Compare as strings to handle ObjectId
       if (String(normalizedMessage.conversationId) === String(conversationId)) {
+        // Check if message is from another user (not current user)
+        const isFromOtherUser = normalizedMessage.author?.id !== user?.id && 
+                                normalizedMessage.author?._id !== user?._id;
+        
         setMessages(prev => {
           // Check if message already exists (avoid duplicates)
           const exists = prev.some(m => 
@@ -187,6 +192,19 @@ export const useDirectMessages = (conversationId) => {
             !(m.isOptimistic && m.content === normalizedMessage.content && 
               Math.abs(new Date(normalizedMessage.timestamp) - new Date(m.timestamp)) < 5000)
           );
+          
+          // Play notification sound if message is from another user
+          // Pass conversationId so sound doesn't play if user is viewing this conversation
+          if (isFromOtherUser) {
+            const msgConversationId = String(normalizedMessage.conversationId);
+            console.log('🔔 Playing notification sound:', {
+              isFromOtherUser,
+              messageConversationId: msgConversationId,
+              currentConversationId: String(conversationId),
+              activeConversation: notificationSound.activeConversationId
+            });
+            notificationSound.playMessageSound(msgConversationId);
+          }
           
           // Add new message at the end (newest at bottom)
           return [...filtered, normalizedMessage];

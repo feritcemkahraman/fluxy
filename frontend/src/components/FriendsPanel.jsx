@@ -158,7 +158,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
             <div className="flex items-center space-x-3">
               <div className="relative">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={null} alt={friend.displayName || friend.username} />
                   <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                     {(friend.displayName || friend.username)[0].toUpperCase()}
                   </AvatarFallback>
@@ -218,7 +217,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
               <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg border border-green-500/20">
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={null} alt={request.from.displayName || request.from.username} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                       {(request.from.displayName || request.from.username)[0].toUpperCase()}
                     </AvatarFallback>
@@ -264,7 +262,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
               <div key={request.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg border border-yellow-500/20">
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={null} alt={request.to.displayName || request.to.username} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                       {(request.to.displayName || request.to.username)[0].toUpperCase()}
                     </AvatarFallback>
@@ -307,7 +304,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
         <div key={user.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
           <div className="flex items-center space-x-3">
             <Avatar className="w-8 h-8">
-              <AvatarImage src={null} alt={user.displayName || user.username} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                 {(user.displayName || user.username)[0].toUpperCase()}
               </AvatarFallback>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Loader2, User, Crown } from "lucide-react";
 import { serverAPI } from "../services/api";
@@ -223,12 +223,11 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                       >
                         <div className="relative">
                           <Avatar className="w-8 h-8 ring-2 ring-white/10">
-                            <AvatarImage src={null} alt={member.username} />
                             <AvatarFallback 
                               className="text-white text-sm font-medium"
                               style={{ backgroundColor: member.roleColor }}
                             >
-                              {member.username.charAt(0)}
+                              {(member.displayName || member.username).charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div 
@@ -239,24 +238,14 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <span 
-                              className="text-sm font-medium truncate group-hover:text-white transition-colors"
-                              style={{ color: member.roleColor }}
-                            >
+                            <span className="text-sm font-medium text-white truncate group-hover:text-gray-200 transition-colors">
                               {member.displayName || member.username}
                             </span>
                             {(isServerOwner(member) || isAdmin(member)) && (
-                              <Crown className="w-4 h-4 text-yellow-500 flex-shrink-0" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
-                            )}
-                            {member.role !== "Üye" && member.role !== "Member" && !isServerOwner(member) && !isAdmin(member) && (
-                              <Badge 
-                                variant="secondary" 
-                                className="text-xs px-1.5 py-0.5 bg-white/10 text-gray-300"
-                              >
-                                {member.role === "Admin" ? "Yönetici" : member.role === "Moderator" ? "Moderatör" : member.role}
-                              </Badge>
+                              <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
                             )}
                           </div>
+                          <div className="text-xs text-gray-400">{member.roleName || 'Member'}</div>
                         </div>
                       </div>
                     ))}
@@ -266,10 +255,10 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
 
               {/* Offline Members */}
               {offlineMembers.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">
-                    Çevrimdışı — {offlineMembers.length}
-                  </h4>
+                <div className="mt-4">
+                  <div className="flex items-center space-x-2 px-2 py-1 mb-2">
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase">Çevrimdışı — {offlineMembers.length}</h3>
+                  </div>
                   <div className="space-y-1">
                     {offlineMembers.map((member) => (
                       <div
@@ -279,11 +268,10 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                       >
                         <div className="relative">
                           <Avatar className="w-8 h-8 ring-2 ring-white/10 grayscale">
-                            <AvatarImage src={null} alt={member.username} />
                             <AvatarFallback 
                               className="text-white text-sm font-medium bg-gray-600"
                             >
-                              {member.username.charAt(0)}
+                              {(member.displayName || member.username).charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div 

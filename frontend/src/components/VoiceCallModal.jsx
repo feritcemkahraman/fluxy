@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import { 
   Phone, 
   PhoneOff, 
@@ -179,7 +179,6 @@ const VoiceCallModal = ({ isOpen, onClose, callData }) => {
             ) : (
               <div className="flex flex-col items-center space-y-6">
                 <Avatar className="w-48 h-48 border-4 border-white/10">
-                  <AvatarImage src={callData.avatar} />
                   <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-6xl">
                     {callData.username?.charAt(0) || 'U'}
                   </AvatarFallback>

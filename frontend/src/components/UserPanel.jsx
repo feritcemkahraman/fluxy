@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
 import { authAPI, profileAPI } from '../services/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -218,12 +218,8 @@ const UserPanel = ({ user, server, servers }) => {
               >
                 <div className="relative">
                   <Avatar className="w-12 h-12">
-                    <AvatarImage
-                      src={null} // Sadece baş harf avatarı kullan
-                      alt={user?.username || 'User'}
-                    />
-                    <AvatarFallback className="bg-indigo-600 text-white text-lg font-semibold">
-                      {user?.username ? getUserInitials(user.username) : 'U'}
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold text-lg">
+                      {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute -bottom-0.5 -right-0.5">
@@ -232,45 +228,33 @@ const UserPanel = ({ user, server, servers }) => {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="text-white text-lg font-bold truncate">
+                  <div className="text-white font-semibold truncate text-sm">
                     {user?.displayName || user?.username || 'Yükleniyor...'}
                   </div>
-                  <div className="text-sm text-gray-400 truncate">
-                    {user ? getStatusLabel(user.status || 'online') : 'Yükleniyor...'}
+                  <div className="text-xs text-gray-400 truncate">
+                    #{user?.discriminator || '0000'}
                   </div>
                 </div>
               </div>
-              
-              {getCustomStatus() && (
-                <div className="text-xs text-gray-400 truncate">
-                  {getCustomStatus()}
-                </div>
-              )}
 
-              {/* Custom Dropdown */}
+              {/* Dropdown Menu */}
               {showDropdown && (
-                <div 
+                <div
                   ref={dropdownRef}
-                  className="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-[100] animate-in slide-in-from-bottom-2 duration-200"
+                  className="absolute bottom-full left-0 mb-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50"
                 >
                   {/* User Info Header */}
                   <div className="p-4 border-b border-gray-700">
                     <div className="flex items-center space-x-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarImage
-                          src={null} // Sadece baş harf avatarı kullan
-                          alt={user?.username || 'User'}
-                        />
-                        <AvatarFallback className="bg-indigo-600 text-white text-sm font-semibold">
-                          {user?.username ? getUserInitials(user.username) : 'U'}
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
+                          {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="text-white font-semibold truncate">{user?.displayName || user?.username || 'Yükleniyor...'}</div>
                       </div>
-                      <div className="relative">
-                        <StatusIndicator status={user?.status || 'online'} size="small" />
-                      </div>
+                      <StatusIndicator status={user?.status || 'online'} size="small" />
                     </div>
                   </div>
 

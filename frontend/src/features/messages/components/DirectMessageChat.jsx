@@ -19,6 +19,7 @@ import { useDirectMessages } from '../hooks/useDirectMessages';
 import MessageItem from './MessageItem';
 import MessageInput from './MessageInput';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
+import notificationSound from '../../../utils/notificationSound';
 
 /**
  * DirectMessageChat Component - Discord Style
@@ -69,6 +70,19 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       scrollToBottom();
     }
   }, [messages]);
+
+  // Set active conversation for notification sound
+  useEffect(() => {
+    if (conversationId) {
+      console.log('🎯 Setting active conversation:', String(conversationId));
+      notificationSound.setActiveConversation(String(conversationId));
+    }
+    
+    return () => {
+      console.log('🎯 Clearing active conversation');
+      notificationSound.clearActiveConversation();
+    };
+  }, [conversationId]);
 
   // Handle scroll to show/hide scroll button
   const handleScroll = (e) => {
@@ -136,7 +150,6 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       <div className="flex items-center justify-between p-4 pl-16 border-b border-gray-700 bg-gray-800/50">
         <div className="flex items-center space-x-3">
           <Avatar className="w-8 h-8">
-            <AvatarImage src={otherUser?.avatar} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
               {otherUser?.displayName?.charAt(0) || otherUser?.username?.charAt(0) || 'U'}
             </AvatarFallback>
