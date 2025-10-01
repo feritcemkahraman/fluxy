@@ -561,7 +561,7 @@ const handleConnection = (io) => {
         io.to(`user_${targetUserId}`).emit('voiceCall:incoming', {
           callerId: socket.userId,
           callerUsername: socket.user.username,
-          callerAvatar: socket.user.avatar,
+          callerDisplayName: socket.user.displayName,
           callType,
           timestamp: new Date()
         });
@@ -586,7 +586,7 @@ const handleConnection = (io) => {
         io.to(`user_${callerId}`).emit('voiceCall:accepted', {
           userId: socket.userId,
           username: socket.user.username,
-          avatar: socket.user.avatar
+          displayName: socket.user.displayName
         });
       } catch (error) {
         console.error('Voice call accept error:', error);
@@ -612,17 +612,20 @@ const handleConnection = (io) => {
           });
         }
 
-        // Save missed call as a system message
+        // Save rejected call as a system message
+        const User = require('../models/User');
+        const rejecter = await User.findById(socket.userId);
+        
         const callMessage = new DirectMessage({
           conversation: conversation._id,
           author: callerId,
-          content: `📞 Cevapsız arama`,
+          content: `📞 ${rejecter.displayName || rejecter.username} aramayı reddetti`,
           messageType: 'call',
           metadata: {
             callDuration: 0,
             callType: 'voice',
             isAnswered: false,
-            isMissed: true
+            isRejected: true
           }
         });
         await callMessage.save();
@@ -630,29 +633,30 @@ const handleConnection = (io) => {
         // Populate author
         await callMessage.populate('author', 'username displayName avatar');
 
-        // Format message for frontend
+        // Format message for frontend (DM format)
         const formattedMessage = {
-          id: callMessage._id.toString(),
-          _id: callMessage._id.toString(),
-          conversation: callMessage.conversation.toString(),
           conversationId: callMessage.conversation.toString(),
-          author: callMessage.author,
-          content: callMessage.content,
-          messageType: callMessage.messageType,
-          metadata: callMessage.metadata,
-          timestamp: callMessage.createdAt,
-          createdAt: callMessage.createdAt
+          message: {
+            id: callMessage._id.toString(),
+            _id: callMessage._id.toString(),
+            author: callMessage.author,
+            content: callMessage.content,
+            messageType: callMessage.messageType,
+            metadata: callMessage.metadata,
+            timestamp: callMessage.createdAt,
+            createdAt: callMessage.createdAt
+          },
+          from: callerId,
+          to: socket.userId
         };
 
-
-        // Emit to both users
-        io.to(`user_${callerId}`).emit('newMessage', formattedMessage);
-        io.to(`user_${socket.userId}`).emit('newMessage', formattedMessage);
+        // Emit to conversation room only (both users are in the room)
+        io.to(`dm_${conversation._id}`).emit('newDirectMessage', formattedMessage);
         
         // Notify caller that call was rejected
         io.to(`user_${callerId}`).emit('voiceCall:rejected', {
           userId: socket.userId,
-          username: socket.user.username
+          username: rejecter.displayName || rejecter.username
         });
       } catch (error) {
         console.error('Voice call reject error:', error);
@@ -664,8 +668,9 @@ const handleConnection = (io) => {
       try {
         console.log(`📴 Call ended by ${socket.userId} with ${targetUserId}, duration: ${callDuration}`);
         
-        // Save call history as a system message (only if call was connected)
-        if (callDuration !== undefined && callDuration >= 0) {
+        // Save call history as a system message (only if call was actually connected)
+        // Don't save if duration is 0 (rejected/missed calls are handled separately)
+        if (callDuration !== undefined && callDuration > 0) {
           const Conversation = require('../models/Conversation');
           let conversation = await Conversation.findOne({
             participants: { $all: [socket.userId, targetUserId] }
@@ -701,24 +706,25 @@ const handleConnection = (io) => {
           // Populate author
           await callMessage.populate('author', 'username displayName avatar');
 
-          // Format message for frontend
+          // Format message for frontend (DM format)
           const formattedMessage = {
-            id: callMessage._id.toString(),
-            _id: callMessage._id.toString(),
-            conversation: callMessage.conversation.toString(),
             conversationId: callMessage.conversation.toString(),
-            author: callMessage.author,
-            content: callMessage.content,
-            messageType: callMessage.messageType,
-            metadata: callMessage.metadata,
-            timestamp: callMessage.createdAt,
-            createdAt: callMessage.createdAt
+            message: {
+              id: callMessage._id.toString(),
+              _id: callMessage._id.toString(),
+              author: callMessage.author,
+              content: callMessage.content,
+              messageType: callMessage.messageType,
+              metadata: callMessage.metadata,
+              timestamp: callMessage.createdAt,
+              createdAt: callMessage.createdAt
+            },
+            from: socket.userId,
+            to: targetUserId
           };
 
-
-          // Emit to both users
-          io.to(`user_${socket.userId}`).emit('newMessage', formattedMessage);
-          io.to(`user_${targetUserId}`).emit('newMessage', formattedMessage);
+          // Emit to conversation room
+          io.to(`dm_${conversation._id}`).emit('newDirectMessage', formattedMessage);
         }
         
         // Notify other user that call ended

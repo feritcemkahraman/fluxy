@@ -163,12 +163,13 @@ export const useDirectMessages = (conversationId) => {
   useEffect(() => {
     if (!socket || !isConnected || !conversationId) return;
 
-    const handleNewDirectMessage = (message) => {
-      // Normalize message format
+    const handleNewDirectMessage = (data) => {
+      // Normalize message format - handle nested message structure
+      const message = data.message || data;
       const normalizedMessage = {
         ...message,
         id: message.id || message._id,
-        conversationId: message.conversation || message.conversationId,
+        conversationId: data.conversationId || message.conversation || message.conversationId,
         timestamp: message.timestamp || message.createdAt
       };
 
@@ -203,9 +204,8 @@ export const useDirectMessages = (conversationId) => {
     // Join DM conversation room
     socket.emit('joinDMConversation', { conversationId });
 
-    // Register socket listeners - listen to both events
+    // Register socket listeners
     socket.on('newDirectMessage', handleNewDirectMessage);
-    socket.on('newMessage', handleNewDirectMessage); // Backend sends this for call messages
     socket.on('dmTyping', handleDMTyping);
 
     return () => {
@@ -213,7 +213,6 @@ export const useDirectMessages = (conversationId) => {
       socket.emit('leaveDMConversation', { conversationId });
       
       socket.off('newDirectMessage', handleNewDirectMessage);
-      socket.off('newMessage', handleNewDirectMessage);
       socket.off('dmTyping', handleDMTyping);
     };
   }, [socket, isConnected, conversationId, handleDMTyping]);

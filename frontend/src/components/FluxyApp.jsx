@@ -1206,7 +1206,16 @@ const FluxyApp = () => {
           callData={incomingCall}
           onAccept={async () => {
             const result = await acceptCall();
-            if (!result.success) {
+            console.log('📞 Accept call result:', result);
+            if (result.success) {
+              console.log('✅ Navigating to DM with caller:', incomingCall.userId);
+              // Navigate to DM with the caller
+              setIsDirectMessages(true);
+              setActiveServer(null);
+              setActiveChannel(null);
+              setTargetUserId(incomingCall.userId);
+            } else {
+              console.error('❌ Accept call failed:', result.error);
               toast.error(result.error || 'Arama kabul edilemedi');
             }
           }}

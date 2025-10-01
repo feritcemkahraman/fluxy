@@ -34,19 +34,11 @@ const IncomingCallModal = ({
           {/* Caller Avatar */}
           <div className="relative mb-6">
             <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" />
-            {callData.avatar ? (
-              <img 
-                src={callData.avatar} 
-                alt={callData.username}
-                className="relative w-32 h-32 rounded-full object-cover ring-4 ring-green-500"
-              />
-            ) : (
-              <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ring-4 ring-green-500">
-                <span className="text-white text-5xl font-bold">
-                  {callData.username?.charAt(0) || 'U'}
-                </span>
-              </div>
-            )}
+            <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ring-4 ring-green-500">
+              <span className="text-white text-5xl font-bold">
+                {callData.username?.charAt(0) || 'U'}
+              </span>
+            </div>
           </div>
 
           {/* Caller Info */}

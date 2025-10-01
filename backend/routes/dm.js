@@ -156,6 +156,8 @@ router.get('/conversations/:conversationId/messages', auth, async (req, res) => 
         avatar: msg.author.avatar
       },
       content: msg.content,
+      messageType: msg.messageType,
+      metadata: msg.metadata,
       timestamp: msg.createdAt,
       reactions: msg.reactions || []
     }));

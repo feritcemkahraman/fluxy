@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "../../../components/ui/avatar";
+import { Avatar, AvatarFallback } from "../../../components/ui/avatar";
 import { toast } from "sonner";
 import { 
   Phone, 
@@ -160,11 +160,15 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${
                 otherUser?.status === 'online' ? 'bg-green-500' : 
-                otherUser?.status === 'away' ? 'bg-yellow-500' : 
+                otherUser?.status === 'idle' ? 'bg-yellow-500' : 
                 otherUser?.status === 'dnd' ? 'bg-red-500' : 'bg-gray-500'
               }`} />
-              <span className="text-xs text-gray-400 capitalize">
-                {otherUser?.status || 'offline'}
+              <span className="text-xs text-gray-400">
+                {otherUser?.status === 'online' && 'Çevrimiçi'}
+                {otherUser?.status === 'idle' && 'Boşta'}
+                {otherUser?.status === 'dnd' && 'Rahatsız Etmeyin'}
+                {otherUser?.status === 'invisible' && 'Görünmez'}
+                {(!otherUser?.status || otherUser?.status === 'offline') && 'Çevrimdışı'}
               </span>
             </div>
           </div>

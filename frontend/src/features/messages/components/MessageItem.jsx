@@ -71,38 +71,28 @@ const MessageItem = ({
 
   // Special render for call messages
   if (isCallMessage) {
+    const isRejected = message.metadata?.isRejected;
     const isMissed = message.metadata?.isMissed;
-    const callDuration = message.metadata?.callDuration || 0;
-    const mins = Math.floor(callDuration / 60);
-    const secs = callDuration % 60;
     
     return (
-      <div className="px-4 py-3">
-        <div className="flex items-center space-x-3 text-sm">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            isMissed ? 'bg-red-500/20' : 'bg-green-500/20'
+      <div className="px-4 py-2 my-2">
+        <div className="flex items-center space-x-3 bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            isRejected || isMissed ? 'bg-red-500/20' : 'bg-green-500/20'
           }`}>
-            {isMissed ? (
-              <PhoneMissed className="w-4 h-4 text-red-400" />
+            {isRejected || isMissed ? (
+              <PhoneMissed className="w-5 h-5 text-red-400" />
             ) : (
-              <Phone className="w-4 h-4 text-green-400" />
+              <Phone className="w-5 h-5 text-green-400" />
             )}
           </div>
           <div className="flex-1">
-            <p className={`font-medium ${isMissed ? 'text-red-400' : 'text-green-400'}`}>
-              {isMissed ? (
-                <>
-                  <span className="font-bold">{message.author?.displayName || message.author?.username}</span>
-                  {' '}kullanıcısından gelen cevapsız arama
-                </>
-              ) : (
-                <>
-                  <span className="font-bold">{message.author?.displayName || message.author?.username}</span>
-                  {' '}ile {mins} dakika {secs} saniye süren bir arama başlattı
-                </>
-              )}
+            <p className={`text-sm font-medium ${
+              isRejected || isMissed ? 'text-red-400' : 'text-green-400'
+            }`}>
+              {message.content}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 mt-1">
               {formatTime(message.timestamp || message.createdAt)}
             </p>
           </div>
