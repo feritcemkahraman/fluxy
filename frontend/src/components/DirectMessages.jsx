@@ -635,7 +635,75 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
             </div>
             {/* Friends Panel */}
             <div className="flex-1 overflow-hidden">
-              <FriendsPanel />
+              <FriendsPanel 
+                onStartConversation={async (userId, friendData) => {
+                  try {
+                    console.log('🔵 Starting conversation with user:', userId, 'Friend data:', friendData);
+                    
+                    // First check if conversation already exists
+                    const existingConv = conversations.find(conv => 
+                      conv.user?.id === userId || conv.user?._id === userId
+                    );
+                    
+                    if (existingConv) {
+                      console.log('✅ Found existing conversation:', existingConv);
+                      setSelectedConversation(existingConv);
+                      toast.success('Sohbet açıldı');
+                      return;
+                    }
+                    
+                    // Create new conversation
+                    const response = await dmAPI.createConversation(userId);
+                    console.log('📩 Conversation response:', response);
+                    
+                    let conv = null;
+                    
+                    if (response.success && response.data?.conversation) {
+                      conv = response.data.conversation;
+                    } else if (response.conversation) {
+                      conv = response.conversation;
+                    } else if (response.data) {
+                      conv = response.data;
+                    }
+                    
+                    if (conv) {
+                      const otherParticipant = conv.participants?.find(p => 
+                        (p._id || p.id) !== user.id && (p._id || p.id) !== user._id
+                      );
+                      
+                      // Use friend data if available, fallback to participant data
+                      const userData = friendData || otherParticipant || {};
+                      
+                      const formattedConversation = {
+                        id: conv.id || conv._id,
+                        type: 'dm',
+                        user: {
+                          id: userData.id || userData._id || userId,
+                          username: userData.username || 'Unknown User',
+                          displayName: userData.displayName || userData.username || 'Unknown User',
+                          avatar: userData.avatar,
+                          status: userData.status || 'offline'
+                        },
+                        participants: conv.participants,
+                        lastMessage: null,
+                        lastActivity: conv.lastActivity || new Date(),
+                        unreadCount: 0
+                      };
+                      
+                      console.log('✅ Opening conversation:', formattedConversation);
+                      setSelectedConversation(formattedConversation);
+                      await loadConversations();
+                      toast.success('Sohbet açıldı');
+                    } else {
+                      console.error('❌ No conversation data received');
+                      toast.error('Sohbet oluşturulamadı');
+                    }
+                  } catch (error) {
+                    console.error('❌ Error starting conversation:', error);
+                    toast.error('Sohbet başlatılamadı: ' + (error.message || 'Bilinmeyen hata'));
+                  }
+                }}
+              />
             </div>
           </div>
         ) : selectedConversation ? (

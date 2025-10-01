@@ -244,12 +244,73 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
   };
 
+  // Handle typing indicator
+  const handleTyping = useCallback((value) => {
+    if (!channelRef.current?._id || !userRef.current) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing indicator via socket
+    if (value.trim()) {
+      // Emit typing event
+      if (socketService.socket) {
+        socketService.socket.emit('typing', {
+          channelId: channelRef.current._id,
+          isTyping: true
+        });
+      }
+      
+      // Stop typing after 3 seconds
+      typingTimeoutRef.current = setTimeout(() => {
+        if (socketService.socket) {
+          socketService.socket.emit('typing', {
+            channelId: channelRef.current._id,
+            isTyping: false
+          });
+        }
+      }, 3000);
+    } else {
+      // Stop typing immediately if input is empty
+      if (socketService.socket) {
+        socketService.socket.emit('typing', {
+          channelId: channelRef.current._id,
+          isTyping: false
+        });
+      }
+    }
+  }, []);
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSendMessage = useCallback(async () => {
     if (!message.trim() || !channelRef.current) return;
 
     const messageToSend = message.trim();
     const currentChannelId = channelRef.current._id;
-    setMessage(""); // Clear input immediately
+    
+    // Stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (socketService.socket) {
+      socketService.socket.emit('typing', {
+        channelId: currentChannelId,
+        isTyping: false
+      });
+    }
+    
+    // Clear input IMMEDIATELY for instant feedback (optimistic UI)
+    setMessage("");
 
     try {
       if (currentChannelId) {
@@ -276,10 +337,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       console.error('Failed to send message:', error);
       // Restore message on error
       setMessage(messageToSend);
-      // Show error toast if available
-      if (typeof toast !== 'undefined') {
-        toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
-      }
+      toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
     }
   }, [message]);
 
@@ -654,7 +712,11 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
             <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
               <Input
                 value={message}
-                onChange={useCallback((e) => setMessage(e.target.value), [])}
+                onChange={useCallback((e) => {
+                  const newValue = e.target.value;
+                  setMessage(newValue);
+                  handleTyping(newValue);
+                }, [handleTyping])}
                 onKeyDown={useCallback((e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -663,13 +725,15 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                 }, [handleSendMessage])}
                 placeholder={`#${channel?.name || 'kanal'} kanalına mesaj`}
                 className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none text-base"
+                autoFocus
               />
               
               <Button
                 onClick={handleSendMessage}
                 disabled={!message.trim()}
                 size="icon"
-                className="w-9 h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600"
+                className="w-9 h-9 bg-blue-600 hover:bg-blue-700 hover:scale-110 disabled:opacity-50 disabled:hover:bg-blue-600 disabled:hover:scale-100 transition-all duration-200"
+                title="Gönder (Enter)"
               >
                 <Send className="w-5 h-5" />
               </Button>

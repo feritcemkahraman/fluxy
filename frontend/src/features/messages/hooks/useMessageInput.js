@@ -104,7 +104,11 @@ export const useMessageInput = (onSend, options = {}) => {
 
   // Handle send
   const handleSend = useCallback(async () => {
-    if (isSending) return;
+    // Prevent double-send but don't block typing
+    if (isSending) {
+      console.log('⏳ Already sending, ignoring duplicate send request');
+      return;
+    }
 
     const trimmedContent = content.trim();
     
@@ -122,6 +126,12 @@ export const useMessageInput = (onSend, options = {}) => {
     setIsSending(true);
     setError(null);
 
+    // Clear input IMMEDIATELY for instant feedback (optimistic UI)
+    setContent('');
+    setAttachments([]);
+    setReplyTo(null);
+    adjustTextareaHeight();
+
     try {
       const result = await onSend({
         content: trimmedContent,
@@ -130,24 +140,20 @@ export const useMessageInput = (onSend, options = {}) => {
       });
 
       if (result.success) {
-        // Clear input on success
-        setContent('');
-        setAttachments([]);
-        setReplyTo(null);
-        adjustTextareaHeight();
-        
-        // Focus back to input with delay to ensure DOM update
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            console.log('🎯 Input focused after message send');
-          }
-        }, 50);
+        // Input already cleared above
+        // Focus back to input immediately
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
       } else {
+        // Restore content on failure
+        setContent(trimmedContent);
         setError(result.error || MESSAGE_ERRORS.SEND_FAILED);
       }
     } catch (error) {
       console.error('Send message error:', error);
+      // Restore content on error
+      setContent(trimmedContent);
       setError(MESSAGE_ERRORS.NETWORK_ERROR);
     } finally {
       setIsSending(false);
@@ -182,24 +188,12 @@ export const useMessageInput = (onSend, options = {}) => {
     }
   }, []);
 
-  // Auto-focus on mount and when content changes
+  // Auto-focus on mount only
   useEffect(() => {
     if (autoFocus && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        console.log('🎯 Auto-focus applied');
-      }, 100);
+      textareaRef.current.focus();
     }
   }, [autoFocus]);
-
-  // Keep focus when not sending
-  useEffect(() => {
-    if (!isSending && textareaRef.current && document.activeElement !== textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 10);
-    }
-  }, [isSending]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -212,7 +206,7 @@ export const useMessageInput = (onSend, options = {}) => {
     };
   }, []);
 
-  const canSend = (content.trim() || attachments.length > 0) && !isSending && !error;
+  const canSend = (content.trim() || attachments.length > 0) && !error;
   const remainingChars = maxLength - content.length;
 
   return {

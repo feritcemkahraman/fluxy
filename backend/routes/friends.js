@@ -86,8 +86,8 @@ router.post('/request', [
     );
 
     const populatedRequest = await Friend.findById(friendRequest._id)
-      .populate('from', 'username avatar discriminator')
-      .populate('to', 'username avatar discriminator');
+      .populate('from', 'username displayName avatar discriminator status')
+      .populate('to', 'username displayName avatar discriminator status');
 
     // Emit socket event to notify the target user about the friend request
     const io = req.app.get('io');
@@ -122,8 +122,8 @@ router.post('/request/:requestId/accept', auth, async (req, res) => {
     const request = await Friend.acceptRequest(requestId, req.user._id.toString());
     
     const populatedRequest = await Friend.findById(request._id)
-      .populate('from', 'username avatar discriminator')
-      .populate('to', 'username avatar discriminator');
+      .populate('from', 'username displayName avatar discriminator status')
+      .populate('to', 'username displayName avatar discriminator status');
 
     // Emit socket events to both users about the friendship being established
     const io = req.app.get('io');
@@ -295,12 +295,15 @@ router.get('/search', [
       return res.status(400).json({ message: 'Search query required' });
     }
 
-    // Search users by username (case insensitive)
+    // Search users by username or displayName (case insensitive)
     const users = await User.find({
-      username: { $regex: q, $options: 'i' },
+      $or: [
+        { username: { $regex: q, $options: 'i' } },
+        { displayName: { $regex: q, $options: 'i' } }
+      ],
       _id: { $ne: req.user._id } // Exclude current user
     })
-    .select('username avatar discriminator status')
+    .select('username displayName avatar discriminator status')
     .limit(20);
 
     // Get current user's friends and requests to filter results
@@ -333,6 +336,7 @@ router.get('/search', [
       return {
         id: user._id,
         username: user.username,
+        displayName: user.displayName,
         avatar: user.avatar,
         discriminator: user.discriminator,
         status: user.status,

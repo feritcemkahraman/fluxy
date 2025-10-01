@@ -191,7 +191,6 @@ const MessageInput = ({
               placeholder={placeholder}
               className="w-full bg-transparent text-white placeholder-gray-400 resize-none focus:outline-none max-h-32"
               rows={1}
-              disabled={isSending}
             />
           </div>
 
@@ -207,14 +206,14 @@ const MessageInput = ({
           <button
             onClick={handleSendWithTyping}
             disabled={!canSend}
-            className={`flex-shrink-0 p-2 rounded transition-colors ${
+            className={`flex-shrink-0 p-2 rounded transition-all duration-200 ${
               canSend
-                ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10'
+                ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 hover:scale-110'
                 : 'text-gray-600 cursor-not-allowed'
-            }`}
-            title="Gönder"
+            } ${isSending ? 'animate-pulse' : ''}`}
+            title={isSending ? 'Gönderiliyor...' : 'Gönder'}
           >
-            <Send className="w-5 h-5" />
+            <Send className={`w-5 h-5 ${isSending ? 'animate-bounce' : ''}`} />
           </button>
         </div>
 

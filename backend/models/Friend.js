@@ -128,8 +128,8 @@ friendRequestSchema.statics.getFriends = async function(userId) {
       { to: userId, status: 'accepted' }
     ]
   })
-  .populate('from', 'username avatar discriminator status lastSeen')
-  .populate('to', 'username avatar discriminator status lastSeen')
+  .populate('from', 'username avatar discriminator status lastSeen displayName')
+  .populate('to', 'username avatar discriminator status lastSeen displayName')
   .sort({ updatedAt: -1 });
 
   // Map to get the friend user (not the current user)
@@ -141,6 +141,7 @@ friendRequestSchema.statics.getFriends = async function(userId) {
     return {
       id: friend._id,
       username: friend.username,
+      displayName: friend.displayName,
       avatar: friend.avatar,
       discriminator: friend.discriminator,
       status: friend.status,
@@ -156,7 +157,7 @@ friendRequestSchema.statics.getPendingRequests = async function(userId) {
     to: userId,
     status: 'pending'
   })
-  .populate('from', 'username avatar discriminator status lastSeen')
+  .populate('from', 'username avatar discriminator status lastSeen displayName')
   .sort({ createdAt: -1 });
 
   return requests.map(request => ({
@@ -164,6 +165,7 @@ friendRequestSchema.statics.getPendingRequests = async function(userId) {
     from: {
       id: request.from._id,
       username: request.from.username,
+      displayName: request.from.displayName,
       avatar: request.from.avatar,
       discriminator: request.from.discriminator,
       status: request.from.status,
@@ -179,7 +181,7 @@ friendRequestSchema.statics.getSentRequests = async function(userId) {
     from: userId,
     status: 'pending'
   })
-  .populate('to', 'username avatar discriminator status lastSeen')
+  .populate('to', 'username avatar discriminator status lastSeen displayName')
   .sort({ createdAt: -1 });
 
   return requests.map(request => ({
@@ -187,6 +189,7 @@ friendRequestSchema.statics.getSentRequests = async function(userId) {
     to: {
       id: request.to._id,
       username: request.to.username,
+      displayName: request.to.displayName,
       avatar: request.to.avatar,
       discriminator: request.to.discriminator,
       status: request.to.status,
@@ -253,12 +256,13 @@ friendRequestSchema.statics.getBlockedUsers = async function(userId) {
     from: userId,
     status: 'blocked'
   })
-  .populate('to', 'username avatar discriminator')
+  .populate('to', 'username avatar discriminator displayName')
   .sort({ createdAt: -1 });
 
   return blocked.map(block => ({
     id: block.to._id,
     username: block.to.username,
+    displayName: block.to.displayName,
     avatar: block.to.avatar,
     discriminator: block.to.discriminator,
     blockedAt: block.createdAt

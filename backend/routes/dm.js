@@ -79,7 +79,7 @@ router.post('/conversations', auth, [
     let conversation = await Conversation.findOne({
       type: 'direct',
       participants: { $all: [req.user.id, userId], $size: 2 }
-    }).populate('participants', 'username avatar status discriminator');
+    }).populate('participants', 'username displayName avatar status discriminator');
 
     if (!conversation) {
       // Create new conversation
@@ -88,21 +88,31 @@ router.post('/conversations', auth, [
         type: 'direct'
       });
       await conversation.save();
-      await conversation.populate('participants', 'username avatar status discriminator');
+      await conversation.populate('participants', 'username displayName avatar status discriminator');
     }
 
     const otherParticipant = conversation.participants.find(p => p._id.toString() !== req.user.id);
 
-    res.json({
-      conversation: {
-        id: conversation._id,
-        type: conversation.type,
-        name: otherParticipant.username,
-        avatar: otherParticipant.avatar,
-        participants: conversation.participants,
-        lastActivity: conversation.lastActivity
-      }
-    });
+    const conversationData = {
+      id: conversation._id,
+      type: conversation.type,
+      name: otherParticipant.displayName || otherParticipant.username,
+      avatar: otherParticipant.avatar,
+      participants: conversation.participants,
+      lastActivity: conversation.lastActivity
+    };
+
+    // Emit socket event to both participants
+    const io = req.app.get('io');
+    if (io) {
+      // Notify both users about the new conversation
+      conversation.participants.forEach(participant => {
+        io.to(`user_${participant._id}`).emit('newConversation', conversationData);
+      });
+      console.log(`💬 New conversation created between ${req.user.id} and ${userId}`);
+    }
+
+    res.json({ conversation: conversationData });
 
   } catch (error) {
     console.error('Create conversation error:', error);

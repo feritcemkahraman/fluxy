@@ -17,7 +17,7 @@ import {
 import friendsAPI from '../services/friendsAPI';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
-const FriendsPanel = ({ onBack }) => {
+const FriendsPanel = ({ onBack, onStartConversation }) => {
   const [activeTab, setActiveTab] = useState('online');
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -43,13 +43,21 @@ const FriendsPanel = ({ onBack }) => {
         friendsAPI.getBlockedUsers()
       ]);
 
-      setFriends(friendsData);
-      setPendingRequests(pendingData);
-      setSentRequests(sentData);
-      setBlockedUsers(blockedData);
+      // Handle response.data wrapper if exists
+      setFriends(friendsData?.data || friendsData || []);
+      setPendingRequests(pendingData?.data || pendingData || []);
+      setSentRequests(sentData?.data || sentData || []);
+      setBlockedUsers(blockedData?.data || blockedData || []);
+      
+      console.log('✅ Friends data loaded:', {
+        friends: friendsData?.data || friendsData,
+        pending: pendingData?.data || pendingData,
+        sent: sentData?.data || sentData,
+        blocked: blockedData?.data || blockedData
+      });
     } catch (error) {
       setError('Failed to load friends data');
-      // console.error('Load friends data error:', error);
+      console.error('Load friends data error:', error);
     } finally {
       setLoading(false);
     }
@@ -126,6 +134,18 @@ const FriendsPanel = ({ onBack }) => {
     }
   };
 
+  const handleStartConversation = (friend) => {
+    if (onStartConversation) {
+      // Call parent component's handler to open DM with this user
+      const userId = friend.id || friend._id;
+      console.log('🔵 Starting conversation with friend:', { friend, userId });
+      // Pass both userId and friend data
+      onStartConversation(userId, friend);
+    } else {
+      setError('Mesajlaşma özelliği şu anda kullanılamıyor');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'online': return 'bg-green-500';
@@ -159,7 +179,11 @@ const FriendsPanel = ({ onBack }) => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button className="p-2 bg-gray-800/80 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:scale-110 shadow-lg hover:shadow-blue-500/50" title="Mesaj Gönder">
+              <button 
+                onClick={() => handleStartConversation(friend)}
+                className="p-2 bg-gray-800/80 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:scale-110 shadow-lg hover:shadow-blue-500/50" 
+                title="Mesaj Gönder"
+              >
                 <MessageCircle size={18} className="text-gray-300 hover:text-white transition-colors" />
               </button>
               <button 
