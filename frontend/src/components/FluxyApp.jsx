@@ -48,6 +48,7 @@ const FluxyApp = () => {
     isSpeaking, 
     remoteSpeaking, 
     isMuted,
+    remoteMuted,
     callDuration,
     isScreenSharing,
     startScreenShare
@@ -104,7 +105,6 @@ const FluxyApp = () => {
   useEffect(() => {
     if (incomingCall) {
       // Play call sound when incoming call arrives
-      console.log('📞 Incoming call - Playing call sound');
       notificationSound.playCallSound();
     } else {
       // Stop call sound when no incoming call
@@ -1083,6 +1083,7 @@ const FluxyApp = () => {
             isSpeaking={isSpeaking}
             remoteSpeaking={remoteSpeaking}
             isMuted={isMuted}
+            remoteMuted={remoteMuted}
             callDuration={callDuration}
             isScreenSharing={isScreenSharing}
             startScreenShare={startScreenShare}

@@ -139,8 +139,8 @@ const VoiceCallModal = ({ isOpen, onClose, callData }) => {
 
   // Toggle mute
   const handleToggleMute = () => {
-    const muted = voiceCallService.toggleMute();
-    setIsMuted(muted);
+    const result = voiceCallService.toggleMute();
+    setIsMuted(result.isMuted);
   };
 
   // Toggle video
@@ -178,11 +178,20 @@ const VoiceCallModal = ({ isOpen, onClose, callData }) => {
               />
             ) : (
               <div className="flex flex-col items-center space-y-6">
-                <Avatar className="w-48 h-48 border-4 border-white/10">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-6xl">
-                    {callData.username?.charAt(0) || 'U'}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="w-48 h-48 border-4 border-white/10">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-6xl">
+                      {callData.username?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  {/* Mute indicator */}
+                  {isMuted && (
+                    <div className="absolute bottom-2 right-2 bg-red-600 rounded-full p-3 border-2 border-white shadow-lg">
+                      <MicOff className="w-6 h-6 text-white" />
+                    </div>
+                  )}
+                </div>
                 
                 <div className="text-center">
                   <h2 className="text-3xl font-bold text-white mb-2">

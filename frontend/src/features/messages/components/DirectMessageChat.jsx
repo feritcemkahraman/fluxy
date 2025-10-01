@@ -25,7 +25,7 @@ import notificationSound from '../../../utils/notificationSound';
  * DirectMessageChat Component - Discord Style
  * Refactored to use new Messages feature module
  */
-const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, callDuration, isScreenSharing, startScreenShare }) => {
+const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, startScreenShare }) => {
   const { user } = useAuth();
   const messagesEndRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -281,19 +281,28 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
                 )}
                 
                 <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
-                  {user?.avatar ? (
-                    <img 
-                      src={user.avatar} 
-                      alt={user.displayName || user.username}
-                      className="w-36 h-36 mb-3 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white text-5xl font-bold">
-                        {user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'M'}
-                      </span>
-                    </div>
-                  )}
+                  <div className="relative">
+                    {user?.avatar ? (
+                      <img 
+                        src={user.avatar} 
+                        alt={user.displayName || user.username}
+                        className="w-36 h-36 mb-3 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white text-5xl font-bold">
+                          {user?.displayName?.charAt(0) || user?.username?.charAt(0) || 'M'}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Mute indicator */}
+                    {isMuted && (
+                      <div className="absolute bottom-2 right-2 bg-red-600 rounded-full p-2 border-2 border-white shadow-lg">
+                        <MicOff className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <p className="text-white text-base font-bold text-center drop-shadow-2xl px-4 w-full">
                     {user?.displayName || user?.username || 'Me'}
                   </p>
@@ -313,19 +322,28 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
                   )}
                   
                   <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
-                    {otherUser?.avatar ? (
-                      <img 
-                        src={otherUser.avatar} 
-                        alt={otherUser.displayName || otherUser.username}
-                        className="w-36 h-36 mb-3 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                        <span className="text-white text-5xl font-bold">
-                          {otherUser?.displayName?.charAt(0) || otherUser?.username?.charAt(0) || 'U'}
-                        </span>
-                      </div>
-                    )}
+                    <div className="relative">
+                      {otherUser?.avatar ? (
+                        <img 
+                          src={otherUser.avatar} 
+                          alt={otherUser.displayName || otherUser.username}
+                          className="w-36 h-36 mb-3 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-36 h-36 mb-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                          <span className="text-white text-5xl font-bold">
+                            {otherUser?.displayName?.charAt(0) || otherUser?.username?.charAt(0) || 'U'}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Remote user mute indicator */}
+                      {remoteMuted && (
+                        <div className="absolute bottom-2 right-2 bg-red-600 rounded-full p-2 border-2 border-white shadow-lg">
+                          <MicOff className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </div>
                     <p className="text-white text-base font-bold text-center drop-shadow-2xl px-4 w-full">
                       {otherUser?.displayName || otherUser?.username || 'User'}
                     </p>

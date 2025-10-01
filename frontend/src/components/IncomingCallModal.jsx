@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Button } from './ui/button';
 import { Phone, PhoneOff, Video } from 'lucide-react';
@@ -28,6 +28,9 @@ const IncomingCallModal = ({
       <DialogContent className="max-w-sm bg-[#2b2d31] border border-gray-700/50 text-white p-0 overflow-hidden">
         <VisuallyHidden>
           <DialogTitle>Incoming Call from {callData.username}</DialogTitle>
+          <DialogDescription>
+            {isVideoCall ? 'Video' : 'Voice'} call from {callData.username}
+          </DialogDescription>
         </VisuallyHidden>
 
         <div className="p-8 flex flex-col items-center">

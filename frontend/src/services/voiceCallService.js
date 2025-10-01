@@ -24,6 +24,7 @@ class VoiceCallService {
   initialize(socket, user) {
     this.socket = socket;
     this.user = user;
+    this.setupSocketListeners();
   }
 
   // Setup socket event listeners
@@ -41,6 +42,35 @@ class VoiceCallService {
       };
       this.callState = 'ringing';
       this.emit('incomingCall', data);
+    });
+
+    // Call is ringing
+    this.socket.on('voiceCall:ringing', () => {
+      this.callState = 'calling';
+      this.emit('callRinging');
+    });
+
+    // Call accepted
+    this.socket.on('voiceCall:accepted', async (data) => {
+      this.callState = 'connected';
+      this.emit('callAccepted', data);
+      // Create WebRTC offer when call is accepted
+      await this.createOffer();
+    });
+
+    // Call rejected
+    this.socket.on('voiceCall:rejected', (data) => {
+      this.callState = 'rejected';
+      this.emit('callRejected', data);
+      this.endCall();
+    });
+
+    // Call ended
+    this.socket.on('voiceCall:ended', (data) => {
+      this.emit('callEnded', data);
+      // Don't call endCall() here to avoid duplicate emit
+      // Just cleanup locally without emitting
+      this.cleanupLocal();
     });
 
     // WebRTC offer received
@@ -68,6 +98,11 @@ class VoiceCallService {
     // Remote speaking status
     this.socket.on('voiceCall:remoteSpeaking', (data) => {
       this.emit('remoteSpeaking', data);
+    });
+
+    // Remote mute status
+    this.socket.on('voiceCall:remoteMuteStatus', (data) => {
+      this.emit('remoteMuteStatus', data);
     });
   }
 
@@ -265,7 +300,16 @@ class VoiceCallService {
   // Handle WebRTC offer
   async handleOffer(callerId, offer) {
     try {
-      this.createPeerConnection(callerId);
+      // Check if peer connection already exists and is in stable state
+      if (this.peerConnection && this.peerConnection.signalingState !== 'stable') {
+        console.log('⚠️ Peer connection not in stable state, ignoring offer');
+        return;
+      }
+      
+      // Only create new peer connection if it doesn't exist
+      if (!this.peerConnection) {
+        this.createPeerConnection(callerId);
+      }
       
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       
@@ -317,6 +361,15 @@ class VoiceCallService {
       audioTrack.enabled = !audioTrack.enabled;
       const isMuted = !audioTrack.enabled;
       this.emit('muteToggled', isMuted);
+      
+      // Notify other user about mute status
+      if (this.currentCall && this.socket) {
+        this.socket.emit('voiceCall:muteStatus', {
+          targetUserId: this.currentCall.userId,
+          isMuted
+        });
+      }
+      
       return { isMuted };
     }
     return { isMuted: false };
@@ -425,6 +478,27 @@ class VoiceCallService {
       state: this.callState,
       call: this.currentCall
     };
+  }
+
+  // Cleanup local resources without emitting to server
+  cleanupLocal() {
+    // Close peer connection
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    
+    // Stop local stream
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream = null;
+    }
+    
+    // Clear remote stream
+    this.remoteStream = null;
+    
+    this.currentCall = null;
+    this.callState = 'idle';
   }
 
   // Cleanup

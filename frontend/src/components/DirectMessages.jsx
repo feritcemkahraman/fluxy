@@ -35,7 +35,7 @@ import {
 import { DirectMessageChat } from "../features/messages";
 import FriendsPanel from "./FriendsPanel";
 
-const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, callDuration, isScreenSharing, startScreenShare }) => {
+const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, startScreenShare }) => {
   const { user } = useAuth();
   const { on, isAuthenticated } = useSocket();
   
@@ -731,6 +731,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
               isSpeaking={isSpeaking}
               remoteSpeaking={remoteSpeaking}
               isMuted={isMuted}
+              remoteMuted={remoteMuted}
               callDuration={callDuration}
               isScreenSharing={isScreenSharing}
               startScreenShare={startScreenShare}

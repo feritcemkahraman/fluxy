@@ -10,6 +10,7 @@ export const useVoiceCall = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [remoteSpeaking, setRemoteSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [remoteMuted, setRemoteMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
@@ -51,11 +52,16 @@ export const useVoiceCall = () => {
       setCallState('idle');
     };
 
+    const handleRemoteMuteStatus = (data) => {
+      setRemoteMuted(data.isMuted);
+    };
+
     voiceCallService.on('incomingCall', handleIncomingCall);
     voiceCallService.on('callAccepted', handleCallAccepted);
     voiceCallService.on('callRejected', handleCallRejected);
     voiceCallService.on('callEnded', handleCallEnded);
     voiceCallService.on('callClosed', handleCallClosed);
+    voiceCallService.on('remoteMuteStatus', handleRemoteMuteStatus);
 
     return () => {
       voiceCallService.off('incomingCall', handleIncomingCall);
@@ -63,6 +69,7 @@ export const useVoiceCall = () => {
       voiceCallService.off('callRejected', handleCallRejected);
       voiceCallService.off('callEnded', handleCallEnded);
       voiceCallService.off('callClosed', handleCallClosed);
+      voiceCallService.off('remoteMuteStatus', handleRemoteMuteStatus);
     };
   }, []);
 
@@ -190,7 +197,7 @@ export const useVoiceCall = () => {
     let audioContext;
     let analyser;
     let microphone;
-    let javascriptNode;
+    let animationFrameId;
     let lastSpeakingState = false;
 
     const startVoiceDetection = async () => {
@@ -201,16 +208,14 @@ export const useVoiceCall = () => {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         microphone = audioContext.createMediaStreamSource(stream);
-        javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
 
         analyser.smoothingTimeConstant = 0.8;
         analyser.fftSize = 1024;
 
         microphone.connect(analyser);
-        analyser.connect(javascriptNode);
-        javascriptNode.connect(audioContext.destination);
 
-        javascriptNode.onaudioprocess = () => {
+        // Use requestAnimationFrame instead of ScriptProcessorNode
+        const detectVoice = () => {
           const array = new Uint8Array(analyser.frequencyBinCount);
           analyser.getByteFrequencyData(array);
           const values = array.reduce((a, b) => a + b, 0);
@@ -225,7 +230,13 @@ export const useVoiceCall = () => {
             lastSpeakingState = speaking;
             voiceCallService.sendSpeakingStatus(currentCall.userId, speaking);
           }
+
+          // Continue detection loop
+          animationFrameId = requestAnimationFrame(detectVoice);
         };
+
+        // Start detection loop
+        detectVoice();
       } catch (error) {
         console.error('Voice detection error:', error);
       }
@@ -234,7 +245,7 @@ export const useVoiceCall = () => {
     startVoiceDetection();
 
     return () => {
-      if (javascriptNode) javascriptNode.disconnect();
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (analyser) analyser.disconnect();
       if (microphone) microphone.disconnect();
       if (audioContext) audioContext.close();
@@ -261,6 +272,7 @@ export const useVoiceCall = () => {
     isSpeaking,
     remoteSpeaking,
     isMuted,
+    remoteMuted,
     callDuration,
     isScreenSharing,
     initiateCall,

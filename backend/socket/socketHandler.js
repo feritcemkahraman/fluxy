@@ -789,6 +789,18 @@ const handleConnection = (io) => {
       }
     });
 
+    // Mute status
+    socket.on('voiceCall:muteStatus', async ({ targetUserId, isMuted }) => {
+      try {
+        io.to(`user_${targetUserId}`).emit('voiceCall:remoteMuteStatus', {
+          userId: socket.userId,
+          isMuted
+        });
+      } catch (error) {
+        console.error('Mute status error:', error);
+      }
+    });
+
     // ==================== END VOICE CALL EVENTS ====================
 
     // Handle disconnect
