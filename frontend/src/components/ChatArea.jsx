@@ -90,12 +90,31 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
     // If already authenticated, join immediately (but only once)
     if (channel?._id && joinChannel && isAuthenticated()) {
+      console.log('🔗 Joining channel room:', channel._id);
       joinChannel(channel._id);
+    } else {
+      console.log('⚠️ Cannot join channel:', { 
+        hasChannel: !!channel?._id, 
+        hasJoinChannel: !!joinChannel, 
+        isAuth: isAuthenticated() 
+      });
     }
 
+    console.log('🎧 Setting up newMessage event listener for channel:', channel?._id);
     const unsubscribeNewMessage = on('newMessage', (newMessage) => {
-      // Only add message if it belongs to the current channel
-      if (newMessage.channel === channel?._id) {
+      console.log('📨 newMessage event received:', newMessage);
+      
+      // Handle system messages first
+      if (newMessage.type === 'system' || newMessage.isSystemMessage) {
+        console.log('🔔 System message detected');
+        newMessage.isSystemMessage = true;
+        newMessage.systemMessageType = newMessage.systemMessageType || 'member_join';
+      }
+      
+      // Only add message if it belongs to the current channel OR it's a system message
+      if (newMessage.channel === channel?._id || newMessage.type === 'system' || newMessage.isSystemMessage) {
+        console.log('✅ Message belongs to current channel or is system message');
+        
         // Fix displayName using our mapping
         if (newMessage.author && newMessage.author.username) {
           const correctDisplayName = userDisplayNames.get(newMessage.author.username);
@@ -169,6 +188,22 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
       const response = await messageAPI.getMessages(channel._id, 1, 50);
       const newMessages = response.data.messages || [];
+
+      // Process messages - handle system messages
+      newMessages.forEach(message => {
+        if (message.type === 'system' || message.isSystemMessage) {
+          console.log('✅ Setting isSystemMessage for loaded message:', message._id);
+          message.isSystemMessage = true;
+          message.systemMessageType = message.systemMessageType || 'member_join';
+        }
+      });
+      
+      console.log('📦 Loaded messages:', newMessages.map(m => ({ 
+        id: m._id, 
+        isSystem: m.isSystemMessage, 
+        type: m.type,
+        content: m.content?.substring(0, 30) 
+      })));
 
       // Update displayName mapping from loaded messages
       const newDisplayNames = new Map();
@@ -477,9 +512,33 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                               msg.systemMessageType === 'member_leave' ? 'text-red-400' :
                               msg.systemMessageType === 'server_boost' ? 'text-purple-400' :
                               'text-blue-400'
-                            }`} dangerouslySetInnerHTML={{ 
-                              __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                            }} />
+                            }`}>
+                              {(() => {
+                                // Parse message content to make username clickable
+                                const match = msg.content.match(/\*\*(.*?)\*\*/);
+                                if (match) {
+                                  const username = match[1];
+                                  const parts = msg.content.split(/\*\*.*?\*\*/);
+                                  return (
+                                    <>
+                                      {parts[0]}
+                                      <button
+                                        onClick={() => {
+                                          // Open user profile modal
+                                          setSelectedMember(msg.author);
+                                          setMemberActionDialog({ open: true, action: 'view', member: msg.author });
+                                        }}
+                                        className="font-bold text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer transition-colors"
+                                      >
+                                        {username}
+                                      </button>
+                                      {parts[1]}
+                                    </>
+                                  );
+                                }
+                                return msg.content;
+                              })()}
+                            </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">
                             {formatTime(msg.createdAt)}

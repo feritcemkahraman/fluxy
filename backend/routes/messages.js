@@ -135,6 +135,7 @@ router.get('/:channelId', auth, async (req, res) => {
 
     res.json({
       messages: messages.reverse().map(message => ({
+        _id: message._id,
         id: message._id,
         content: message.content,
         author: message.author,
@@ -145,7 +146,10 @@ router.get('/:channelId', auth, async (req, res) => {
         attachments: message.attachments,
         isEdited: message.isEdited,
         editedAt: message.editedAt,
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        type: message.type,
+        isSystemMessage: message.isSystemMessage,
+        systemMessageType: message.systemMessageType
       }))
     });
 

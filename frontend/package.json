@@ -71,6 +71,8 @@
     "eject": "react-scripts eject",
     "electron": "electron .",
     "electron-dev": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && electron . --no-sandbox --enable-gpu-rasterization --enable-zero-copy --enable-hardware-overlays\"",
+    "electron-client1": "wait-on http://localhost:3000 && electron . --user-data-dir=./electron-data/client1 --no-sandbox --enable-gpu-rasterization --enable-zero-copy --enable-hardware-overlays",
+    "electron-client2": "wait-on http://localhost:3000 && electron . --user-data-dir=./electron-data/client2 --no-sandbox --enable-gpu-rasterization --enable-zero-copy --enable-hardware-overlays",
     "electron-pack": "electron-builder",
     "preelectron-pack": "npm run build",
     "dist": "npm run build && electron-builder",

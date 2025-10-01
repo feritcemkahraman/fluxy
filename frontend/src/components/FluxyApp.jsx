@@ -502,6 +502,44 @@ const FluxyApp = () => {
       });
     };
 
+    const handleMemberLeft = (leftData) => {
+      const { serverId, userId, username } = leftData;
+      
+      // Remove member from servers list
+      setServers(prevServers => {
+        return prevServers.map(server => {
+          if ((server._id || server.id) === serverId) {
+            const updatedMembers = server.members?.filter(member => {
+              const memberUserId = member?.user?._id || member?.user?.id || member?._id || member?.id;
+              return memberUserId && memberUserId !== userId;
+            });
+            return {
+              ...server,
+              members: updatedMembers
+            };
+          }
+          return server;
+        });
+      });
+      
+      // Remove member from active server
+      setActiveServer(prevServer => {
+        if (!prevServer || (prevServer._id || prevServer.id) !== serverId) {
+          return prevServer;
+        }
+        
+        const updatedMembers = prevServer.members?.filter(member => {
+          const memberUserId = member?.user?._id || member?.user?.id || member?._id || member?.id;
+          return memberUserId && memberUserId !== userId;
+        });
+        
+        return {
+          ...prevServer,
+          members: updatedMembers
+        };
+      });
+    };
+
     const handleMemberBanned = (banData) => {
       const { serverId, userId, bannedByUsername, bannedUser, reason } = banData;
       
@@ -648,7 +686,7 @@ const FluxyApp = () => {
       const { serverId, member } = memberData;
       
       // Check if the joined member is the current user
-      const isCurrentUser = member.user._id === user?._id || member.user.id === user?.id;
+      const isCurrentUser = member?.user?._id === user?._id || member?.user?.id === user?.id;
       
       if (isCurrentUser) {
         // Current user joined a new server - fetch updated server list
@@ -667,9 +705,11 @@ const FluxyApp = () => {
         return prevServers.map(server => {
           if ((server._id || server.id) === serverId) {
             // Check if member already exists to avoid duplicates
-            const memberExists = server.members?.some(existingMember => 
-              (existingMember.user._id || existingMember.user.id) === (member.user._id || member.user.id)
-            );
+            const memberExists = server.members?.some(existingMember => {
+              const existingUserId = existingMember?.user?._id || existingMember?.user?.id || existingMember?._id || existingMember?.id;
+              const newUserId = member?.user?._id || member?.user?.id || member?._id || member?.id;
+              return existingUserId && newUserId && existingUserId === newUserId;
+            });
             
             if (!memberExists) {
               const updatedMembers = [...(server.members || []), member];
@@ -690,9 +730,11 @@ const FluxyApp = () => {
         }
         
         // Check if member already exists to avoid duplicates
-        const memberExists = prevServer.members?.some(existingMember => 
-          (existingMember.user._id || existingMember.user.id) === (member.user._id || member.user.id)
-        );
+        const memberExists = prevServer.members?.some(existingMember => {
+          const existingUserId = existingMember?.user?._id || existingMember?.user?.id || existingMember?._id || existingMember?.id;
+          const newUserId = member?.user?._id || member?.user?.id || member?._id || member?.id;
+          return existingUserId && newUserId && existingUserId === newUserId;
+        });
         
         if (!memberExists) {
           const updatedMembers = [...(prevServer.members || []), member];
@@ -713,6 +755,7 @@ const FluxyApp = () => {
     const unsubscribeServerUpdate = on('serverUpdate', handleServerUpdate);
     const unsubscribeMemberKicked = on('memberKicked', handleMemberKicked);
     const unsubscribeMemberBanned = on('memberBanned', handleMemberBanned);
+    const unsubscribeMemberLeft = on('memberLeft', handleMemberLeft);
     const unsubscribeUserKicked = on('kicked', handleUserKicked);
     const unsubscribeUserBanned = on('banned', handleUserBanned);
     const unsubscribeInviteCreated = on('inviteCreated', handleInviteCreated);
@@ -731,6 +774,7 @@ const FluxyApp = () => {
       unsubscribeServerUpdate();
       unsubscribeMemberKicked();
       unsubscribeMemberBanned();
+      unsubscribeMemberLeft();
       unsubscribeUserKicked();
       unsubscribeUserBanned();
       unsubscribeInviteCreated();
@@ -883,16 +927,16 @@ const FluxyApp = () => {
   };
 
   const handleServerUpdate = (updatedServer) => {
-    // Handle server deletion
-    if (updatedServer.type === 'delete') {
-      const deletedServerId = updatedServer.serverId;
+    // Handle server deletion or leave
+    if (updatedServer.type === 'delete' || updatedServer.type === 'leave') {
+      const removedServerId = updatedServer.serverId;
       
       // Remove server from list
-      setServers(prev => prev.filter(s => (s._id || s.id) !== deletedServerId));
+      setServers(prev => prev.filter(s => (s._id || s.id) !== removedServerId));
       
-      // If deleted server was active, switch to first available server or direct messages
-      if (activeServer && (activeServer._id || activeServer.id) === deletedServerId) {
-        const remainingServers = servers.filter(s => (s._id || s.id) !== deletedServerId);
+      // If removed server was active, switch to first available server or direct messages
+      if (activeServer && (activeServer._id || activeServer.id) === removedServerId) {
+        const remainingServers = servers.filter(s => (s._id || s.id) !== removedServerId);
         
         if (remainingServers.length > 0) {
           const firstServer = remainingServers[0];

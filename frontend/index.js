@@ -114,7 +114,10 @@ if (process.platform === 'win32') {
 
 const store = new Store();
 
-// Enable live reload for Electron in development
+// Enable live reload for Electron in development - DISABLED for multi-client testing
+// The electron-reload causes issues with multiple instances
+// Re-enable this if you're running single instance only
+/*
 if (isDev) {
   try {
     require('electron-reload')(__dirname, {
@@ -125,16 +128,27 @@ if (isDev) {
     console.log('Electron reload not available:', error.message);
   }
 }
+*/
 
 let mainWindow;
 
 function createWindow() {
+  // Detect which client instance this is based on user data directory
+  const userDataPath = app.getPath('userData');
+  let windowTitle = 'Fluxy';
+  if (userDataPath.includes('client1')) {
+    windowTitle = 'Fluxy - Client 1';
+  } else if (userDataPath.includes('client2')) {
+    windowTitle = 'Fluxy - Client 2';
+  }
+  
   // Ana pencere oluştur - Windows uyumlu ayarlar
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1000,
     minHeight: 600,
+    title: windowTitle,
     webPreferences: {
       nodeIntegration: false, // Security: Disable node integration
       contextIsolation: true, // Security: Enable context isolation
@@ -472,19 +486,24 @@ app.on('open-url', (event, url) => {
   }
 });
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
+// Single instance lock - Disabled for multi-client testing
+// Enable this in production to prevent multiple instances
+const ALLOW_MULTIPLE_INSTANCES = true; // Set to false in production
 
-if (!gotTheLock) {
-  app.quit();
-} else {
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // Birisi ikinci bir instance açmaya çalışırsa, mevcut pencereyi odakla
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
+if (!ALLOW_MULTIPLE_INSTANCES) {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    app.quit();
+  } else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+      // Birisi ikinci bir instance açmaya çalışırsa, mevcut pencereyi odakla
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+  }
 }
 
 // Auto updater (production only)

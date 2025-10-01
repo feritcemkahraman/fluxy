@@ -30,9 +30,9 @@ import {
   Download,
 } from "lucide-react";
 
-const TEXT_ROW_A = ["OYUN", "-", "SOHBET", "-", "TAKILMA", "-", "KONUŞMA"];
+const TEXT_ROW_A = ["-", "OYUN", "-", "SOHBET", "-", "TAKILMA", "-", "KONUŞMA"];
 
-const TEXT_ROW_B = ["OYUN", "-", "SOHBET", "-", "TAKILMA", "-", "KONUŞMA"];
+const TEXT_ROW_B = ["-", "OYUN", "-", "SOHBET", "-", "TAKILMA", "-", "KONUŞMA"];
 
 const features = [
   {
@@ -137,14 +137,14 @@ const LandingPage = ({ onLogin, onRegister }) => {
             <section className="relative mt-24 w-full">
               <div className="relative flex w-full flex-col items-center justify-center overflow-hidden py-8">
                 <ScrollVelocityContainer className="w-full text-4xl font-bold md:text-7xl">
-                  <ScrollVelocityRow baseVelocity={3} direction={1} className="py-4">
+                  <ScrollVelocityRow baseVelocity={8} direction={1} className="py-4">
                     {TEXT_ROW_A.map((text, idx) => (
                       <span key={idx} className="mx-8 text-white">
                         {text}
                       </span>
                     ))}
                   </ScrollVelocityRow>
-                  <ScrollVelocityRow baseVelocity={3} direction={-1} className="py-4">
+                  <ScrollVelocityRow baseVelocity={8} direction={-1} className="py-4">
                     {TEXT_ROW_B.map((text, idx) => (
                       <span key={idx} className="mx-8 text-white">
                         {text}

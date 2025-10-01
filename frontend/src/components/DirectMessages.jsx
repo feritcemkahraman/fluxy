@@ -394,11 +394,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       await serverAPI.joinServer(serverId);
       
       // Başarılı katılım sonrası kullanıcıyı bilgilendir
-      toast({
-        title: "Başarılı!",
-        description: "Sunucuya başarıyla katıldınız!",
-        duration: 3000,
-      });
+      toast.success("Sunucuya başarıyla katıldınız!");
       
       // Local state'i güncelle - bu sunucuda artık member'ız
       setDiscoverServers(prevServers => 
@@ -416,27 +412,20 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       console.error('Failed to join server:', error);
       
       // Kullanıcıya hata mesajı göster
-      if (error.response?.status === 400) {
-        toast({
-          title: "Hata",
-          description: "Bu sunucuya zaten üyesiniz!",
-          variant: "destructive",
-          duration: 3000,
-        });
+      if (error.message?.includes('already a member')) {
+        // Zaten üye - state'i güncelle
+        setDiscoverServers(prevServers => 
+          prevServers.map(server => 
+            server.id === serverId 
+              ? { ...server, isMember: true }
+              : server
+          )
+        );
+        toast.info("Bu sunucuya zaten üyesiniz!");
       } else if (error.response?.status === 404) {
-        toast({
-          title: "Hata",
-          description: "Sunucu bulunamadı!",
-          variant: "destructive",
-          duration: 3000,
-        });
+        toast.error("Sunucu bulunamadı!");
       } else {
-        toast({
-          title: "Hata",
-          description: "Sunucuya katılırken bir hata oluştu.",
-          variant: "destructive",
-          duration: 3000,
-        });
+        toast.error("Sunucuya katılırken bir hata oluştu.");
       }
     }
   };

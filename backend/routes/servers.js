@@ -319,13 +319,14 @@ router.put('/:id', auth, requirePermission(PERMISSIONS.MANAGE_SERVER), [
 // @access  Private
 router.post('/:id/join', auth, [
   body('inviteCode')
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isLength({ min: 6, max: 6 })
     .withMessage('Invalid invite code')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ 
         message: 'Validation failed',
         errors: errors.array()
@@ -393,7 +394,73 @@ router.post('/:id/join', auth, [
 
     // Emit server joined event to the user for real-time UI update
     const io = req.app.get('io');
+    
     if (io) {
+      // FIRST: Find user's socket and join them to the new server room
+      const { connectedUsers } = require('../socket/socketHandler');
+      const userConnection = connectedUsers.get(req.user._id.toString());
+      if (userConnection) {
+        const userSocket = io.sockets.sockets.get(userConnection.socketId);
+        if (userSocket) {
+          userSocket.join(`server_${server._id}`);
+          console.log(`✅ User ${req.user.username} joined server room: server_${server._id}`);
+        }
+      }
+    }
+    
+    // THEN: Create and broadcast welcome message
+    const firstTextChannel = populatedServerForEvent.channels.find(ch => ch.type === 'text');
+    console.log('🔍 First text channel found:', firstTextChannel?._id);
+    
+    if (firstTextChannel && io) {
+      const Message = require('../models/Message');
+      const welcomeMessage = new Message({
+        content: `🎉 **${req.user.username}** sunucuya katıldı! Hoş geldin!`,
+        author: req.user._id,
+        channel: firstTextChannel._id,
+        server: server._id,
+        type: 'system', isSystemMessage: true, systemMessageType: 'member_join'
+      });
+      await welcomeMessage.save();
+      console.log('✅ Welcome message saved:', welcomeMessage._id);
+
+      // Update channel's last message
+      await Channel.findByIdAndUpdate(firstTextChannel._id, {
+        lastMessage: welcomeMessage._id,
+        $inc: { messageCount: 1 }
+      });
+
+      // Populate message for broadcast
+      const populatedMessage = await Message.findById(welcomeMessage._id)
+        .populate('author', 'username displayName avatar discriminator status');
+
+      console.log('📡 Broadcasting welcome message to server room:', `server_${server._id}`);
+      
+      const messageData = {
+        _id: populatedMessage._id,
+        content: populatedMessage.content,
+        author: {
+          _id: populatedMessage.author._id,
+          id: populatedMessage.author._id,
+          username: populatedMessage.author.username,
+          displayName: populatedMessage.author.displayName || populatedMessage.author.username,
+          avatar: populatedMessage.author.avatar,
+          discriminator: populatedMessage.author.discriminator,
+          status: populatedMessage.author.status
+        },
+        channel: populatedMessage.channel,
+        server: populatedMessage.server,
+        type: populatedMessage.type, isSystemMessage: populatedMessage.isSystemMessage, systemMessageType: populatedMessage.systemMessageType,
+        createdAt: populatedMessage.createdAt
+      };
+      
+      // Broadcast welcome message to all server members (system messages go to server room only)
+      io.to(`server_${server._id}`).emit('newMessage', messageData);
+    }
+    
+    if (io) {
+
+      // Emit serverJoined event to the user
       io.to(`user_${req.user._id}`).emit('serverJoined', {
         server: populatedServerForEvent
       });
@@ -493,9 +560,84 @@ router.post('/join-by-invite', auth, [
 
     await server.save();
 
+    // Populate server data for socket event
+    const populatedServerForEvent = await Server.findById(server._id)
+      .populate('members.user', 'username avatar discriminator status')
+      .populate('channels');
+
     // Broadcast new member joined to all server members
     const io = req.io || req.app.get('io');
+    
     if (io) {
+      // FIRST: Find user's socket and join them to the new server room
+      const { connectedUsers } = require('../socket/socketHandler');
+      const userConnection = connectedUsers.get(req.user._id.toString());
+      if (userConnection) {
+        const userSocket = io.sockets.sockets.get(userConnection.socketId);
+        if (userSocket) {
+          userSocket.join(`server_${server._id}`);
+          console.log(`✅ User ${req.user.username} joined server room: server_${server._id}`);
+        }
+      }
+    }
+    
+    // THEN: Create and broadcast welcome message
+    const firstTextChannel = populatedServerForEvent.channels.find(ch => ch.type === 'text');
+    console.log('🔍 First text channel found:', firstTextChannel?._id);
+    
+    if (firstTextChannel && io) {
+      const Message = require('../models/Message');
+      const Channel = require('../models/Channel');
+      const welcomeMessage = new Message({
+        content: `🎉 **${req.user.username}** sunucuya katıldı! Hoş geldin!`,
+        author: req.user._id,
+        channel: firstTextChannel._id,
+        server: server._id,
+        type: 'system', isSystemMessage: true, systemMessageType: 'member_join'
+      });
+      await welcomeMessage.save();
+      console.log('✅ Welcome message saved:', welcomeMessage._id);
+
+      // Update channel's last message
+      await Channel.findByIdAndUpdate(firstTextChannel._id, {
+        lastMessage: welcomeMessage._id,
+        $inc: { messageCount: 1 }
+      });
+
+      // Populate message for broadcast
+      const populatedMessage = await Message.findById(welcomeMessage._id)
+        .populate('author', 'username displayName avatar discriminator status');
+
+      console.log('📡 Broadcasting welcome message to server room:', `server_${server._id}`);
+      
+      const messageData = {
+        _id: populatedMessage._id,
+        content: populatedMessage.content,
+        author: {
+          _id: populatedMessage.author._id,
+          id: populatedMessage.author._id,
+          username: populatedMessage.author.username,
+          displayName: populatedMessage.author.displayName || populatedMessage.author.username,
+          avatar: populatedMessage.author.avatar,
+          discriminator: populatedMessage.author.discriminator,
+          status: populatedMessage.author.status
+        },
+        channel: populatedMessage.channel,
+        server: populatedMessage.server,
+        type: populatedMessage.type, isSystemMessage: populatedMessage.isSystemMessage, systemMessageType: populatedMessage.systemMessageType,
+        createdAt: populatedMessage.createdAt
+      };
+      
+      // Broadcast welcome message to all server members (system messages go to server room only)
+      io.to(`server_${server._id}`).emit('newMessage', messageData);
+    }
+    
+    if (io) {
+      // Emit serverJoined event to the user for real-time UI update
+      io.to(`user_${req.user._id}`).emit('serverJoined', {
+        server: populatedServerForEvent
+      });
+
       io.to(`server_${server._id}`).emit('newMemberJoined', {
         serverId: server._id,
         member: {
@@ -613,6 +755,28 @@ router.delete('/:id/leave', auth, async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
       $pull: { servers: server._id }
     });
+
+    // Emit socket event to notify server members about user leaving
+    const io = req.io || req.app.get('io');
+    if (io) {
+      // Notify all server members that this user left
+      io.to(`server_${server._id}`).emit('memberLeft', {
+        serverId: server._id,
+        userId: req.user._id,
+        username: req.user.username
+      });
+
+      // Find user's socket and remove them from server room
+      const { connectedUsers } = require('../socket/socketHandler');
+      const userConnection = connectedUsers.get(req.user._id.toString());
+      if (userConnection) {
+        const userSocket = io.sockets.sockets.get(userConnection.socketId);
+        if (userSocket) {
+          userSocket.leave(`server_${server._id}`);
+          console.log(`✅ User ${req.user.username} left server room: server_${server._id}`);
+        }
+      }
+    }
 
     res.json({ message: 'Successfully left server' });
 

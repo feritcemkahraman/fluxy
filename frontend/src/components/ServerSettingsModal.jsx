@@ -38,11 +38,19 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  LogOut
 } from "lucide-react";
 import { roleAPI, serverAPI, channelAPI, uploadAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
+  const { user } = useAuth();
+  
+  // Get consistent server ID (handles both _id and id formats)
+  const serverId = server?._id || server?.id;
+  
   const [serverSettings, setServerSettings] = useState({
     name: server?.name || "",
     description: server?.description || "",
@@ -86,7 +94,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const handleKickMember = async (memberId) => {
     try {
-      await serverAPI.kickMember(server.id, memberId);
+      await serverAPI.kickMember(serverId, memberId);
       loadMembers();
     } catch (error) {
       // Error handled silently or could show toast
@@ -95,7 +103,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const handleBanMember = async (memberId) => {
     try {
-      await serverAPI.banMember(server.id, memberId, { reason: banReason || 'Banned by admin' });
+      await serverAPI.banMember(serverId, memberId, { reason: banReason || 'Banned by admin' });
       loadMembers();
       setMemberActionDialog({ open: false, action: '', member: null });
       setBanReason("");
@@ -107,7 +115,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   // New member management functions
   const handleKickMemberWithReason = async (memberId) => {
     try {
-      await serverAPI.kickMember(server.id, memberId, { reason: kickReason || 'Kicked by admin' });
+      await serverAPI.kickMember(serverId, memberId, { reason: kickReason || 'Kicked by admin' });
       loadMembers();
       setMemberActionDialog({ open: false, action: '', member: null });
       setKickReason("");
@@ -118,7 +126,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const handleAssignRole = async (memberId, roleId) => {
     try {
-      await roleAPI.assignRole(roleId, memberId, server.id);
+      await roleAPI.assignRole(roleId, memberId, serverId);
       loadMembers();
     } catch (error) {
       // console.error('Failed to assign role:', error);
@@ -127,7 +135,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const handleRemoveRole = async (memberId, roleId) => {
     try {
-      await roleAPI.removeRole(roleId, memberId, server.id);
+      await roleAPI.removeRole(roleId, memberId, serverId);
       loadMembers();
     } catch (error) {
       // console.error('Failed to remove role:', error);
@@ -136,17 +144,17 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const generateInviteLink = async () => {
     try {
-      const response = await serverAPI.createInvite(server.id);
+      const response = await serverAPI.createInvite(serverId);
       setInviteLink(response.data.inviteCode);
     } catch (error) {
       console.error('Failed to generate invite:', error);
     }
   };
 
-  const copyInviteLink = () => {
+  const copyInviteCode = () => {
     if (inviteLink) {
-      navigator.clipboard.writeText(`https://fluxy.gg/invite/${inviteLink}`);
-      // Toast notification removed as requested
+      navigator.clipboard.writeText(inviteLink);
+      toast.success('Davet kodu kopyalandı!');
     }
   };
 
@@ -280,7 +288,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const loadRoles = async () => {
     try {
       setLoading(true);
-      const response = await roleAPI.getRoles(server.id);
+      const response = await roleAPI.getRoles(serverId);
       setRoles(response.data);
     } catch (error) {
       // console.error('Failed to load roles:', error);
@@ -291,7 +299,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
   const loadMembers = async () => {
     try {
-      const response = await serverAPI.getServerMembers(server.id);
+      const response = await serverAPI.getServerMembers(serverId);
       setMembers(response.data.members);
     } catch (error) {
       // console.error('Failed to load members:', error);
@@ -301,7 +309,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      const response = await serverAPI.updateServer(server.id, serverSettings);
+      const response = await serverAPI.updateServer(serverId, serverSettings);
       onServerUpdate(response.data);
       onClose();
     } catch (error) {
@@ -316,7 +324,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
     try {
       setLoading(true);
-      await roleAPI.createRole(server.id, {
+      await roleAPI.createRole(serverId, {
         name: newRoleName,
         color: '#99aab5',
         permissions: {}
@@ -342,9 +350,9 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const handleChangeRole = async (memberId, roleId, action) => {
     try {
       if (action === 'add') {
-        await roleAPI.assignRole(roleId, memberId, server.id);
+        await roleAPI.assignRole(roleId, memberId, serverId);
       } else {
-        await roleAPI.removeRole(roleId, memberId, server.id);
+        await roleAPI.removeRole(roleId, memberId, serverId);
       }
       loadMembers();
     } catch (error) {
@@ -359,12 +367,12 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
     try {
       setDeleteLoading(true);
-      await serverAPI.deleteServer(server.id);
+      await serverAPI.deleteServer(serverId);
       
       onClose();
       
       if (onServerUpdate) {
-        onServerUpdate({ type: 'delete', serverId: server.id });
+        onServerUpdate({ type: 'delete', serverId });
       }
       
       setDeleteConfirmText("");
@@ -375,6 +383,29 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       setDeleteLoading(false);
     }
   };
+
+  const handleLeaveServer = async () => {
+    try {
+      setDeleteLoading(true);
+      await serverAPI.leaveServer(serverId);
+      
+      onClose();
+      
+      if (onServerUpdate) {
+        onServerUpdate({ type: 'leave', serverId });
+      }
+      
+      toast.success('Sunucudan başarıyla ayrıldınız');
+    } catch (error) {
+      console.error('Failed to leave server:', error);
+      toast.error('Sunucudan ayrılırken bir hata oluştu');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Check if current user is server owner
+  const isServerOwner = server?.owner === user?._id || server?.owner === user?.id;
 
   if (!server) return null;
 
@@ -395,6 +426,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
               </DialogHeader>
               
               <TabsList className="flex flex-col h-auto space-y-3 bg-transparent">
+                {/* Overview - Everyone can see */}
                 <TabsTrigger 
                   value="overview" 
                   className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
@@ -402,13 +434,8 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                   <Settings className="w-5 h-5 mr-3" />
                   Genel Bakış
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="channels" 
-                  className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
-                >
-                  <Hash className="w-5 h-5 mr-3" />
-                  Kanallar
-                </TabsTrigger>
+                
+                {/* Members - Everyone can see */}
                 <TabsTrigger 
                   value="members" 
                   className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
@@ -416,26 +443,50 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                   <Users className="w-5 h-5 mr-3" />
                   Üyeler
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="roles" 
-                  className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
-                >
-                  <Crown className="w-5 h-5 mr-3" />
-                  Roller
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="moderation" 
-                  className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
-                >
-                  <Shield className="w-5 h-5 mr-3" />
-                  Moderasyon
-                </TabsTrigger>
+                
+                {/* Owner-only tabs */}
+                {isServerOwner && (
+                  <>
+                    <TabsTrigger 
+                      value="channels" 
+                      className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
+                    >
+                      <Hash className="w-5 h-5 mr-3" />
+                      Kanallar
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="roles" 
+                      className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
+                    >
+                      <Crown className="w-5 h-5 mr-3" />
+                      Roller
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="moderation" 
+                      className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
+                    >
+                      <Shield className="w-5 h-5 mr-3" />
+                      Moderasyon
+                    </TabsTrigger>
+                  </>
+                )}
+                
+                {/* Leave/Delete Server */}
                 <TabsTrigger 
                   value="delete" 
                   className="w-full justify-start text-left text-lg data-[state=active]:bg-red-600/20 data-[state=active]:text-red-400 text-gray-400 hover:text-red-400 hover:bg-red-600/10"
                 >
-                  <Trash2 className="w-5 h-5 mr-3" />
-                  Sunucu Sil
+                  {isServerOwner ? (
+                    <>
+                      <Trash2 className="w-5 h-5 mr-3" />
+                      Sunucu Sil
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-5 h-5 mr-3" />
+                      Sunucudan Ayrıl
+                    </>
+                  )}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -576,10 +627,10 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                   <div className="bg-blue-900/20 backdrop-blur-sm rounded-lg p-4 border border-blue-500/30">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-blue-400 font-medium">Davet Linki</h4>
-                        <p className="text-gray-300 text-sm font-mono">https://fluxy.gg/invite/{inviteLink}</p>
+                        <h4 className="text-blue-400 font-medium">Davet Kodu</h4>
+                        <p className="text-white text-lg font-mono tracking-wider">{inviteLink}</p>
                       </div>
-                      <Button onClick={copyInviteLink} variant="outline" size="sm">
+                      <Button onClick={copyInviteCode} variant="outline" size="sm">
                         <Copy className="w-4 h-4 mr-2" />
                         Kopyala
                       </Button>
@@ -948,68 +999,126 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                 </div>
               </TabsContent>
 
-              {/* Delete Server Tab */}
+              {/* Delete Server / Leave Server Tab */}
               <TabsContent value="delete" className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-8rem)]">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-red-400">Sunucu Sil</h2>
-                  <p className="text-gray-400">Bu işlem geri alınamaz. Sunucu ve tüm verileri kalıcı olarak silinecektir.</p>
-                </div>
+                {isServerOwner ? (
+                  <>
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-red-400">Sunucu Sil</h2>
+                      <p className="text-gray-400">Bu işlem geri alınamaz. Sunucu ve tüm verileri kalıcı olarak silinecektir.</p>
+                    </div>
 
-                <div className="bg-red-900/20 backdrop-blur-sm rounded-lg p-6 border border-red-500/30">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-red-600/20 rounded-full flex items-center justify-center">
-                        <Trash2 className="w-5 h-5 text-red-400" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-red-400 mb-2">Dikkat: Bu İşlem Geri Alınamaz</h3>
-                      <p className="text-gray-300 mb-4">Bu sunucuyu sildiğinizde:</p>
-                      <ul className="text-gray-300 space-y-1 mb-6">
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
-                          Tüm kanallar ve mesajlar silinecek
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
-                          Tüm üye bilgileri ve rolleri silinecek
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
-                          Yüklenen dosyalar ve medya silinecek
-                        </li>
-                        <li className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
-                          Sunucu ayarları ve geçmişi silinecek
-                        </li>
-                      </ul>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="serverNameConfirm" className="text-gray-300">
-                            Silmek için sunucu adını yazın: <span className="text-white font-mono">{server?.name}</span>
-                          </Label>
-                          <Input
-                            id="serverNameConfirm"
-                            type="text"
-                            placeholder={server?.name}
-                            value={deleteConfirmText}
-                            onChange={(e) => setDeleteConfirmText(e.target.value)}
-                            className="mt-2 bg-black/30 border-red-500/30 focus:border-red-500 text-white placeholder-gray-500"
-                          />
+                    <div className="bg-red-900/20 backdrop-blur-sm rounded-lg p-6 border border-red-500/30">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-red-600/20 rounded-full flex items-center justify-center">
+                            <Trash2 className="w-5 h-5 text-red-400" />
+                          </div>
                         </div>
-                        
-                        <Button
-                          onClick={handleDeleteServer}
-                          disabled={deleteConfirmText !== server?.name || deleteLoading}
-                          className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deleteLoading ? 'Siliniyor...' : 'Sunucuyu Kalıcı Olarak Sil'}
-                        </Button>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-red-400 mb-2">Dikkat: Bu İşlem Geri Alınamaz</h3>
+                          <p className="text-gray-300 mb-4">Bu sunucuyu sildiğinizde:</p>
+                          <ul className="text-gray-300 space-y-1 mb-6">
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Tüm kanallar ve mesajlar silinecek
+                            </li>
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Tüm üye bilgileri ve rolleri silinecek
+                            </li>
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Yüklenen dosyalar ve medya silinecek
+                            </li>
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Sunucu ayarları ve geçmişi silinecek
+                            </li>
+                          </ul>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="serverNameConfirm" className="text-gray-300">
+                                Silmek için sunucu adını yazın: <span className="text-white font-mono">{server?.name}</span>
+                              </Label>
+                              <Input
+                                id="serverNameConfirm"
+                                type="text"
+                                placeholder={server?.name}
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                className="mt-2 bg-black/30 border-red-500/30 focus:border-red-500 text-white placeholder-gray-500"
+                              />
+                            </div>
+                            
+                            <Button
+                              onClick={handleDeleteServer}
+                              disabled={deleteConfirmText !== server?.name || deleteLoading}
+                              className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {deleteLoading ? 'Siliniyor...' : 'Sunucuyu Kalıcı Olarak Sil'}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-red-400">Sunucudan Ayrıl</h2>
+                      <p className="text-gray-400">
+                        <span className="font-semibold text-white">{server?.name}</span> sunucusundan ayrılmak istediğinize emin misiniz?
+                      </p>
+                    </div>
+
+                    <div className="bg-red-900/20 backdrop-blur-sm rounded-lg p-6 border border-red-500/30">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-red-600/20 rounded-full flex items-center justify-center">
+                            <LogOut className="w-5 h-5 text-red-400" />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-red-400 mb-2">Sunucudan Ayrılma</h3>
+                          <p className="text-gray-300 mb-4">Bu sunucudan ayrıldığınızda:</p>
+                          <ul className="text-gray-300 space-y-2 mb-6">
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Sunucu kanallarına erişiminiz kaldırılacak
+                            </li>
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Sunucu üyelerini göremeyeceksiniz
+                            </li>
+                            <li className="flex items-center">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                              Tekrar katılmak için Davet Kodu gerekecek
+                            </li>
+                          </ul>
+                          
+                          <div className="flex gap-3">
+                            <Button
+                              onClick={onClose}
+                              variant="outline"
+                              className="flex-1 border-white/20 text-white hover:bg-white/10"
+                            >
+                              İptal
+                            </Button>
+                            <Button
+                              onClick={handleLeaveServer}
+                              disabled={deleteLoading}
+                              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                            >
+                              {deleteLoading ? 'Ayrılınıyor...' : 'Sunucudan Ayrıl'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </TabsContent>
             </div>
           </Tabs>

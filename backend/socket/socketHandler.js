@@ -154,6 +154,18 @@ const handleConnection = (io) => {
       socket.leave(`server_${serverId}`);
     });
 
+    // Handle joining a text channel
+    socket.on('joinChannel', (channelId) => {
+      socket.join(`channel_${channelId}`);
+      console.log(`📝 User ${socket.user?.username} joined text channel room: channel_${channelId}`);
+    });
+
+    // Handle leaving a text channel
+    socket.on('leaveChannel', (channelId) => {
+      socket.leave(`channel_${channelId}`);
+      console.log(`📝 User ${socket.user?.username} left text channel room: channel_${channelId}`);
+    });
+
     // Handle joining a voice channel - SIMPLE
     socket.on('join-voice-channel', async (data) => {
       try {
