@@ -142,7 +142,7 @@ const FriendsPanel = ({ onBack }) => {
     return (
       <div className="space-y-2">
         {displayFriends.map(friend => (
-          <div key={friend.id} className="flex items-center justify-between p-3 hover:bg-gray-700 rounded-lg group">
+          <div key={friend.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg group">
             <div className="flex items-center space-x-3">
               <div className="relative">
                 <Avatar className="w-8 h-8">
@@ -158,21 +158,23 @@ const FriendsPanel = ({ onBack }) => {
                 <div className="text-gray-400 text-sm">#{friend.discriminator}</div>
               </div>
             </div>
-            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button className="p-1 hover:bg-gray-600 rounded">
-                <MessageCircle size={16} className="text-gray-400" />
+            <div className="flex items-center space-x-2">
+              <button className="p-2 bg-gray-800/80 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:scale-110 shadow-lg hover:shadow-blue-500/50" title="Mesaj Gönder">
+                <MessageCircle size={18} className="text-gray-300 hover:text-white transition-colors" />
               </button>
               <button 
                 onClick={() => handleRemoveFriend(friend.id)}
-                className="p-1 hover:bg-red-600 rounded"
+                className="p-2 bg-gray-800/80 hover:bg-red-600 rounded-lg transition-all duration-200 hover:scale-110 shadow-lg hover:shadow-red-500/50"
+                title="Arkadaşlıktan Çıkar"
               >
-                <UserX size={16} className="text-gray-400" />
+                <UserX size={18} className="text-gray-300 hover:text-white transition-colors" />
               </button>
               <button 
                 onClick={() => handleBlockUser(friend.id)}
-                className="p-1 hover:bg-red-600 rounded"
+                className="p-2 bg-gray-800/80 hover:bg-red-600 rounded-lg transition-all duration-200 hover:scale-110 shadow-lg hover:shadow-red-500/50"
+                title="Engelle"
               >
-                <Shield size={16} className="text-gray-400" />
+                <Shield size={18} className="text-gray-300 hover:text-white transition-colors" />
               </button>
             </div>
           </div>
