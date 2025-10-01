@@ -48,13 +48,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
       setPendingRequests(pendingData?.data || pendingData || []);
       setSentRequests(sentData?.data || sentData || []);
       setBlockedUsers(blockedData?.data || blockedData || []);
-      
-      console.log('✅ Friends data loaded:', {
-        friends: friendsData?.data || friendsData,
-        pending: pendingData?.data || pendingData,
-        sent: sentData?.data || sentData,
-        blocked: blockedData?.data || blockedData
-      });
     } catch (error) {
       setError('Failed to load friends data');
       console.error('Load friends data error:', error);
@@ -138,7 +131,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
     if (onStartConversation) {
       // Call parent component's handler to open DM with this user
       const userId = friend.id || friend._id;
-      console.log('🔵 Starting conversation with friend:', { friend, userId });
       // Pass both userId and friend data
       onStartConversation(userId, friend);
     } else {

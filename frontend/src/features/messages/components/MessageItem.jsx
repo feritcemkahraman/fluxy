@@ -115,7 +115,7 @@ const MessageItem = ({
     <div 
       className={`group relative px-4 py-2 hover:bg-gray-800/30 transition-colors ${
         compact ? 'py-1' : 'py-2'
-      } ${isOptimistic ? 'opacity-70' : ''}`}
+      }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -164,10 +164,13 @@ const MessageItem = ({
           )}
 
           {/* Message Text */}
-          <div className={`text-gray-200 text-sm leading-relaxed ${
-            isFailed ? 'text-red-300' : ''
+          <div className={`text-sm leading-relaxed ${
+            isFailed ? 'text-red-300' : 'text-gray-200'
           }`}>
             {message.content}
+            {isFailed && (
+              <span className="ml-2 text-xs text-red-500">❌</span>
+            )}
           </div>
 
           {/* Attachments */}

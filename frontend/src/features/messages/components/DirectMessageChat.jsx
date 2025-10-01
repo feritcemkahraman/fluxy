@@ -79,18 +79,12 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
 
   // Handle send message with optimistic updates (from memory)
   const handleSendMessage = async ({ content, attachments, replyTo }) => {
-    console.log('🚀 handleSendMessage called:', { content, attachments, replyTo, otherUser });
-    
     if (!otherUser || !content.trim()) {
-      console.log('❌ handleSendMessage validation failed:', { otherUser, content: content?.trim() });
       return { success: false };
     }
 
     try {
-      console.log('📤 Calling sendDirectMessage with:', { content, recipientId: otherUser.id || otherUser._id });
       const result = await sendDirectMessage(content, otherUser.id || otherUser._id);
-      
-      console.log('📥 sendDirectMessage result:', result);
       
       if (!result.success) {
         toast.error(result.error || 'Mesaj gönderilemedi');
@@ -98,7 +92,7 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
 
       return result;
     } catch (error) {
-      console.error('❌ Send message error:', error);
+      console.error('Send message error:', error);
       toast.error('Mesaj gönderilemedi');
       return { success: false, error: error.message };
     }

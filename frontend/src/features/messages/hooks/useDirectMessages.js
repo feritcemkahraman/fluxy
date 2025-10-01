@@ -47,56 +47,38 @@ export const useDirectMessages = (conversationId) => {
 
   // Send direct message with optimistic update
   const sendDirectMessage = useCallback(async (content, recipientId) => {
-    console.log('🚀 sendDirectMessage called:', { content, recipientId, user });
-    
     if (!content.trim() || !user) {
-      console.log('❌ Validation failed:', { content: content.trim(), user });
       return { success: false };
     }
 
     const optimisticMessage = {
       id: `dm_optimistic_${Date.now()}_${Math.random()}`,
+      _id: `dm_optimistic_${Date.now()}_${Math.random()}`,
       content: content.trim(),
       author: {
         id: user.id || user._id,
+        _id: user.id || user._id,
         username: user.username,
         displayName: user.displayName || user.username,
         avatar: user.avatar
       },
       conversationId,
       timestamp: new Date(),
+      createdAt: new Date(),
       isOptimistic: true,
-      status: 'sent'
+      status: 'sending'
     };
-
-    console.log('🔍 Optimistic message author:', {
-      userId: user.id || user._id,
-      username: user.username,
-      displayName: user.displayName,
-      finalDisplayName: user.displayName || user.username
-    });
 
     // Add optimistic message to the end (newest messages at bottom)
     setMessages(prev => [...prev, optimisticMessage]);
 
     try {
-      console.log('📤 Calling messageService.sendDirectMessage...');
       const result = await messageService.sendDirectMessage({
         content: content.trim(),
         recipientId
       });
 
-      console.log('📥 messageService result:', result);
-
       if (result.success) {
-        console.log('🔄 Replacing optimistic message:', {
-          optimisticId: optimisticMessage.id,
-          optimisticTimestamp: optimisticMessage.timestamp,
-          serverResponse: result.data,
-          serverMessage: result.data.message,
-          serverTimestamp: result.data.message?.timestamp || result.data.message?.createdAt
-        });
-        
         // Replace optimistic message with real one
         const serverMessage = result.data.message || result.data;
         setMessages(prev => 

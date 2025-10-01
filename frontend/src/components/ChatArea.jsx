@@ -124,7 +124,20 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
             return prev;
           }
           
-          return [...prev, newMessage];
+          // Remove optimistic message with same content (within 5 seconds)
+          const filtered = prev.filter(msg => {
+            if (!msg.isOptimistic) return true;
+            
+            // Check if this is the same message (same content and recent)
+            const timeDiff = Math.abs(new Date(newMessage.createdAt) - new Date(msg.createdAt));
+            const isSameContent = msg.content === newMessage.content;
+            const isRecent = timeDiff < 5000; // 5 seconds
+            
+            // Keep the message if it's not a match
+            return !(isSameContent && isRecent);
+          });
+          
+          return [...filtered, newMessage];
         });
       }
     });
@@ -312,29 +325,57 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     // Clear input IMMEDIATELY for instant feedback (optimistic UI)
     setMessage("");
 
+    // Create optimistic message
+    const optimisticMessage = {
+      _id: `optimistic_${Date.now()}_${Math.random()}`,
+      id: `optimistic_${Date.now()}_${Math.random()}`,
+      author: userRef.current || {
+        id: 'unknown',
+        username: 'Unknown User',
+        displayName: 'Unknown User',
+        avatar: '',
+        roleColor: '#6b7280'
+      },
+      content: messageToSend,
+      createdAt: new Date(),
+      timestamp: new Date(),
+      channel: currentChannelId,
+      reactions: [],
+      isOptimistic: true,
+      status: 'sending'
+    };
+
+    // Add optimistic message IMMEDIATELY
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       if (currentChannelId) {
         // Send via WebSocket with error handling
         await sendMessageRef.current(currentChannelId, messageToSend, serverRef.current?._id);
+        
+        // Mark optimistic message as sent (will be replaced by real message from socket)
+        setMessages(prev => 
+          prev.map(msg => 
+            msg._id === optimisticMessage._id 
+              ? { ...msg, status: 'sent' }
+              : msg
+          )
+        );
       } else {
-        // Fallback for mock data
-        const newMessage = {
-          id: `msg${Date.now()}`,
-          author: userRef.current || {
-            id: 'unknown',
-            username: 'Unknown User',
-            displayName: 'Unknown User',
-            avatar: '',
-            roleColor: '#6b7280'
-          },
-          content: messageToSend,
-          timestamp: new Date(),
-          reactions: []
-        };
-        setMessages(prev => [...prev, newMessage]);
+        // Fallback for mock data - already added optimistically
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      
+      // Mark optimistic message as failed
+      setMessages(prev => 
+        prev.map(msg => 
+          msg._id === optimisticMessage._id 
+            ? { ...msg, status: 'failed', error: error.message }
+            : msg
+        )
+      );
+      
       // Restore message on error
       setMessage(messageToSend);
       toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
@@ -674,8 +715,15 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                         </div>
                       )}
                       
-                      <div className="text-gray-200 text-base leading-relaxed">
+                      <div className={`text-base leading-relaxed ${
+                        msg.isOptimistic && msg.status === 'failed' 
+                          ? 'text-red-400' 
+                          : 'text-gray-200'
+                      }`}>
                         {msg.content}
+                        {msg.isOptimistic && msg.status === 'failed' && (
+                          <span className="ml-2 text-xs text-red-500">❌ Gönderilemedi</span>
+                        )}
                       </div>
                       
                       {msg.reactions && msg.reactions.length > 0 && (
