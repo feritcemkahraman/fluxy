@@ -97,6 +97,9 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
     }
   }, [user, loadConversations, loadPendingRequestsCount]);
 
+  // Note: Global DM notification listener moved to FluxyApp.jsx
+  // This ensures notifications work even when DirectMessages component is unmounted
+
   // Handle targetUserId prop - auto-open conversation with specific user
   useEffect(() => {
     if (!targetUserId) {
@@ -569,7 +572,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                       <div className="relative">
                         <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
                           <Avatar className="w-full h-full">
-                            <AvatarImage src={null} alt={dm.user?.username || "User"} />
                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
                               {(dm.user?.username || "U").charAt(0).toUpperCase()}
                             </AvatarFallback>
@@ -580,7 +582,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                     ) : (
                       <div className="relative w-12 h-12 rounded-full overflow-hidden transition-all duration-300 ring-2 ring-white/10 group-hover:ring-white/20 group-hover:scale-105">
                         <Avatar className="w-full h-full">
-                          <AvatarImage src={dm.icon} alt={dm.name || "Group"} />
+                          <AvatarImage src={dm.icon} alt={dm.name || "Group"} className="object-cover" />
                           <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-bold">
                             {(dm.name || "G").charAt(0).toUpperCase()}
                           </AvatarFallback>

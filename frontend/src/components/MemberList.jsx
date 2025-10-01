@@ -245,7 +245,6 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                               <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
                             )}
                           </div>
-                          <div className="text-xs text-gray-400">{member.roleName || 'Member'}</div>
                         </div>
                       </div>
                     ))}

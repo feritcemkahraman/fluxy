@@ -227,12 +227,16 @@ const UserPanel = ({ user, server, servers }) => {
                   </div>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="text-white font-semibold truncate text-sm">
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-bold truncate text-base">
                     {user?.displayName || user?.username || 'Yükleniyor...'}
                   </div>
-                  <div className="text-xs text-gray-400 truncate">
-                    #{user?.discriminator || '0000'}
+                  <div className="text-xs text-gray-400 truncate capitalize">
+                    {user?.status === 'online' && 'Çevrimiçi'}
+                    {user?.status === 'idle' && 'Boşta'}
+                    {user?.status === 'dnd' && 'Rahatsız Etmeyin'}
+                    {user?.status === 'invisible' && 'Görünmez'}
+                    {!user?.status && 'Çevrimdışı'}
                   </div>
                 </div>
               </div>

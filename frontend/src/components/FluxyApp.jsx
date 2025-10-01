@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
 import electronAPI from "../utils/electronAPI";
+import notificationSound from "../utils/notificationSound";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
@@ -72,6 +73,52 @@ const FluxyApp = () => {
       voiceCallService.initialize(socket);
     }
   }, [socket, socket?.connected, user]);
+
+  // Global DM notification listener - works everywhere in the app
+  useEffect(() => {
+    if (!on || !user) return;
+
+    const handleNewDirectMessage = (message) => {
+      // Check if message is from another user (not current user)
+      const authorId = message.message?.author?.id || message.message?.author?._id ||
+                       message.author?.id || message.author?._id || 
+                       message.sender?.id || message.sender?._id ||
+                       message.from;
+      
+      const isFromOtherUser = authorId && (authorId !== user?.id && authorId !== user?._id);
+      
+      if (isFromOtherUser) {
+        const msgConversationId = String(message.conversation || message.conversationId);
+        
+        // Play notification sound - it will check if conversation is active
+        notificationSound.playMessageSound(msgConversationId);
+      }
+    };
+
+    // Listen to newDirectMessage event only (avoid duplicate)
+    const unsubscribe = on('newDirectMessage', handleNewDirectMessage);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [on, user]);
+
+  // Incoming call sound - play when call arrives, stop when answered/rejected
+  useEffect(() => {
+    if (incomingCall) {
+      // Play call sound when incoming call arrives
+      console.log('📞 Incoming call - Playing call sound');
+      notificationSound.playCallSound();
+    } else {
+      // Stop call sound when no incoming call
+      notificationSound.stopCallSound();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      notificationSound.stopCallSound();
+    };
+  }, [incomingCall]);
 
   // Create voiceChannelParticipants Map from voiceParticipants array
   const voiceChannelParticipants = useMemo(() => {

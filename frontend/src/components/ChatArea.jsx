@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Hash, Users, Send, Smile, Paperclip, Search } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import ContextMenu from "./ContextMenu";
@@ -685,7 +685,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                         className="w-10 h-10 ring-2 ring-white/10 cursor-pointer group-hover:ring-white/20 transition-all"
                         onContextMenu={(e) => handleRightClick(e, "user", msg.author)}
                       >
-                        <AvatarImage src={null} alt={msg.author.username} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                           {msg.author.username.charAt(0)}
                         </AvatarFallback>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Plus, Home } from "lucide-react";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import CreateServerModal from "./CreateServerModal";
 
@@ -58,6 +58,11 @@ const ServerSidebar = ({ servers, activeServerId, onServerSelect, isDirectMessag
                   }`}
                 >
                   <Avatar className="w-full h-full">
+                    <AvatarImage 
+                      src={server?.icon} 
+                      alt={server?.name || 'Server'}
+                      className="object-cover"
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold">
                       {server?.name?.charAt(0) || 'S'}
                     </AvatarFallback>

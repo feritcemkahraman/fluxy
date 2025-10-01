@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -504,6 +504,11 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="relative group">
                       <Avatar className="w-20 h-20 ring-4 ring-white/20">
+                        <AvatarImage 
+                          src={serverSettings.icon} 
+                          alt={serverSettings.name}
+                          className="object-cover"
+                        />
                         <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-2xl">
                           {serverSettings.name.charAt(0)}
                         </AvatarFallback>

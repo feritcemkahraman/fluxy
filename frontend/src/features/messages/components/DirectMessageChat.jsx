@@ -74,12 +74,10 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
   // Set active conversation for notification sound
   useEffect(() => {
     if (conversationId) {
-      console.log('🎯 Setting active conversation:', String(conversationId));
       notificationSound.setActiveConversation(String(conversationId));
     }
     
     return () => {
-      console.log('🎯 Clearing active conversation');
       notificationSound.clearActiveConversation();
     };
   }, [conversationId]);

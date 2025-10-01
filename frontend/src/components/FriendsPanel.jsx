@@ -15,9 +15,11 @@ import {
   Clock
 } from 'lucide-react';
 import friendsAPI from '../services/friendsAPI';
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { useSocket } from '../hooks/useSocket';
 
 const FriendsPanel = ({ onBack, onStartConversation }) => {
+  const { on } = useSocket();
   const [activeTab, setActiveTab] = useState('online');
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -32,6 +34,26 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
   useEffect(() => {
     loadFriendsData();
   }, []);
+
+  // Real-time status updates
+  useEffect(() => {
+    if (!on) return;
+
+    const handleStatusUpdate = ({ userId, status }) => {
+      // Update friend status in real-time
+      setFriends(prev => prev.map(friend => 
+        (friend.id === userId || friend._id === userId)
+          ? { ...friend, status }
+          : friend
+      ));
+    };
+
+    const unsubscribe = on('userStatusUpdate', handleStatusUpdate);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [on]);
 
   const loadFriendsData = async () => {
     try {
@@ -148,7 +170,12 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
   };
 
   const renderFriendsList = () => {
-    const onlineFriends = friends.filter(friend => friend.status === 'online');
+    // Online, idle, and dnd are all considered "online"
+    const onlineFriends = friends.filter(friend => 
+      friend.status === 'online' || 
+      friend.status === 'idle' || 
+      friend.status === 'dnd'
+    );
     const displayFriends = activeTab === 'online' ? onlineFriends : friends;
 
     return (
@@ -166,7 +193,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
               </div>
               <div>
                 <div className="text-white font-medium">{friend.displayName || friend.username}</div>
-                <div className="text-gray-400 text-sm">#{friend.discriminator}</div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -223,7 +249,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
                   </Avatar>
                   <div>
                     <div className="text-white font-medium">{request.from.displayName || request.from.username}</div>
-                    <div className="text-gray-400 text-sm">#{request.from.discriminator}</div>
                     {request.message && (
                       <div className="text-gray-300 text-sm mt-1">{request.message}</div>
                     )}
@@ -268,7 +293,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
                   </Avatar>
                   <div>
                     <div className="text-white font-medium">{request.to.displayName || request.to.username}</div>
-                    <div className="text-gray-400 text-sm">#{request.to.discriminator}</div>
                     <div className="mt-1.5 inline-flex items-center px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full">
                       <Clock size={12} className="mr-1.5 text-yellow-400 animate-pulse" />
                       <span className="text-yellow-400 text-xs font-medium">Bekliyor...</span>
@@ -310,7 +334,6 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
             </Avatar>
             <div>
               <div className="text-white font-medium">{user.displayName || user.username}</div>
-              <div className="text-gray-400 text-sm">#{user.discriminator}</div>
             </div>
           </div>
           <button 
@@ -378,14 +401,12 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
               <div key={user.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={null} alt={user.displayName || user.username} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                       {(user.displayName || user.username)[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="text-white font-medium">{user.displayName || user.username}</div>
-                    <div className="text-gray-400 text-sm">#{user.discriminator}</div>
                   </div>
                 </div>
                 <div className="text-sm">
@@ -446,9 +467,9 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
             }`}
           >
             Çevrimiçi
-            {friends.filter(f => f.status === 'online').length > 0 && (
+            {friends.filter(f => f.status === 'online' || f.status === 'idle' || f.status === 'dnd').length > 0 && (
               <span className="ml-2 px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded-full">
-                {friends.filter(f => f.status === 'online').length}
+                {friends.filter(f => f.status === 'online' || f.status === 'idle' || f.status === 'dnd').length}
               </span>
             )}
           </button>

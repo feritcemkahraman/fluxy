@@ -231,8 +231,7 @@ router.post('/send', auth, [
       // Notify the recipient
       io.to(`user_${userId}`).emit('newDirectMessage', dmData);
       
-      // Notify the sender for consistency (useful for multi-device scenarios)
-      io.to(`user_${req.user.id}`).emit('dmSent', dmData);
+      // Note: Don't emit to sender - they have optimistic update
       
       console.log(`💬 DM sent from ${req.user.username} to user ${userId}`);
     }
@@ -313,11 +312,11 @@ router.post('/conversations/:conversationId/messages', auth, [
       // Broadcast to conversation room (all participants)
       io.to(`dm_${conversationId}`).emit('newDirectMessage', dmData);
       
-      // Also emit to user rooms for multi-device sync
+      // Also emit to recipient's user room for notifications when not in conversation
       if (otherParticipantId) {
         io.to(`user_${otherParticipantId}`).emit('newDirectMessage', dmData);
       }
-      io.to(`user_${req.user.id}`).emit('newDirectMessage', dmData);
+      // Note: Don't emit to sender - they have optimistic update
     }
 
     res.status(201).json({ 

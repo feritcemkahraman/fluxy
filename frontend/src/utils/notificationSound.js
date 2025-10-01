@@ -31,21 +31,10 @@ class NotificationSoundService {
    * @param {string} conversationId - The conversation ID of the incoming message
    */
   playMessageSound(conversationId) {
-    console.log('🔊 playMessageSound called:', {
-      enabled: this.enabled,
-      conversationId,
-      activeConversationId: this.activeConversationId,
-      shouldPlay: conversationId !== this.activeConversationId
-    });
-
-    if (!this.enabled) {
-      console.log('🔇 Sound disabled');
-      return;
-    }
+    if (!this.enabled) return;
 
     // Don't play sound if the message is from the currently active conversation
     if (conversationId && this.activeConversationId === conversationId) {
-      console.log('🔇 Same conversation, not playing sound');
       return;
     }
 
@@ -54,15 +43,48 @@ class NotificationSoundService {
       const audio = new Audio('/sounds/mesajses.mp3');
       audio.volume = this.volume;
       
-      console.log('🔊 Playing sound...');
       // Play the sound
-      audio.play().then(() => {
-        console.log('✅ Sound played successfully');
-      }).catch(error => {
-        console.warn('❌ Failed to play notification sound:', error);
+      audio.play().catch(error => {
+        console.warn('Failed to play notification sound:', error);
       });
     } catch (error) {
-      console.warn('❌ Error creating notification sound:', error);
+      console.warn('Error creating notification sound:', error);
+    }
+  }
+
+  /**
+   * Play incoming call notification sound
+   * Loops until stopped
+   */
+  playCallSound() {
+    if (!this.enabled) return;
+
+    try {
+      // Stop any existing call sound
+      this.stopCallSound();
+
+      // Create new audio instance for call
+      this.callAudio = new Audio('/sounds/aramasesi.mp3');
+      this.callAudio.volume = this.volume;
+      this.callAudio.loop = true; // Loop the call sound
+      
+      // Play the sound
+      this.callAudio.play().catch(error => {
+        console.warn('Failed to play call sound:', error);
+      });
+    } catch (error) {
+      console.warn('Error creating call sound:', error);
+    }
+  }
+
+  /**
+   * Stop the incoming call sound
+   */
+  stopCallSound() {
+    if (this.callAudio) {
+      this.callAudio.pause();
+      this.callAudio.currentTime = 0;
+      this.callAudio = null;
     }
   }
 
