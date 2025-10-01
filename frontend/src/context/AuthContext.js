@@ -70,6 +70,12 @@ export function AuthProvider({ children }) {
             const savedStatus = await electronStorage.getItem('userStatus') || 'online';
             
             const userData = { ...localUser, status: savedStatus };
+            
+            // Ensure token is in localStorage for API interceptor
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', savedUser);
+            localStorage.setItem('userStatus', savedStatus);
+            
             dispatch({
               type: 'LOGIN_SUCCESS',
               payload: {
@@ -129,6 +135,11 @@ export function AuthProvider({ children }) {
       await electronStorage.setItem('token', token);
       await electronStorage.setItem('user', JSON.stringify(user));
       await electronStorage.setItem('userStatus', user.status || 'online');
+      
+      // Also store in localStorage for API interceptor
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -176,6 +187,11 @@ export function AuthProvider({ children }) {
       await electronStorage.setItem('token', token);
       await electronStorage.setItem('user', JSON.stringify(user));
       await electronStorage.setItem('userStatus', user.status || 'online');
+      
+      // Also store in localStorage for API interceptor
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userStatus', user.status || 'online');
 
       dispatch({
         type: 'LOGIN_SUCCESS',

@@ -17,10 +17,23 @@ const api = axios.create({
 
 // Request interceptor to add auth token and request tracking
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
+  async (config) => {
+    // Try to get token from localStorage first (for compatibility)
+    let token = localStorage.getItem('token');
+    
+    // If not in localStorage, try Electron storage
+    if (!token && window.electronAPI) {
+      try {
+        token = await window.electronAPI.storage.get('token');
+      } catch (error) {
+        console.warn('Failed to get token from Electron storage:', error);
+      }
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('⚠️ No authentication token found for API request:', config.url);
     }
     
     // Add request timestamp for performance monitoring

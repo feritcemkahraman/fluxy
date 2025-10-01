@@ -114,12 +114,13 @@ const FluxyApp = () => {
     // Voice channel users are now handled by useVoiceChat hook
   }, [activeServer?._id, activeServer?.id]);
 
-  // Load user's servers on component mount - only once
+  // Load user's servers on component mount - only when authenticated
   useEffect(() => {
     let isMounted = true;
 
     const loadServersOnce = async () => {
-      if (!isMounted) return;
+      // Don't load servers if user is not authenticated
+      if (!user || !isMounted) return;
 
       try {
         const response = await serverAPI.getServers();
@@ -171,7 +172,7 @@ const FluxyApp = () => {
     return () => {
       isMounted = false;
     };
-  }, []); // No dependencies needed - only runs once on mount
+  }, [user]); // Run when user changes (login/logout)
 
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
