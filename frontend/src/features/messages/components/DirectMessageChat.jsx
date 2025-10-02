@@ -61,19 +61,9 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
 
   // Listen for screen share stream (LOCAL and REMOTE)
   useEffect(() => {
-    // LOCAL screen share started
+    // LOCAL screen share started (already optimized by OptimizedScreenShare)
     const handleScreenShareStarted = (stream) => {
-      console.log('📺 LOCAL screen share stream received:', stream);
-      
-      // Apply frame rate throttling for CPU optimization
-      const videoTracks = stream.getVideoTracks();
-      if (videoTracks.length > 0) {
-        const videoTrack = videoTracks[0];
-        // Throttle to 15 FPS for better CPU performance
-        videoTrack.applyConstraints({
-          frameRate: { ideal: 15, max: 20 }
-        }).catch(err => console.warn('Frame rate throttling failed:', err));
-      }
+      console.log('📺 LOCAL screen share stream received (optimized):', stream);
       
       // Set stream to both video elements
       if (screenShareVideoRef.current) {
@@ -123,17 +113,6 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       const videoTracks = stream.getVideoTracks();
       if (videoTracks.length > 0) {
         console.log('📺 Setting REMOTE screen share stream');
-        
-        // Apply frame rate throttling for CPU optimization (Discord-like)
-        const videoTrack = videoTracks[0];
-        const settings = videoTrack.getSettings();
-        
-        // Throttle to 15 FPS for better CPU performance
-        if (settings.frameRate && settings.frameRate > 15) {
-          videoTrack.applyConstraints({
-            frameRate: { ideal: 15, max: 20 }
-          }).catch(err => console.warn('Frame rate throttling failed:', err));
-        }
         
         if (screenShareVideoRef.current) {
           screenShareVideoRef.current.srcObject = stream;

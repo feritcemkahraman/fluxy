@@ -1,6 +1,8 @@
 // Voice Call Service - WebRTC Peer-to-Peer Voice/Video Calls
 // Discord-like individual calling system
 
+import OptimizedScreenShare from './optimizedScreenShare';
+
 class VoiceCallService {
   constructor() {
     this.socket = null;
@@ -12,6 +14,7 @@ class VoiceCallService {
     this.listeners = new Map();
     this.makingOffer = false; // Perfect negotiation flag
     this.ignoreOffer = false; // Perfect negotiation flag
+    this.optimizedScreenShare = null; // Optimized screen share instance
     
     // WebRTC configuration
     this.rtcConfiguration = {
@@ -581,10 +584,32 @@ class VoiceCallService {
         screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
       }
 
+      // 🚀 OPTIMIZATION: Use OffscreenCanvas for better performance
+      let optimizedStream = screenStream;
+      
+      try {
+        // Create hidden video element for processing
+        const tempVideo = document.createElement('video');
+        tempVideo.srcObject = screenStream;
+        tempVideo.muted = true;
+        tempVideo.playsInline = true;
+        await tempVideo.play();
+
+        // Initialize optimized screen share
+        this.optimizedScreenShare = new OptimizedScreenShare();
+        optimizedStream = await this.optimizedScreenShare.initialize(tempVideo);
+        this.optimizedScreenShare.startProcessing();
+        
+        console.log('✅ Optimized screen share initialized (OffscreenCanvas + Adaptive Quality)');
+      } catch (error) {
+        console.warn('⚠️ Optimized screen share failed, using original stream:', error);
+        optimizedStream = screenStream;
+      }
+
       // Add screen track to peer connection
       if (this.peerConnection) {
-        const screenTrack = screenStream.getVideoTracks()[0];
-        const audioTrack = screenStream.getAudioTracks()[0];
+        const screenTrack = optimizedStream.getVideoTracks()[0];
+        const audioTrack = optimizedStream.getAudioTracks()[0];
         
         // Find existing video sender or add new track
         const videoSender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
@@ -594,19 +619,19 @@ class VoiceCallService {
           await videoSender.replaceTrack(screenTrack);
         } else {
           // Add new video track
-          this.peerConnection.addTrack(screenTrack, screenStream);
+          this.peerConnection.addTrack(screenTrack, optimizedStream);
         }
         
         // Add audio track if available
         if (audioTrack) {
           const audioSender = this.peerConnection.getSenders().find(s => s.track?.kind === 'audio' && s.track !== this.localStream?.getAudioTracks()[0]);
           if (!audioSender) {
-            this.peerConnection.addTrack(audioTrack, screenStream);
+            this.peerConnection.addTrack(audioTrack, optimizedStream);
           }
         }
         
         // Store screen stream and original video track
-        this.screenStream = screenStream;
+        this.screenStream = optimizedStream;
         this.originalVideoTrack = videoSender?.track;
         
         // Handle screen share stop
@@ -629,8 +654,8 @@ class VoiceCallService {
           await this.createOffer(true);
         }
 
-        this.emit('screenShareStarted', screenStream);
-        return { success: true, stream: screenStream };
+        this.emit('screenShareStarted', optimizedStream);
+        return { success: true, stream: optimizedStream };
       }
 
       return { success: false, error: 'Peer connection yok' };
@@ -655,6 +680,13 @@ class VoiceCallService {
    */
   async stopScreenShare() {
     if (this.screenStream) {
+      // Stop optimized screen share
+      if (this.optimizedScreenShare) {
+        this.optimizedScreenShare.stop();
+        this.optimizedScreenShare = null;
+        console.log('✅ Optimized screen share stopped');
+      }
+      
       // Stop screen stream
       this.screenStream.getTracks().forEach(track => track.stop());
       
