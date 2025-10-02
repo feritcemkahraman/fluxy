@@ -208,7 +208,7 @@ class VoiceChatService {
         isMuted: this.isMuted,
         userId: this.currentUserId
       });
-      console.log(`🔇 Mute status sent to server: ${this.isMuted}`);
+      // console.log(`🔇 Mute status sent to server: ${this.isMuted}`);
     }
     
     this.emit('muteChanged', this.isMuted);
@@ -240,7 +240,7 @@ class VoiceChatService {
         isDeafened: this.isDeafened,
         userId: this.currentUserId
       });
-      console.log(`🔇 Deafen status sent to server: ${this.isDeafened}`);
+      // console.log(`🔇 Deafen status sent to server: ${this.isDeafened}`);
     }
     
     this.emit('deafenChanged', this.isDeafened);

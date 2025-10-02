@@ -139,10 +139,11 @@ class PerformanceMonitor {
   // ============================================================================
 
   setupMemoryMonitoring() {
-    // Monitor memory usage every 10 seconds
-    this.memoryInterval = setInterval(() => {
-      this.collectMemoryMetrics();
-    }, 10000);
+    // DISABLED: Memory monitoring (CPU optimization)
+    // this.memoryInterval = setInterval(() => {
+    //   this.collectMemoryMetrics();
+    // }, 10000);
+    console.log('📊 Memory monitoring disabled for performance');
   }
 
   async collectMemoryMetrics() {
@@ -492,10 +493,10 @@ if (process.env.NODE_ENV === 'development') {
   // Expose to window for debugging
   window.performanceMonitor = performanceMonitor;
   
-  // Auto-generate reports every 30 seconds in development
-  setInterval(() => {
-    performanceMonitor.generateReport();
-  }, 30000);
+  // DISABLED: Auto-generate reports (CPU optimization)
+  // setInterval(() => {
+  //   performanceMonitor.generateReport();
+  // }, 30000);
 }
 
 // Cleanup on page unload

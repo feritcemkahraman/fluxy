@@ -34,7 +34,7 @@ export const useVoiceParticipants = (channelId) => {
     // Only process updates for this channel
     if (updateChannelId !== channelId) return;
 
-    console.log(`🔄 Voice channel update for ${channelId}:`, action, users);
+    // console.log(`🔄 Voice channel update for ${channelId}:`, action, users);
 
     // Update global map
     channelParticipantsMap.set(updateChannelId, users || []);
@@ -77,7 +77,7 @@ export const useVoiceParticipants = (channelId) => {
     const { channelId: updateChannelId, userId, isMuted: userMuted } = data;
     if (updateChannelId !== channelId) return;
 
-    console.log(`🔇 Mute update for ${userId}:`, userMuted);
+    // console.log(`🔇 Mute update for ${userId}:`, userMuted);
 
     setChannelParticipants(prev => 
       prev.map(p => 
@@ -91,7 +91,7 @@ export const useVoiceParticipants = (channelId) => {
     const { channelId: updateChannelId, userId, isDeafened: userDeafened } = data;
     if (updateChannelId !== channelId) return;
 
-    console.log(`🔇 Deafen update for ${userId}:`, userDeafened);
+    // console.log(`🔇 Deafen update for ${userId}:`, userDeafened);
 
     setChannelParticipants(prev => 
       prev.map(p => 

@@ -104,24 +104,23 @@ class MonitoringService {
   startConnectionMonitoring() {
     if (typeof setInterval === 'undefined') return;
 
-    // Monitor connection state changes
-    setInterval(() => {
-      // Check if we have active voice connections
-      const voiceService = typeof window !== 'undefined' ? window.voiceChatService : null;
-      if (voiceService && voiceService.peers) {
-        const peerCount = voiceService.peers.size;
-        const connectionStates = Array.from(voiceService.peers.values()).map(peer => ({
-          connectionState: peer._pc?.connectionState,
-          iceConnectionState: peer._pc?.iceConnectionState
-        }));
-
-        this.trackEvent('connection_health', {
-          peerCount,
-          connectionStates,
-          timestamp: Date.now()
-        });
-      }
-    }, 30000); // Every 30 seconds
+    // DISABLED: Connection monitoring (CPU optimization)
+    // setInterval(() => {
+    //   const voiceService = typeof window !== 'undefined' ? window.voiceChatService : null;
+    //   if (voiceService && voiceService.peers) {
+    //     const peerCount = voiceService.peers.size;
+    //     const connectionStates = Array.from(voiceService.peers.values()).map(peer => ({
+    //       connectionState: peer._pc?.connectionState,
+    //       iceConnectionState: peer._pc?.iceConnectionState
+    //     }));
+    //     this.trackEvent('connection_health', {
+    //       peerCount,
+    //       connectionStates,
+    //       timestamp: Date.now()
+    //     });
+    //   }
+    // }, 30000);
+    console.log('🔍 Connection monitoring disabled for performance');
   }
 
   // Generic event tracking
