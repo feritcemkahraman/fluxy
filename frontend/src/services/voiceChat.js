@@ -192,7 +192,7 @@ class VoiceChatService {
     }
   }
 
-  // Toggle mute with desktop integration
+  // Toggle mute with desktop integration + real-time broadcast
   toggleMute() {
     this.isMuted = !this.isMuted;
     if (this.localStream) {
@@ -201,12 +201,20 @@ class VoiceChatService {
       });
     }
     
-    // Desktop notification for mute status removed as requested
+    // Broadcast mute status to server
+    if (websocketService.socket?.connected && this.currentChannel) {
+      websocketService.socket.emit('voice-mute-status', {
+        channelId: this.currentChannel,
+        isMuted: this.isMuted,
+        userId: this.currentUserId
+      });
+      console.log(`🔇 Mute status sent to server: ${this.isMuted}`);
+    }
     
     this.emit('muteChanged', this.isMuted);
   }
 
-  // Toggle deafen with desktop integration
+  // Toggle deafen with desktop integration + real-time broadcast
   toggleDeafen() {
     this.isDeafened = !this.isDeafened;
     
@@ -214,9 +222,26 @@ class VoiceChatService {
     if (this.isDeafened && !this.isMuted) {
       this.isMuted = true;
       this.emit('muteChanged', this.isMuted);
+      
+      // Also broadcast mute status
+      if (websocketService.socket?.connected && this.currentChannel) {
+        websocketService.socket.emit('voice-mute-status', {
+          channelId: this.currentChannel,
+          isMuted: this.isMuted,
+          userId: this.currentUserId
+        });
+      }
     }
     
-    // Desktop notification for deafen status removed as requested
+    // Broadcast deafen status to server
+    if (websocketService.socket?.connected && this.currentChannel) {
+      websocketService.socket.emit('voice-deafen-status', {
+        channelId: this.currentChannel,
+        isDeafened: this.isDeafened,
+        userId: this.currentUserId
+      });
+      console.log(`🔇 Deafen status sent to server: ${this.isDeafened}`);
+    }
     
     this.emit('deafenChanged', this.isDeafened);
   }

@@ -39,7 +39,9 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  LogOut
+  LogOut,
+  Link,
+  Mail
 } from "lucide-react";
 import { roleAPI, serverAPI, channelAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -435,6 +437,15 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                   Genel Bakış
                 </TabsTrigger>
                 
+                {/* Invites - Everyone can see */}
+                <TabsTrigger 
+                  value="invites" 
+                  className="w-full justify-start text-left text-lg data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400 hover:text-white hover:bg-white/5"
+                >
+                  <Link className="w-5 h-5 mr-3" />
+                  Davetler
+                </TabsTrigger>
+                
                 {/* Members - Everyone can see */}
                 <TabsTrigger 
                   value="members" 
@@ -613,34 +624,89 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                 </div>
               </TabsContent>
 
-              {/* Members Tab */}
-              <TabsContent value="members" className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-8rem)]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold mb-2">Üyeler</h2>
-                    <p className="text-gray-400">Sunucu üyelerini ve izinlerini yönetin.</p>
-                  </div>
-                  <Button onClick={generateInviteLink} className="bg-blue-600 hover:bg-blue-700">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Davet Oluştur
-                  </Button>
+              {/* Invites Tab */}
+              <TabsContent value="invites" className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-8rem)]">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Davetler</h2>
+                  <p className="text-gray-400">Sunucunuza yeni üyeler davet edin.</p>
                 </div>
 
-                {/* Invite Link Section */}
-                {inviteLink && (
-                  <div className="bg-blue-900/20 backdrop-blur-sm rounded-lg p-4 border border-blue-500/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-blue-400 font-medium">Davet Kodu</h4>
-                        <p className="text-white text-lg font-mono tracking-wider">{inviteLink}</p>
-                      </div>
-                      <Button onClick={copyInviteCode} variant="outline" size="sm">
-                        <Copy className="w-4 h-4 mr-2" />
-                        Kopyala
-                      </Button>
+                {/* Create Invite Section */}
+                <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 backdrop-blur-sm rounded-lg p-6 border border-blue-500/30">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white mb-2 flex items-center">
+                        <Mail className="w-5 h-5 mr-2 text-blue-400" />
+                        Davet Oluştur
+                      </h3>
+                      <p className="text-gray-300 text-sm">
+                        Sunucunuza katılmaları için arkadaşlarınıza bir davet kodu gönderin.
+                      </p>
                     </div>
+                    <Button onClick={generateInviteLink} className="bg-blue-600 hover:bg-blue-700 shadow-lg">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Yeni Davet
+                    </Button>
                   </div>
-                )}
+
+                  {/* Active Invite Link */}
+                  {inviteLink && (
+                    <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4 border border-blue-500/40 mt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-blue-400 font-medium text-sm mb-1">Aktif Davet Kodu</h4>
+                          <div className="flex items-center space-x-2">
+                            <Link className="w-4 h-4 text-gray-400" />
+                            <p className="text-white text-lg font-mono tracking-wider">{inviteLink}</p>
+                          </div>
+                        </div>
+                        <Button onClick={copyInviteCode} variant="outline" size="sm" className="border-blue-500/50 hover:bg-blue-600/20">
+                          <Copy className="w-4 h-4 mr-2" />
+                          Kopyala
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!inviteLink && (
+                    <div className="bg-black/20 backdrop-blur-sm rounded-lg p-6 border border-dashed border-blue-500/30 mt-4 text-center">
+                      <Link className="w-12 h-12 mx-auto mb-3 text-blue-400/50" />
+                      <p className="text-gray-400 text-sm">
+                        Henüz davet oluşturulmadı. Yukarıdaki butona tıklayarak yeni bir davet kodu oluşturun.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Invite Info */}
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+                  <h4 className="text-white font-medium mb-3 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-400" />
+                    Davet Bilgileri
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-300">
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">•</span>
+                      <span>Davet kodları sunucunuza yeni üyeler katılmasını sağlar</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">•</span>
+                      <span>Davet kodu ile herkes sunucunuza katılabilir</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">•</span>
+                      <span>Kodu kopyalayıp arkadaşlarınızla paylaşabilirsiniz</span>
+                    </li>
+                  </ul>
+                </div>
+              </TabsContent>
+
+              {/* Members Tab */}
+              <TabsContent value="members" className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-8rem)]">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Üyeler</h2>
+                  <p className="text-gray-400">Sunucu üyelerini ve izinlerini yönetin.</p>
+                </div>
 
                 {/* Search and Filter */}
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">

@@ -1,12 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVoiceChat } from './useVoiceChat';
 import { useAuth } from '../context/AuthContext';
+import websocketService from '../services/websocket';
 
 /**
- * Unified Voice Participants Hook
- * Single source of truth for voice channel participants
- * Combines local state + server state + current user state
+ * Discord-Like Voice Participants Hook
+ * Real-time participant tracking with optimistic updates
+ * - Listens to WebSocket voiceChannelUpdate events
+ * - Maintains global participant state per channel
+ * - Provides instant UI updates
  */
+
+// Global state for all voice channel participants
+const channelParticipantsMap = new Map();
+
 export const useVoiceParticipants = (channelId) => {
   const { user: currentUser } = useAuth();
   const {
@@ -17,23 +24,123 @@ export const useVoiceParticipants = (channelId) => {
     isDeafened
   } = useVoiceChat();
 
-  // Unified participant list
-  const participants = useMemo(() => {
-    if (!channelId) return [];
+  // Local state for this channel's participants
+  const [channelParticipants, setChannelParticipants] = useState([]);
 
-    const participantList = [];
+  // Handle voice channel updates from WebSocket
+  const handleVoiceChannelUpdate = useCallback((data) => {
+    const { channelId: updateChannelId, users, action } = data;
+    
+    // Only process updates for this channel
+    if (updateChannelId !== channelId) return;
+
+    console.log(`🔄 Voice channel update for ${channelId}:`, action, users);
+
+    // Update global map
+    channelParticipantsMap.set(updateChannelId, users || []);
+
+    // Transform users to participant format
+    const participants = (users || []).map(userInfo => {
+      const userId = userInfo.id || userInfo._id;
+      const isCurrentUserParticipant = userId === currentUser?.id || userId === currentUser?._id;
+
+      return {
+        id: userId,
+        user: {
+          id: userId,
+          _id: userId,
+          username: userInfo.username || 'Unknown User',
+          displayName: userInfo.displayName || userInfo.username || 'Unknown User',
+          avatar: userInfo.avatar,
+          status: userInfo.status || 'online'
+        },
+        isMuted: isCurrentUserParticipant ? isMuted : (userInfo.isMuted || false),
+        isDeafened: isCurrentUserParticipant ? isDeafened : (userInfo.isDeafened || false),
+        isCurrentUser: isCurrentUserParticipant,
+        isSpeaking: userInfo.isSpeaking || false,
+        joinedAt: userInfo.joinedAt || Date.now()
+      };
+    });
+
+    // Sort: Current user first, then by join time
+    const sortedParticipants = participants.sort((a, b) => {
+      if (a.isCurrentUser && !b.isCurrentUser) return -1;
+      if (!a.isCurrentUser && b.isCurrentUser) return 1;
+      return (a.joinedAt || 0) - (b.joinedAt || 0);
+    });
+
+    setChannelParticipants(sortedParticipants);
+  }, [channelId, currentUser, isMuted, isDeafened]);
+
+  // Handle mute status updates
+  const handleVoiceUserMuted = useCallback((data) => {
+    const { channelId: updateChannelId, userId, isMuted: userMuted } = data;
+    if (updateChannelId !== channelId) return;
+
+    console.log(`🔇 Mute update for ${userId}:`, userMuted);
+
+    setChannelParticipants(prev => 
+      prev.map(p => 
+        p.id === userId ? { ...p, isMuted: userMuted } : p
+      )
+    );
+  }, [channelId]);
+
+  // Handle deafen status updates
+  const handleVoiceUserDeafened = useCallback((data) => {
+    const { channelId: updateChannelId, userId, isDeafened: userDeafened } = data;
+    if (updateChannelId !== channelId) return;
+
+    console.log(`🔇 Deafen update for ${userId}:`, userDeafened);
+
+    setChannelParticipants(prev => 
+      prev.map(p => 
+        p.id === userId ? { ...p, isDeafened: userDeafened } : p
+      )
+    );
+  }, [channelId]);
+
+  // Subscribe to WebSocket events
+  useEffect(() => {
+    websocketService.on('voiceChannelUpdate', handleVoiceChannelUpdate);
+    websocketService.on('voice-user-muted', handleVoiceUserMuted);
+    websocketService.on('voice-user-deafened', handleVoiceUserDeafened);
+
+    // Initialize from global map if available
+    const existingParticipants = channelParticipantsMap.get(channelId);
+    if (existingParticipants) {
+      handleVoiceChannelUpdate({
+        channelId,
+        users: existingParticipants,
+        action: 'init'
+      });
+    }
+
+    return () => {
+      websocketService.off('voiceChannelUpdate', handleVoiceChannelUpdate);
+      websocketService.off('voice-user-muted', handleVoiceUserMuted);
+      websocketService.off('voice-user-deafened', handleVoiceUserDeafened);
+    };
+  }, [channelId, handleVoiceChannelUpdate, handleVoiceUserMuted, handleVoiceUserDeafened]);
+
+  // Fallback to voiceChat participants if WebSocket hasn't updated yet
+  const participants = useMemo(() => {
+    // Prefer WebSocket state
+    if (channelParticipants.length > 0) {
+      return channelParticipants;
+    }
+
+    // Fallback to voiceChat state (for current channel only)
     const isCurrentChannel = currentChannel === channelId;
     const isUserConnected = isConnected && isCurrentChannel;
-    
 
-    // Add participants from voice service - ONLY for current channel
     if (voiceParticipants && voiceParticipants.length > 0 && isCurrentChannel) {
-      voiceParticipants.forEach(participant => {
+      return voiceParticipants.map(participant => {
         const isCurrentUserParticipant = participant.isCurrentUser || 
           participant.user?.id === currentUser?.id || 
           participant.user?._id === currentUser?._id;
 
-        participantList.push({
+        return {
           id: participant.user?.id || participant.user?._id,
           user: participant.user,
           isMuted: isCurrentUserParticipant ? isMuted : (participant.isMuted || false),
@@ -41,11 +148,13 @@ export const useVoiceParticipants = (channelId) => {
           isCurrentUser: isCurrentUserParticipant,
           isSpeaking: participant.isSpeaking || false,
           joinedAt: participant.joinedAt || Date.now()
-        });
+        };
       });
-    } else if (isUserConnected && currentUser) {
-      // Fallback: If no participants but user is connected, show current user
-      participantList.push({
+    }
+
+    // Optimistic update: Show current user immediately if connected
+    if (isUserConnected && currentUser) {
+      return [{
         id: currentUser.id || currentUser._id,
         user: currentUser,
         isMuted,
@@ -53,28 +162,11 @@ export const useVoiceParticipants = (channelId) => {
         isCurrentUser: true,
         isSpeaking: false,
         joinedAt: Date.now()
-      });
+      }];
     }
 
-    // Deduplicate by user ID and sort (current user first)
-    const uniqueParticipants = participantList.reduce((acc, participant) => {
-      const existingIndex = acc.findIndex(p => p.id === participant.id);
-      if (existingIndex >= 0) {
-        // Update existing with most recent data
-        acc[existingIndex] = { ...acc[existingIndex], ...participant };
-      } else {
-        acc.push(participant);
-      }
-      return acc;
-    }, []);
-
-    // Sort: Current user first, then by join time
-    return uniqueParticipants.sort((a, b) => {
-      if (a.isCurrentUser && !b.isCurrentUser) return -1;
-      if (!a.isCurrentUser && b.isCurrentUser) return 1;
-      return (a.joinedAt || 0) - (b.joinedAt || 0);
-    });
-  }, [channelId, currentChannel, isConnected, voiceParticipants, currentUser, isMuted, isDeafened]);
+    return [];
+  }, [channelParticipants, channelId, currentChannel, isConnected, voiceParticipants, currentUser, isMuted, isDeafened]);
 
   return {
     participants,
@@ -82,4 +174,9 @@ export const useVoiceParticipants = (channelId) => {
     participantCount: participants.length,
     hasCurrentUser: participants.some(p => p.isCurrentUser)
   };
+};
+
+// Export for cleanup if needed
+export const clearVoiceParticipantsCache = () => {
+  channelParticipantsMap.clear();
 };

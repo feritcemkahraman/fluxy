@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import {
   Mic,
@@ -16,12 +16,14 @@ import {
   Volume2
 } from "lucide-react";
 import { useVoiceChat } from "../hooks/useVoiceChat";
+import { useVoiceParticipants } from "../hooks/useVoiceParticipants";
 import { useAuth } from "../context/AuthContext";
 import voiceChatService from "../services/voiceChat";
 import { useAudio } from "../hooks/useAudio";
 import { serverAPI } from "../services/api";
 import ScreenSharePicker from "./ScreenSharePicker";
 import electronAPI from "../utils/electronAPI";
+import websocketService from "../services/websocket";
 
 const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], onClose }) => {
   const { user: currentUser } = useAuth();
@@ -42,7 +44,6 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     remoteStreams,
     remoteScreenStreams,
     screenSharingUsers,
-    participants,
     error,
     isLoading,
     joinChannel,
@@ -50,11 +51,13 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     toggleMute,
     toggleDeafen,
     clearError,
-    setParticipants,
     startScreenShare,
     stopScreenShare,
     adjustScreenQuality
   } = useVoiceChat();
+
+  // Use unified voice participants hook for real-time updates
+  const { participants } = useVoiceParticipants(channel?._id || channel?.id);
 
   const [expandedScreenShare, setExpandedScreenShare] = useState(null);
   const [screenShareVideos, setScreenShareVideos] = useState(new Map());
@@ -102,69 +105,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
   }, [effectiveServer?._id, effectiveServer?.id, voiceChannelUsers, effectiveServer?.members]);
 
-  // Simplified useEffect - always show current user when connected
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isConnected && currentUser && currentChannel === channel?._id) {
-        // Always ensure current user is shown when connected
-        const currentUserParticipant = {
-          user: currentUser,
-          isMuted: isMuted,
-          isDeafened: isDeafened,
-          isMuted,
-          isDeafened,
-          isCurrentUser: true,
-          isSpeaking: false
-        };
-
-
-        // Start with current user
-        let allParticipants = [currentUserParticipant];
-
-        // Add other users from voiceChannelUsers prop if available
-        if (voiceChannelUsers && voiceChannelUsers.length > 0) {
-          const channelParticipants = voiceChannelUsers.filter(vu => 
-            vu.channelId === channel?._id && vu.userId !== (currentUser?._id || currentUser?.id)
-          );
-          
-          const otherParticipants = channelParticipants.map(vu => {
-            const user = server?.members?.find(member => 
-              (member._id || member.id) === vu.userId
-            );
-            
-            if (user) {
-              return {
-                user,
-                isMuted: vu.isMuted || false,
-                isDeafened: vu.isDeafened || false,
-                isCurrentUser: false,
-                isSpeaking: false
-              };
-            }
-            return null;
-          }).filter(Boolean);
-
-          allParticipants = [currentUserParticipant, ...otherParticipants];
-        }
-
-
-        setParticipants(allParticipants);
-        
-      } else if (!isConnected) {
-        // Clear participants when not connected
-        if (participants.length > 0) {
-          setParticipants([]);
-        }
-      } else if (currentChannel !== channel?._id) {
-        // Clear participants when not in the same channel
-        if (participants.length > 0) {
-          setParticipants([]);
-        }
-      }
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [isConnected, currentUser, currentChannel, channel?._id, isMuted, isDeafened, voiceChannelUsers, server?.members]);
+  // Participants are now managed by useVoiceParticipants hook - no manual management needed
 
   // Remove the separate mute/deafen useEffect to prevent conflicts
 

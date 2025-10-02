@@ -166,11 +166,18 @@ const handleConnection = (io) => {
       console.log(`📝 User ${socket.user?.username} left text channel room: channel_${channelId}`);
     });
 
-    // Handle joining a voice channel - SIMPLE
+    // Handle joining a voice channel - DISCORD-LIKE REAL-TIME
     socket.on('join-voice-channel', async (data) => {
       try {
         const { channelId } = data;
         console.log(`🎤 User ${socket.user?.username} joining voice channel: ${channelId}`);
+        
+        // Get channel to find server
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+          socket.emit('error', { message: 'Channel not found' });
+          return;
+        }
         
         const result = VoiceChannelManager.joinChannel(channelId, socket.userId);
         
@@ -196,8 +203,7 @@ const handleConnection = (io) => {
           })
         );
         
-        // Notify others in the channel
-        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
+        const updatePayload = {
           channelId,
           users: usersWithDetails,
           action: 'join',
@@ -205,22 +211,22 @@ const handleConnection = (io) => {
           joinedUser: {
             id: socket.userId,
             username: socket.user.username,
-            displayName: socket.user.displayName || socket.user.username
+            displayName: socket.user.displayName || socket.user.username,
+            avatar: socket.user.avatar
           }
-        });
+        };
         
-        // Send success response
-        socket.emit('voiceChannelUpdate', {
-          channelId,
-          users: usersWithDetails,
-          action: 'join',
-          userId: socket.userId,
-          joinedUser: {
-            id: socket.userId,
-            username: socket.user.username,
-            displayName: socket.user.displayName || socket.user.username
-          }
-        });
+        // CRITICAL: Broadcast to ENTIRE SERVER (not just voice room)
+        // This ensures ALL users in sidebar see the update
+        io.to(`server_${channel.server}`).emit('voiceChannelUpdate', updatePayload);
+        
+        // Also send to voice room for redundancy
+        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', updatePayload);
+        
+        // Send success response to joiner
+        socket.emit('voiceChannelUpdate', updatePayload);
+        
+        console.log(`✅ Voice join broadcast to server_${channel.server}`);
         
       } catch (error) {
         console.error('Voice join error:', error);
@@ -228,11 +234,18 @@ const handleConnection = (io) => {
       }
     });
 
-    // Handle leaving a voice channel - SIMPLE
+    // Handle leaving a voice channel - DISCORD-LIKE REAL-TIME
     socket.on('leave-voice-channel', async (data) => {
       try {
         const { channelId } = data;
         console.log(`🚪 User ${socket.user?.username} leaving voice channel: ${channelId}`);
+        
+        // Get channel to find server
+        const channel = await Channel.findById(channelId);
+        if (!channel) {
+          socket.emit('error', { message: 'Channel not found' });
+          return;
+        }
         
         const result = VoiceChannelManager.leaveChannel(channelId, socket.userId);
         
@@ -258,8 +271,7 @@ const handleConnection = (io) => {
           })
         );
         
-        // Notify others in the channel
-        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
+        const updatePayload = {
           channelId,
           users: usersWithDetails,
           action: 'leave',
@@ -269,23 +281,83 @@ const handleConnection = (io) => {
             username: socket.user.username,
             displayName: socket.user.displayName || socket.user.username
           }
-        });
+        };
         
-        // Send success response
-        socket.emit('voiceChannelUpdate', {
-          channelId,
-          users: usersWithDetails,
-          action: 'leave',
-          userId: socket.userId,
-          leftUser: {
-            id: socket.userId,
-            username: socket.user.username,
-            displayName: socket.user.displayName || socket.user.username
-          }
-        });
+        // CRITICAL: Broadcast to ENTIRE SERVER (not just voice room)
+        // This ensures ALL users in sidebar see the update
+        io.to(`server_${channel.server}`).emit('voiceChannelUpdate', updatePayload);
+        
+        // Also send to voice room for redundancy
+        socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', updatePayload);
+        
+        // Send success response to leaver
+        socket.emit('voiceChannelUpdate', updatePayload);
+        
+        console.log(`✅ Voice leave broadcast to server_${channel.server}`);
         
       } catch (error) {
         console.error('Voice leave error:', error);
+      }
+    });
+
+    // Handle voice mute/deafen status updates - REAL-TIME
+    socket.on('voice-mute-status', async (data) => {
+      try {
+        const { channelId, isMuted } = data;
+        console.log(`🔇 User ${socket.user?.username} mute status: ${isMuted} in channel: ${channelId}`);
+        
+        // Get channel to find server
+        const channel = await Channel.findById(channelId);
+        if (!channel) return;
+        
+        // Broadcast to entire server
+        const updatePayload = {
+          channelId,
+          userId: socket.userId,
+          isMuted,
+          user: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
+        };
+        
+        io.to(`server_${channel.server}`).emit('voice-user-muted', updatePayload);
+        socket.to(`voice:${channelId}`).emit('voice-user-muted', updatePayload);
+        
+        console.log(`✅ Mute status broadcast to server_${channel.server}`);
+      } catch (error) {
+        console.error('Voice mute status error:', error);
+      }
+    });
+
+    socket.on('voice-deafen-status', async (data) => {
+      try {
+        const { channelId, isDeafened } = data;
+        console.log(`🔇 User ${socket.user?.username} deafen status: ${isDeafened} in channel: ${channelId}`);
+        
+        // Get channel to find server
+        const channel = await Channel.findById(channelId);
+        if (!channel) return;
+        
+        // Broadcast to entire server
+        const updatePayload = {
+          channelId,
+          userId: socket.userId,
+          isDeafened,
+          user: {
+            id: socket.userId,
+            username: socket.user.username,
+            displayName: socket.user.displayName || socket.user.username
+          }
+        };
+        
+        io.to(`server_${channel.server}`).emit('voice-user-deafened', updatePayload);
+        socket.to(`voice:${channelId}`).emit('voice-user-deafened', updatePayload);
+        
+        console.log(`✅ Deafen status broadcast to server_${channel.server}`);
+      } catch (error) {
+        console.error('Voice deafen status error:', error);
       }
     });
 
@@ -808,19 +880,34 @@ const handleConnection = (io) => {
       // Remove from connected users
       connectedUsers.delete(socket.userId);
 
-      // Clean up voice channels
+      // Clean up voice channels on disconnect
       const allChannels = VoiceChannelManager.getAllChannels();
       for (const [channelId, users] of Object.entries(allChannels)) {
         if (users.includes(socket.userId)) {
           const result = VoiceChannelManager.leaveChannel(channelId, socket.userId);
           
-          // Notify others in the channel
-          socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', {
-            channelId,
-            users: result.users,
-            action: 'leave',
-            userId: socket.userId
-          });
+          // Get channel to find server for broadcast
+          try {
+            const channel = await Channel.findById(channelId);
+            if (channel) {
+              const updatePayload = {
+                channelId,
+                users: result.users,
+                action: 'leave',
+                userId: socket.userId,
+                leftUser: {
+                  id: socket.userId,
+                  username: socket.user?.username || 'Unknown User'
+                }
+              };
+              
+              // Broadcast to entire server
+              io.to(`server_${channel.server}`).emit('voiceChannelUpdate', updatePayload);
+              socket.to(`voice:${channelId}`).emit('voiceChannelUpdate', updatePayload);
+            }
+          } catch (error) {
+            console.error('Error broadcasting disconnect voice update:', error);
+          }
         }
       }
 
