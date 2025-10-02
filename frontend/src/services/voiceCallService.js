@@ -10,6 +10,8 @@ class VoiceCallService {
     this.currentCall = null;
     this.callState = 'idle'; // idle, calling, ringing, connected
     this.listeners = new Map();
+    this.makingOffer = false; // Perfect negotiation flag
+    this.ignoreOffer = false; // Perfect negotiation flag
     
     // WebRTC configuration
     this.rtcConfiguration = {
@@ -104,6 +106,24 @@ class VoiceCallService {
     this.socket.on('voiceCall:remoteMuteStatus', (data) => {
       this.emit('remoteMuteStatus', data);
     });
+
+    // Screen share events
+    this.socket.on('voiceCall:screenShareStarted', (data) => {
+      console.log('🖥️ Remote user started screen sharing');
+      this.emit('remoteScreenShareStarted', data);
+    });
+
+    this.socket.on('voiceCall:screenShareStopped', (data) => {
+      console.log('🖥️ Remote user stopped screen sharing');
+      this.emit('remoteScreenShareStopped', data);
+    });
+
+    // Renegotiation needed (when remote adds screen share track)
+    this.socket.on('voiceCall:renegotiationNeeded', async (data) => {
+      console.log('🔄 Renegotiation needed from remote user');
+      // Remote user added a new track (screen share), we need to handle the new offer
+      this.emit('renegotiationNeeded', data);
+    });
   }
 
   // Initiate a call
@@ -126,6 +146,9 @@ class VoiceCallService {
       };
       
       this.callState = 'calling';
+      
+      // Perfect negotiation: Caller is impolite (doesn't back off)
+      this.isPolite = false;
       
       // Notify server
       this.socket.emit('voiceCall:initiate', { targetUserId, callType });
@@ -151,6 +174,9 @@ class VoiceCallService {
       await this.getLocalStream(this.currentCall.callType === 'video');
       
       this.callState = 'connected';
+      
+      // Perfect negotiation: Callee is polite (backs off on collision)
+      this.isPolite = true;
       
       // Notify server
       this.socket.emit('voiceCall:accept', { callerId: this.currentCall.userId });
@@ -275,8 +301,8 @@ class VoiceCallService {
     return this.peerConnection;
   }
 
-  // Create WebRTC offer
-  async createOffer() {
+  // Create WebRTC offer (Perfect Negotiation Pattern)
+  async createOffer(isRenegotiation = false) {
     try {
       if (!this.currentCall) return;
       
@@ -285,43 +311,73 @@ class VoiceCallService {
         this.createPeerConnection(this.currentCall.userId);
       }
       
-      // Check if we already have a local description (offer already created)
-      if (this.peerConnection.localDescription) {
-        console.log('⚠️ Offer already created, skipping');
+      const signalingState = this.peerConnection.signalingState;
+      console.log(`📤 Creating offer (renegotiation: ${isRenegotiation}), signaling state:`, signalingState);
+      
+      // For initial offer, check if already created
+      if (!isRenegotiation && this.peerConnection.localDescription && signalingState === 'stable') {
+        console.log('⚠️ Initial offer already created and connection stable, skipping');
         return;
       }
       
-      const offer = await this.peerConnection.createOffer();
-      await this.peerConnection.setLocalDescription(offer);
+      // Perfect negotiation: Set flag before making offer
+      this.makingOffer = true;
       
-      this.socket.emit('voiceCall:offer', {
-        targetUserId: this.currentCall.userId,
-        offer: offer
-      });
-      
-      console.log('📤 WebRTC offer sent');
+      try {
+        const offer = await this.peerConnection.createOffer();
+        await this.peerConnection.setLocalDescription(offer);
+        
+        this.socket.emit('voiceCall:offer', {
+          targetUserId: this.currentCall.userId,
+          offer: offer
+        });
+        
+        console.log(`📤 WebRTC offer sent ${isRenegotiation ? '(renegotiation)' : ''}`);
+      } finally {
+        this.makingOffer = false;
+      }
     } catch (error) {
       console.error('Failed to create offer:', error);
-      this.endCall();
+      this.makingOffer = false;
+      // Don't end call on renegotiation errors
+      if (!isRenegotiation) {
+        this.endCall();
+      }
     }
   }
 
-  // Handle WebRTC offer
+  // Handle WebRTC offer (Perfect Negotiation Pattern)
   async handleOffer(callerId, offer) {
     try {
-      // Check if peer connection already exists and is in stable state
-      if (this.peerConnection && this.peerConnection.signalingState !== 'stable') {
-        console.log('⚠️ Peer connection not in stable state, ignoring offer');
-        return;
-      }
-      
       // Only create new peer connection if it doesn't exist
       if (!this.peerConnection) {
         this.createPeerConnection(callerId);
       }
       
+      const signalingState = this.peerConnection.signalingState;
+      console.log('📥 Received offer, current signaling state:', signalingState);
+      
+      // Perfect Negotiation: Check for offer collision
+      const offerCollision = signalingState !== 'stable' && signalingState !== 'have-remote-offer';
+      
+      // Ignore offer if we're making an offer (polite peer backs off)
+      this.ignoreOffer = !this.isPolite && offerCollision;
+      
+      if (this.ignoreOffer) {
+        console.log('⚠️ Ignoring offer due to collision (impolite peer)');
+        return;
+      }
+      
+      // If collision and we're polite, rollback our offer
+      if (offerCollision) {
+        console.log('⚠️ Offer collision detected, rolling back (polite peer)');
+        await this.peerConnection.setLocalDescription({ type: 'rollback' });
+      }
+      
+      // Set remote description (the offer)
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       
+      // Create and send answer
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
       
@@ -333,7 +389,10 @@ class VoiceCallService {
       console.log('📤 WebRTC answer sent');
     } catch (error) {
       console.error('Failed to handle offer:', error);
-      this.endCall();
+      // Don't end call on renegotiation errors, just log
+      if (!this.peerConnection || this.peerConnection.connectionState === 'new') {
+        this.endCall();
+      }
     }
   }
 
@@ -462,7 +521,8 @@ class VoiceCallService {
         }
         
         const isWindowShare = sourceId.startsWith('window:');
-        const quality = options.quality || { width: 1920, height: 1080, frameRate: 30 };
+        // Discord-like quality: Lower FPS for better CPU performance
+        const quality = options.quality || { width: 1280, height: 720, frameRate: 15 };
         
         constraints = {
           video: {
@@ -554,6 +614,21 @@ class VoiceCallService {
           this.stopScreenShare();
         };
 
+        // Notify remote user and trigger renegotiation
+        if (this.currentCall && this.socket) {
+          this.socket.emit('voiceCall:screenShareStarted', {
+            targetUserId: this.currentCall.userId
+          });
+          
+          // Request renegotiation to send new offer with screen track
+          this.socket.emit('voiceCall:renegotiate', {
+            targetUserId: this.currentCall.userId
+          });
+          
+          // Create new offer with screen share track (force renegotiation)
+          await this.createOffer(true);
+        }
+
         this.emit('screenShareStarted', screenStream);
         return { success: true, stream: screenStream };
       }
@@ -589,6 +664,16 @@ class VoiceCallService {
         if (videoSender) {
           await videoSender.replaceTrack(this.originalVideoTrack);
         }
+      }
+      
+      // Notify remote user
+      if (this.currentCall && this.socket) {
+        this.socket.emit('voiceCall:screenShareStopped', {
+          targetUserId: this.currentCall.userId
+        });
+        
+        // Renegotiate to remove screen track (force renegotiation)
+        await this.createOffer(true);
       }
       
       this.screenStream = null;
@@ -643,6 +728,11 @@ class VoiceCallService {
     
     // Clear remote stream
     this.remoteStream = null;
+    
+    // Reset perfect negotiation flags
+    this.makingOffer = false;
+    this.ignoreOffer = false;
+    this.isPolite = false;
     
     this.currentCall = null;
     this.callState = 'idle';

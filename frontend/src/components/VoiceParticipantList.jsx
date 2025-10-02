@@ -6,6 +6,7 @@ import { useVoiceParticipants } from '../hooks/useVoiceParticipants';
  * VoiceParticipantList Component
  * Displays all participants in a voice channel
  * Uses the unified useVoiceParticipants hook
+ * FIXED: Always call hooks unconditionally (React rules)
  */
 const VoiceParticipantList = ({ 
   channelId, 
@@ -14,6 +15,7 @@ const VoiceParticipantList = ({
   className = '',
   emptyMessage = null
 }) => {
+  // ALWAYS call hooks unconditionally (React rules)
   const { participants, isConnected, participantCount } = useVoiceParticipants(channelId);
 
   // Don't render if no participants

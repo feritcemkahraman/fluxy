@@ -27,14 +27,18 @@ import ScreenSharePicker from '../../../components/ScreenSharePicker';
  * DirectMessageChat Component - Discord Style
  * Refactored to use new Messages feature module
  */
-const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, startScreenShare }) => {
+const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, remoteScreenSharing: remoteScreenSharingProp, startScreenShare }) => {
   const { user } = useAuth();
   const messagesEndRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showScreenSharePicker, setShowScreenSharePicker] = useState(false);
   const [isScreenShareFullscreen, setIsScreenShareFullscreen] = useState(false);
+  const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
   const screenShareVideoRef = useRef(null);
   const fullscreenVideoRef = useRef(null);
+  const frameThrottleRef = useRef(null);
+  const lastFrameTimeRef = useRef(0);
+  const targetFPS = 15; // Discord-like FPS
 
   const conversationId = conversation?.id || conversation?._id;
   const otherUser = conversation?.participants?.find(p => p.id !== user?.id) || 
@@ -55,10 +59,21 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Listen for screen share stream
+  // Listen for screen share stream (LOCAL and REMOTE)
   useEffect(() => {
+    // LOCAL screen share started
     const handleScreenShareStarted = (stream) => {
-      console.log('📺 Screen share stream received:', stream);
+      console.log('📺 LOCAL screen share stream received:', stream);
+      
+      // Apply frame rate throttling for CPU optimization
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        const videoTrack = videoTracks[0];
+        // Throttle to 15 FPS for better CPU performance
+        videoTrack.applyConstraints({
+          frameRate: { ideal: 15, max: 20 }
+        }).catch(err => console.warn('Frame rate throttling failed:', err));
+      }
       
       // Set stream to both video elements
       if (screenShareVideoRef.current) {
@@ -82,12 +97,64 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       }
     };
 
+    // REMOTE screen share started
+    const handleRemoteScreenShareStarted = (data) => {
+      console.log('📺 REMOTE screen share started:', data);
+      setRemoteScreenSharing(true);
+    };
+
+    const handleRemoteScreenShareStopped = (data) => {
+      console.log('📺 REMOTE screen share stopped:', data);
+      setRemoteScreenSharing(false);
+      // Clear video elements
+      if (screenShareVideoRef.current) {
+        screenShareVideoRef.current.srcObject = null;
+      }
+      if (fullscreenVideoRef.current) {
+        fullscreenVideoRef.current.srcObject = null;
+      }
+    };
+
+    // REMOTE stream updated (includes screen share track)
+    const handleRemoteStream = (stream) => {
+      console.log('📺 Remote stream updated:', stream);
+      
+      // Check if stream has video track (screen share)
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        console.log('📺 Setting REMOTE screen share stream');
+        
+        // Apply frame rate throttling for CPU optimization (Discord-like)
+        const videoTrack = videoTracks[0];
+        const settings = videoTrack.getSettings();
+        
+        // Throttle to 15 FPS for better CPU performance
+        if (settings.frameRate && settings.frameRate > 15) {
+          videoTrack.applyConstraints({
+            frameRate: { ideal: 15, max: 20 }
+          }).catch(err => console.warn('Frame rate throttling failed:', err));
+        }
+        
+        if (screenShareVideoRef.current) {
+          screenShareVideoRef.current.srcObject = stream;
+          screenShareVideoRef.current.play().catch(e => console.error('Video play error:', e));
+        }
+        if (fullscreenVideoRef.current) {
+          fullscreenVideoRef.current.srcObject = stream;
+          fullscreenVideoRef.current.play().catch(e => console.error('Fullscreen video play error:', e));
+        }
+      }
+    };
+
     voiceCallService.on('screenShareStarted', handleScreenShareStarted);
     voiceCallService.on('screenShareEnded', handleScreenShareEnded);
+    voiceCallService.on('remoteScreenShareStarted', handleRemoteScreenShareStarted);
+    voiceCallService.on('remoteScreenShareStopped', handleRemoteScreenShareStopped);
+    voiceCallService.on('remoteStream', handleRemoteStream);
 
-    // Check if there's already an active screen stream
-    if (voiceCallService.screenStream) {
-      console.log('📺 Setting existing screen stream');
+    // Check if there's already an active screen stream (LOCAL)
+    if (voiceCallService.screenStream && isScreenSharing) {
+      console.log('📺 Setting existing LOCAL screen stream');
       if (screenShareVideoRef.current) {
         screenShareVideoRef.current.srcObject = voiceCallService.screenStream;
         screenShareVideoRef.current.play().catch(e => console.error('Video play error:', e));
@@ -98,11 +165,41 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       }
     }
 
+    // Check if there's already a remote stream with video (REMOTE screen share)
+    if (voiceCallService.remoteStream) {
+      console.log('📺 Setting existing REMOTE screen stream');
+      const videoTracks = voiceCallService.remoteStream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        if (screenShareVideoRef.current) {
+          screenShareVideoRef.current.srcObject = voiceCallService.remoteStream;
+          screenShareVideoRef.current.play().catch(e => console.error('Video play error:', e));
+        }
+        if (fullscreenVideoRef.current) {
+          fullscreenVideoRef.current.srcObject = voiceCallService.remoteStream;
+          fullscreenVideoRef.current.play().catch(e => console.error('Fullscreen video play error:', e));
+        }
+      }
+    }
+
     return () => {
       voiceCallService.off('screenShareStarted', handleScreenShareStarted);
       voiceCallService.off('screenShareEnded', handleScreenShareEnded);
+      voiceCallService.off('remoteScreenShareStarted', handleRemoteScreenShareStarted);
+      voiceCallService.off('remoteScreenShareStopped', handleRemoteScreenShareStopped);
+      voiceCallService.off('remoteStream', handleRemoteStream);
     };
   }, [isScreenSharing]);
+
+  // Handle fullscreen video stream
+  useEffect(() => {
+    if (isScreenShareFullscreen && fullscreenVideoRef.current) {
+      const stream = voiceCallService.screenStream || voiceCallService.remoteStream;
+      if (stream && fullscreenVideoRef.current.srcObject !== stream) {
+        fullscreenVideoRef.current.srcObject = stream;
+        fullscreenVideoRef.current.play().catch(e => console.error('Fullscreen video play error:', e));
+      }
+    }
+  }, [isScreenShareFullscreen, isScreenSharing, remoteScreenSharing]);
 
   const {
     messages,
@@ -324,7 +421,7 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       {currentCall && currentCall.userId === (otherUser?.id || otherUser?._id) && (
         <div className="bg-[#030403] border-b border-gray-900/50 px-6 py-6">
           {/* User Cards Container - Wider when screen sharing */}
-          <div className={`flex items-center justify-center gap-4 mb-6 ${isScreenSharing ? 'max-w-6xl mx-auto' : ''}`}>
+          <div className={`flex items-center justify-center gap-4 mb-6 ${(isScreenSharing || remoteScreenSharing) ? 'max-w-6xl mx-auto' : ''}`}>
             {/* Current User Card - Expands when screen sharing */}
             <div className={`relative transition-all duration-300 ${isScreenSharing ? 'flex-1' : ''}`}>
               <div className={`relative ${isScreenSharing ? 'w-full h-96' : 'w-64 h-52'} bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
@@ -344,6 +441,15 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
                       playsInline
                       muted
                       className="w-full h-full object-contain bg-black"
+                      style={{
+                        willChange: 'transform',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden',
+                        perspective: 1000,
+                        imageRendering: 'optimizeSpeed',
+                        maxWidth: '1280px',
+                        maxHeight: '720px'
+                      }}
                     />
                     
                     {/* Screen Share Controls Overlay */}
@@ -409,18 +515,63 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
               </div>
             </div>
 
-            {/* Other User Card - Only show when connected */}
+            {/* Other User Card - Only show when connected - Expands when remote screen sharing */}
             {callState === 'connected' && (
-              <div className="relative">
-                <div className={`relative w-64 h-52 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 ${
-                  remoteSpeaking ? 'ring-4 ring-green-500 ring-opacity-75' : 'border-2 border-gray-700/50'
+              <div className={`relative transition-all duration-300 ${remoteScreenSharing ? 'flex-1' : ''}`}>
+                <div className={`relative ${remoteScreenSharing ? 'w-full h-96' : 'w-64 h-52'} bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${
+                  remoteSpeaking ? 'ring-4 ring-green-500 ring-opacity-75' : remoteScreenSharing ? 'border-2 border-blue-500/50' : 'border-2 border-gray-700/50'
                 }`}>
                   {/* Speaking indicator - shows when remote user is speaking */}
-                  {remoteSpeaking && (
+                  {remoteSpeaking && !remoteScreenSharing && (
                     <div className="absolute inset-0 rounded-xl border-2 border-green-500 animate-pulse pointer-events-none" />
                   )}
                   
-                  <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
+                  {/* Remote Screen Share Video */}
+                  {remoteScreenSharing ? (
+                    <>
+                      <video
+                        ref={screenShareVideoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-contain bg-black"
+                        style={{
+                          willChange: 'transform',
+                          transform: 'translateZ(0)',
+                          backfaceVisibility: 'hidden',
+                          perspective: 1000,
+                          imageRendering: 'optimizeSpeed',
+                          maxWidth: '1280px',
+                          maxHeight: '720px'
+                        }}
+                      />
+                      
+                      {/* Remote Screen Share Indicator */}
+                      <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                          <span className="text-white text-sm font-medium">{otherUser?.displayName || otherUser?.username} Ekran Paylaşıyor</span>
+                        </div>
+                        
+                        <button
+                          onClick={() => setIsScreenShareFullscreen(true)}
+                          className="bg-black/70 backdrop-blur-sm hover:bg-black/90 rounded-lg p-2 transition-colors"
+                          title="Tam Ekran"
+                        >
+                          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      {/* User Info Overlay */}
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                        <p className="text-white text-sm font-medium">
+                          {otherUser?.displayName || otherUser?.username}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center py-4">
                     <div className="relative">
                       {otherUser?.avatar ? (
                         <img 
@@ -447,6 +598,7 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
                       {otherUser?.displayName || otherUser?.username || 'User'}
                     </p>
                   </div>
+                  )}
                 </div>
               </div>
             )}
@@ -648,17 +800,16 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       {isScreenShareFullscreen && (
         <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
           <video
-            ref={(el) => {
-              fullscreenVideoRef.current = el;
-              if (el && voiceCallService.screenStream) {
-                el.srcObject = voiceCallService.screenStream;
-                el.play().catch(e => console.error('Fullscreen video play error:', e));
-              }
-            }}
+            ref={fullscreenVideoRef}
             autoPlay
             playsInline
             muted
             className="w-full h-full object-contain"
+            style={{
+              willChange: 'transform',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden'
+            }}
           />
           
           {/* Close Fullscreen Button */}

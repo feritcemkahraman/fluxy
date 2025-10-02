@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useVoiceChat } from './useVoiceChat';
 import { useAuth } from '../context/AuthContext';
 import websocketService from '../services/websocket';
@@ -27,14 +27,25 @@ export const useVoiceParticipants = (channelId) => {
   // Local state for this channel's participants
   const [channelParticipants, setChannelParticipants] = useState([]);
 
+  // Stable refs for callbacks to prevent re-subscription
+  const currentUserRef = useRef(currentUser);
+  const isMutedRef = useRef(isMuted);
+  const isDeafenedRef = useRef(isDeafened);
+  
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+    isMutedRef.current = isMuted;
+    isDeafenedRef.current = isDeafened;
+  }, [currentUser, isMuted, isDeafened]);
+
   // Handle voice channel updates from WebSocket
   const handleVoiceChannelUpdate = useCallback((data) => {
     const { channelId: updateChannelId, users, action } = data;
     
     // Only process updates for this channel
-    if (updateChannelId !== channelId) return;
-
-    // console.log(`🔄 Voice channel update for ${channelId}:`, action, users);
+    if (updateChannelId !== channelId) {
+      return;
+    }
 
     // Update global map
     channelParticipantsMap.set(updateChannelId, users || []);
@@ -121,7 +132,7 @@ export const useVoiceParticipants = (channelId) => {
       websocketService.off('voice-user-muted', handleVoiceUserMuted);
       websocketService.off('voice-user-deafened', handleVoiceUserDeafened);
     };
-  }, [channelId, handleVoiceChannelUpdate, handleVoiceUserMuted, handleVoiceUserDeafened]);
+  }, [channelId, handleVoiceChannelUpdate, handleVoiceUserMuted, handleVoiceUserDeafened]); // Include callbacks for proper cleanup
 
   // Fallback to voiceChat participants if WebSocket hasn't updated yet
   const participants = useMemo(() => {

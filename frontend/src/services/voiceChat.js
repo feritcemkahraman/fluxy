@@ -136,8 +136,6 @@ class VoiceChatService {
         isSpeaking: false
       }];
       
-      console.log('🎤 Created participant for current user:', currentUserData);
-      
       // Notify server
       if (websocketService.socket?.connected) {
         websocketService.socket.emit('join-voice-channel', { channelId });

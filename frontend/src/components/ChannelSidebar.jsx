@@ -232,8 +232,7 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                 const channelId = channel._id || channel.id;
 
                 return (
-                  <div key={channelId} className="space-y-1">
-                    <div className="relative group">
+                  <div key={channelId} className="space-y-1 relative group">
                       <Button
                         variant="ghost"
                         onClick={() => handleVoiceChannelSelect(channel)}
@@ -298,9 +297,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                           </DropdownMenu>
                         </div>
                       )}
-                    </div>
-
-                    {/* Voice Participants - New Clean System */}
                     <VoiceParticipantList 
                       channelId={channelId}
                       showMuteIcons={true}

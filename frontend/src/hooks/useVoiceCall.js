@@ -13,6 +13,7 @@ export const useVoiceCall = () => {
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
 
   // Note: Voice call service is initialized in FluxyApp when socket is ready
   // No need to initialize here
@@ -78,8 +79,15 @@ export const useVoiceCall = () => {
   const initiateCall = useCallback(async (targetUserId, targetUsername, targetAvatar, callType = 'voice') => {
     // Check if voice call service is initialized
     if (!voiceCallService.socket) {
-      console.error('❌ Voice call service not initialized');
-      return { success: false, error: 'Lütfen birkaç saniye bekleyin ve tekrar deneyin' };
+      console.error('❌ Voice call service not initialized', {
+        hasSocket: !!socket,
+        isConnected: socket?.connected,
+        hasUser: !!voiceCallService.user
+      });
+      return { 
+        success: false, 
+        error: 'Bağlantı henüz hazır değil. Lütfen birkaç saniye bekleyin ve tekrar deneyin.' 
+      };
     }
 
     const result = await voiceCallService.initiateCall(targetUserId, callType);
@@ -184,12 +192,26 @@ export const useVoiceCall = () => {
       setIsScreenSharing(false);
     };
 
+    const handleRemoteScreenShareStarted = (data) => {
+      console.log('🖥️ Remote user started screen sharing:', data);
+      setRemoteScreenSharing(true);
+    };
+
+    const handleRemoteScreenShareStopped = (data) => {
+      console.log('🖥️ Remote user stopped screen sharing:', data);
+      setRemoteScreenSharing(false);
+    };
+
     voiceCallService.on('screenShareStarted', handleScreenShareStarted);
     voiceCallService.on('screenShareEnded', handleScreenShareEnded);
+    voiceCallService.on('remoteScreenShareStarted', handleRemoteScreenShareStarted);
+    voiceCallService.on('remoteScreenShareStopped', handleRemoteScreenShareStopped);
 
     return () => {
       voiceCallService.off('screenShareStarted', handleScreenShareStarted);
       voiceCallService.off('screenShareEnded', handleScreenShareEnded);
+      voiceCallService.off('remoteScreenShareStarted', handleRemoteScreenShareStarted);
+      voiceCallService.off('remoteScreenShareStopped', handleRemoteScreenShareStopped);
     };
   }, []);
 
@@ -282,6 +304,7 @@ export const useVoiceCall = () => {
     remoteMuted,
     callDuration,
     isScreenSharing,
+    remoteScreenSharing,
     initiateCall,
     acceptCall,
     rejectCall,

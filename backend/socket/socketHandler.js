@@ -226,7 +226,7 @@ const handleConnection = (io) => {
         // Send success response to joiner
         socket.emit('voiceChannelUpdate', updatePayload);
         
-        console.log(`✅ Voice join broadcast to server_${channel.server}`);
+        console.log(`✅ User ${socket.user?.username} joined voice channel: ${channelId}`);
         
       } catch (error) {
         console.error('Voice join error:', error);
@@ -293,7 +293,7 @@ const handleConnection = (io) => {
         // Send success response to leaver
         socket.emit('voiceChannelUpdate', updatePayload);
         
-        console.log(`✅ Voice leave broadcast to server_${channel.server}`);
+        console.log(`✅ User ${socket.user?.username} left voice channel: ${channelId}`);
         
       } catch (error) {
         console.error('Voice leave error:', error);
@@ -870,6 +870,44 @@ const handleConnection = (io) => {
         });
       } catch (error) {
         console.error('Mute status error:', error);
+      }
+    });
+
+    // Screen share started in DM call
+    socket.on('voiceCall:screenShareStarted', async ({ targetUserId }) => {
+      try {
+        console.log(`🖥️ Screen share started by ${socket.userId} in DM call with ${targetUserId}`);
+        io.to(`user_${targetUserId}`).emit('voiceCall:screenShareStarted', {
+          userId: socket.userId,
+          username: socket.user.username
+        });
+      } catch (error) {
+        console.error('Screen share started error:', error);
+      }
+    });
+
+    // Screen share stopped in DM call
+    socket.on('voiceCall:screenShareStopped', async ({ targetUserId }) => {
+      try {
+        console.log(`🖥️ Screen share stopped by ${socket.userId} in DM call with ${targetUserId}`);
+        io.to(`user_${targetUserId}`).emit('voiceCall:screenShareStopped', {
+          userId: socket.userId,
+          username: socket.user.username
+        });
+      } catch (error) {
+        console.error('Screen share stopped error:', error);
+      }
+    });
+
+    // Renegotiation needed (for screen share track changes)
+    socket.on('voiceCall:renegotiate', async ({ targetUserId }) => {
+      try {
+        console.log(`🔄 Renegotiation requested by ${socket.userId} with ${targetUserId}`);
+        io.to(`user_${targetUserId}`).emit('voiceCall:renegotiationNeeded', {
+          userId: socket.userId
+        });
+      } catch (error) {
+        console.error('Renegotiation error:', error);
       }
     });
 

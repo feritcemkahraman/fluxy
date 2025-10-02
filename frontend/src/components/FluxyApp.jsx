@@ -51,6 +51,7 @@ const FluxyApp = () => {
     remoteMuted,
     callDuration,
     isScreenSharing,
+    remoteScreenSharing,
     startScreenShare
   } = useVoiceCall();
   
@@ -68,14 +69,15 @@ const FluxyApp = () => {
   
   // Initialize voice call service when socket is ready
   useEffect(() => {
-    if (user && socket && socket.connected) {
+    if (user && socket && isConnected) {
       voiceCallService.initialize(socket, user);
     }
-  }, [user, socket, socket?.connected]);
+  }, [user, socket, isConnected]);
 
   // Global DM notification listener - works everywhere in the app
   useEffect(() => {
     if (!on || !user) return;
+    
     const handleNewDirectMessage = (message) => {
       // Check if message is from another user (not current user)
       const authorId = message.message?.author?.id || message.message?.author?._id ||
@@ -1086,6 +1088,7 @@ const FluxyApp = () => {
             remoteMuted={remoteMuted}
             callDuration={callDuration}
             isScreenSharing={isScreenSharing}
+            remoteScreenSharing={remoteScreenSharing}
             startScreenShare={startScreenShare}
           />
         ) : (
