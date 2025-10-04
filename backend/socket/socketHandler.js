@@ -306,14 +306,14 @@ const handleConnection = (io) => {
         const { userId, serverId, status } = data;
         console.log(`💬 User ${userId} updated server status in ${serverId}: "${status}"`);
         
-        // Broadcast to all users in this server
-        io.to(`server:${serverId}`).emit('userStatusUpdate', {
+        // Broadcast to all users in this server (use server_ prefix to match join room)
+        io.to(`server_${serverId}`).emit('userStatusUpdate', {
           userId,
           serverId,
           status
         });
         
-        console.log(`✅ Server status broadcast to server:${serverId}`);
+        console.log(`✅ Server status broadcast to server_${serverId}`);
       } catch (error) {
         console.error('User status update error:', error);
       }

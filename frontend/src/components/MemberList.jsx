@@ -233,7 +233,7 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
       // Note: Socket service doesn't support cleanup yet
       // This is a known limitation
     };
-  }, [server]); // Fixed: Removed 'on' dependency to prevent re-renders
+  }, [server]);
 
   // Check if member is server owner
   const isServerOwner = (member) => {

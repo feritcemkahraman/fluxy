@@ -238,6 +238,19 @@ export default function RegisterForm({ onToggleMode, onBack }) {
               )}
             </div>
 
+            {/* Terms and Privacy Notice */}
+            <div className="text-center text-sm text-gray-400">
+              Kaydolarak{' '}
+              <a href="#" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                Hizmet Şartları
+              </a>
+              {' '}ve{' '}
+              <a href="#" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                Gizlilik Politikası
+              </a>
+              'ı kabul etmiş olursunuz.
+            </div>
+
             {/* Submit Button */}
             <div className="flex justify-center">
               <InteractiveHoverButton

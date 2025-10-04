@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { dmAPI, serverAPI } from "../services/api";
@@ -37,13 +37,18 @@ import FriendsPanel from "./FriendsPanel";
 
 const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, remoteScreenSharing, startScreenShare }) => {
   const { user } = useAuth();
-  const { on, isAuthenticated } = useSocket();
+  const { on, isAuthenticated, isConnected } = useSocket();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
+  
+  // Refs to store functions and state for event handlers
+  const loadConversationsRef = useRef(null);
+  const selectedConversationRef = useRef(null);
+  const userRef = useRef(null);
   
   // Friends panel is always visible (no toggle needed)
   const showFriends = !selectedConversation; // Show friends when no conversation is selected
@@ -71,6 +76,19 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       setLoading(false);
     }
   }, []);
+  
+  // Update refs when values change
+  useEffect(() => {
+    loadConversationsRef.current = loadConversations;
+  }, [loadConversations]);
+  
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+  
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Load pending requests count for sidebar badge
   const loadPendingRequestsCount = useCallback(async () => {
@@ -181,13 +199,17 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
   // WebSocket connection status listener
   useEffect(() => {
     if (!on) return;
+    
+    // Check if socket is already connected
+    if (isConnected && isConnected()) {
+      setSocketConnected(true);
+    }
 
     let unsubscribeConnect, unsubscribeDisconnect, unsubscribeError;
 
     try {
       unsubscribeConnect = on('connect', () => {
         setSocketConnected(true);
-        console.log('✅ WebSocket connected');
       });
 
       unsubscribeDisconnect = on('disconnect', () => {
@@ -224,12 +246,17 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
     }
   }, [on]);
 
-  // WebSocket listeners for real-time updates
+  // WebSocket listeners for real-time updates - Setup once and never cleanup
+  const listenersSetupRef = useRef(false);
+  
   useEffect(() => {
     if (!isAuthenticated || !isAuthenticated() || !on || !socketConnected) return;
+    if (listenersSetupRef.current) return;
+    
+    listenersSetupRef.current = true;
 
-    let unsubscribeNewConversation, unsubscribeConversationUpdate, unsubscribeFriendRequest, 
-        unsubscribeFriendAccepted, unsubscribeFriendAdded, unsubscribeFriendRemoved;
+    let unsubscribeNewConversation, unsubscribeConversationUpdate, unsubscribeNewDirectMessage,
+        unsubscribeFriendRequest, unsubscribeFriendAccepted, unsubscribeFriendAdded, unsubscribeFriendRemoved;
 
     try {
       unsubscribeNewConversation = on('newConversation', (conversation) => {
@@ -258,6 +285,49 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
         );
       });
 
+      // Listen for new direct messages to update conversation list
+      unsubscribeNewDirectMessage = on('newDirectMessage', (data) => {
+        const message = data.message || data;
+        const conversationId = data.conversationId || message.conversation || message.conversationId;
+        
+        if (!conversationId) return;
+        
+        // Update conversation with new last message and move to top
+        setConversations(prev => {
+          const convIndex = prev.findIndex(c => String(c.id) === String(conversationId));
+          if (convIndex === -1) {
+            // Conversation not in list, reload conversations
+            if (loadConversationsRef.current) {
+              loadConversationsRef.current();
+            }
+            return prev;
+          }
+          
+          const currentConv = prev[convIndex];
+          const currentUser = userRef.current;
+          const currentSelectedConv = selectedConversationRef.current;
+          const isCurrentUserMessage = message.author?.id === currentUser?.id || message.author?._id === currentUser?._id;
+          
+          const updatedConv = {
+            ...currentConv,
+            lastMessage: {
+              content: message.content,
+              timestamp: message.timestamp || message.createdAt,
+              author: message.author
+            },
+            lastActivity: message.timestamp || message.createdAt || new Date(),
+            // Increment unread count if message is from other user and not viewing this conversation
+            unreadCount: (!isCurrentUserMessage && String(currentSelectedConv?.id) !== String(conversationId)) 
+              ? (currentConv.unreadCount || 0) + 1 
+              : (currentConv.unreadCount || 0)
+          };
+          
+          // Move to top and update
+          const newConversations = prev.filter((_, i) => i !== convIndex);
+          return [updatedConv, ...newConversations];
+        });
+      });
+
       // Friend request received - update badge count
       unsubscribeFriendRequest = on('friendRequestReceived', (data) => {
         console.log('📬 Friend request received:', data);
@@ -282,28 +352,10 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
         loadPendingRequestsCount(); // Update badge count
       });
 
-      return () => {
-        try {
-          if (unsubscribeNewConversation) unsubscribeNewConversation();
-          if (unsubscribeConversationUpdate) unsubscribeConversationUpdate();
-          if (unsubscribeFriendRequest) unsubscribeFriendRequest();
-          if (unsubscribeFriendAccepted) unsubscribeFriendAccepted();
-          if (unsubscribeFriendAdded) unsubscribeFriendAdded();
-          if (unsubscribeFriendRemoved) unsubscribeFriendRemoved();
-        } catch (error) {
-          console.warn('Error unsubscribing from WebSocket events:', error);
-        }
-      };
+      // No cleanup - listeners stay active for the lifetime of the component
     } catch (error) {
       console.warn('Error setting up WebSocket listeners:', error);
-      return () => {
-        try {
-          if (unsubscribeNewConversation) unsubscribeNewConversation();
-          if (unsubscribeConversationUpdate) unsubscribeConversationUpdate();
-        } catch (cleanupError) {
-          console.warn('Error in cleanup after setup error:', cleanupError);
-        }
-      };
+      listenersSetupRef.current = false; // Allow retry on next render
     }
   }, [on, isAuthenticated, socketConnected]);
 

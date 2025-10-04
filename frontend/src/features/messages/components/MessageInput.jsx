@@ -209,24 +209,29 @@ const MessageInput = ({
             
             {showEmojiPicker && (
               <EmojiGifPicker
-                onSelect={(content, type) => {
+                onSelect={async (selectedContent, type) => {
                   if (type === 'gif') {
-                    // Send GIF directly
-                    handleContentChange({ target: { value: content } });
-                    setTimeout(() => handleSendWithTyping(), 100);
+                    // Send GIF directly with the URL
+                    setShowEmojiPicker(false);
+                    handleSendMessage();
+                    await onSend({ 
+                      content: selectedContent,
+                      attachments: [],
+                      replyTo: replyTo 
+                    });
+                    clearReply();
                   } else {
                     // Add emoji to message
-                    const newContent = (textareaRef.current?.value || '') + content;
+                    const newContent = (textareaRef.current?.value || '') + selectedContent;
                     handleContentChange({ target: { value: newContent } });
                     textareaRef.current?.focus();
+                    setShowEmojiPicker(false);
                   }
-                  setShowEmojiPicker(false);
                 }}
                 onClose={() => setShowEmojiPicker(false)}
               />
             )}
           </div>
-
           {/* Send Button */}
           <button
             onClick={handleSendWithTyping}

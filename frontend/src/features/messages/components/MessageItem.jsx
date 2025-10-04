@@ -110,8 +110,8 @@ const MessageItem = ({
       onMouseLeave={() => setShowActions(false)}
     >
       <div className="flex items-start space-x-3">
-        {/* Avatar */}
-        {showAvatar && !compact && (
+        {/* Avatar or Spacer */}
+        {showAvatar ? (
           <div className="flex-shrink-0">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-white text-sm font-semibold">
@@ -120,10 +120,19 @@ const MessageItem = ({
               </span>
             </div>
           </div>
+        ) : (
+          <div className="flex-shrink-0 w-10" />
         )}
 
         {/* Message Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {/* Compact mode timestamp on hover */}
+          {compact && (
+            <span className="absolute left-0 top-0 text-gray-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity -ml-16">
+              {new Date(message.timestamp || message.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          
           {/* Header */}
           {!compact && (
             <div className="flex items-baseline space-x-2 mb-1">

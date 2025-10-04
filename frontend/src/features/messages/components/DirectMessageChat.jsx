@@ -700,19 +700,39 @@ const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, 
             </div>
           </div>
         ) : (
-          <div className="space-y-4 flex flex-col">
-            {messages.map((message) => (
-              <MessageItem
-                key={message.id || message._id || `msg-${Date.now()}-${Math.random()}`}
-                message={message}
-                currentUser={user}
-                onReply={handleReply}
-                onReaction={handleReaction}
-                onRetry={handleRetry}
-                showAvatar={true}
-                compact={false}
-              />
-            ))}
+          <div className="space-y-1 flex flex-col">
+            {messages.map((message, index) => {
+              const prevMessage = index > 0 ? messages[index - 1] : null;
+              const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+              
+              // Check if this message should be grouped with previous
+              const prevAuthorId = prevMessage?.author?.id || prevMessage?.author?._id;
+              const currentAuthorId = message.author?.id || message.author?._id;
+              const nextAuthorId = nextMessage?.author?.id || nextMessage?.author?._id;
+              
+              const shouldGroup = prevMessage && 
+                prevAuthorId === currentAuthorId &&
+                (new Date(message.createdAt || message.timestamp) - new Date(prevMessage.createdAt || prevMessage.timestamp)) < 5 * 60 * 1000; // 5 minutes
+              
+              // Check if next message is from same author
+              const isLastInGroup = !nextMessage || 
+                nextAuthorId !== currentAuthorId ||
+                (new Date(nextMessage.createdAt || nextMessage.timestamp) - new Date(message.createdAt || message.timestamp)) >= 5 * 60 * 1000;
+              
+              return (
+                <MessageItem
+                  key={message.id || message._id || `msg-${Date.now()}-${Math.random()}`}
+                  message={message}
+                  currentUser={user}
+                  onReply={handleReply}
+                  onReaction={handleReaction}
+                  onRetry={handleRetry}
+                  showAvatar={!shouldGroup}
+                  compact={shouldGroup}
+                  isLastInGroup={isLastInGroup}
+                />
+              );
+            })}
             
             {/* Typing Indicator */}
             {typingUsers.length > 0 && (

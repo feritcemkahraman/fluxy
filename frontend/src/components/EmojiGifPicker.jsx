@@ -119,6 +119,7 @@ const GIF_CATEGORIES = [
   { id: 'wow', name: '😮 Vay', search: 'wow omg shocked' },
   { id: 'clap', name: '👏 Alkış', search: 'clap applause' },
   { id: 'bye', name: '👋 Hoşça kal', search: 'bye wave goodbye' },
+  { id: 'anime', name: '🌸 Anime', search: 'anime manga kawaii' },
 ];
 
 export function EmojiGifPicker({ onSelect, onClose }) {
