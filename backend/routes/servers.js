@@ -120,9 +120,11 @@ router.get('/', auth, async (req, res) => {
     const servers = await Server.find({
       'members.user': req.user._id
     })
+    .select('name description icon owner memberCount members channels inviteCode isPublic createdAt')
     .populate('members.user', 'username avatar discriminator status')
-    .populate('channels')
-    .sort({ createdAt: -1 });
+    .populate('channels', 'name type')
+    .sort({ createdAt: -1 })
+    .lean();
 
     res.json({
       servers: servers.map(server => ({
@@ -214,8 +216,10 @@ router.get('/discover', async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const server = await Server.findById(req.params.id)
+      .select('name description icon owner members channels inviteCode isPublic memberCount createdAt')
       .populate('members.user', 'username avatar discriminator status customStatus')
-      .populate('channels');
+      .populate('channels', 'name type position')
+      .lean();
 
     if (!server) {
       return res.status(404).json({ message: 'Server not found' });
@@ -739,8 +743,10 @@ router.delete('/:id', auth, requireOwner, async (req, res) => {
 router.get('/:id/members', auth, requireMember, async (req, res) => {
   try {
     const server = await Server.findById(req.params.id)
+      .select('members owner')
       .populate('members.user', 'username displayName avatar status discriminator')
-      .populate('owner', 'username displayName avatar status discriminator');
+      .populate('owner', 'username displayName avatar status discriminator')
+      .lean();
     // Format members data
     const members = server.members.map(member => ({
       id: member.user._id,

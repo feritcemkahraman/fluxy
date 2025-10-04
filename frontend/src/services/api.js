@@ -52,7 +52,7 @@ api.interceptors.response.use(
     // Log response time for performance monitoring
     if (response.config.metadata) {
       const duration = Date.now() - response.config.metadata.startTime;
-      if (duration > 5000) { // Log slow requests
+      if (duration > 15000) { // Log very slow requests (15s+)
         console.warn(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
       }
     }
