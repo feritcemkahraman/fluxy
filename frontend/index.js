@@ -14,6 +14,10 @@ if (process.platform === 'win32') {
   app.commandLine.appendSwitch('--no-sandbox');
 }
 
+// Auto-grant media permissions (microphone, camera)
+app.commandLine.appendSwitch('--use-fake-ui-for-media-stream');
+app.commandLine.appendSwitch('--enable-usermedia-screen-capturing');
+
 // GPU and video optimization for high FPS screen sharing
 app.commandLine.appendSwitch('--enable-gpu-rasterization');
 app.commandLine.appendSwitch('--enable-zero-copy');
@@ -259,6 +263,25 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Media permissions (microphone, camera, screen sharing)
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'microphone', 'camera', 'audioCapture', 'videoCapture', 'desktopCapture'];
+    
+    if (allowedPermissions.includes(permission)) {
+      console.log(`✅ Granting permission: ${permission}`);
+      callback(true);
+    } else {
+      console.log(`❌ Denying permission: ${permission}`);
+      callback(false);
+    }
+  });
+
+  // Handle permission checks
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    const allowedPermissions = ['media', 'microphone', 'camera', 'audioCapture', 'videoCapture', 'desktopCapture'];
+    return allowedPermissions.includes(permission);
   });
 }
 

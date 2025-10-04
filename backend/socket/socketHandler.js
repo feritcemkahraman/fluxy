@@ -934,6 +934,76 @@ const handleConnection = (io) => {
 
     // ==================== END VOICE CALL EVENTS ====================
 
+    // ==================== VOICE CHANNEL WEBRTC SIGNALING ====================
+    
+    // WebRTC Offer (Voice Channel Group Call)
+    socket.on('voice:offer', async ({ channelId, targetUserId, offer }) => {
+      try {
+        console.log(`📡 WebRTC offer from ${socket.userId} to ${targetUserId} in channel ${channelId}`);
+        
+        // Relay offer to target user
+        io.to(`user_${targetUserId}`).emit('voice:offer', {
+          channelId,
+          fromUserId: socket.userId,
+          fromUsername: socket.user.username,
+          fromDisplayName: socket.user.displayName || socket.user.username,
+          offer
+        });
+      } catch (error) {
+        console.error('Voice offer relay error:', error);
+      }
+    });
+
+    // WebRTC Answer (Voice Channel Group Call)
+    socket.on('voice:answer', async ({ channelId, targetUserId, answer }) => {
+      try {
+        console.log(`📡 WebRTC answer from ${socket.userId} to ${targetUserId} in channel ${channelId}`);
+        
+        // Relay answer to target user
+        io.to(`user_${targetUserId}`).emit('voice:answer', {
+          channelId,
+          fromUserId: socket.userId,
+          fromUsername: socket.user.username,
+          fromDisplayName: socket.user.displayName || socket.user.username,
+          answer
+        });
+      } catch (error) {
+        console.error('Voice answer relay error:', error);
+      }
+    });
+
+    // WebRTC ICE Candidate (Voice Channel Group Call)
+    socket.on('voice:ice-candidate', async ({ channelId, targetUserId, candidate }) => {
+      try {
+        console.log(`🧊 ICE candidate from ${socket.userId} to ${targetUserId} in channel ${channelId}`);
+        
+        // Relay ICE candidate to target user
+        io.to(`user_${targetUserId}`).emit('voice:ice-candidate', {
+          channelId,
+          fromUserId: socket.userId,
+          candidate
+        });
+      } catch (error) {
+        console.error('ICE candidate relay error:', error);
+      }
+    });
+
+    // Voice speaking status (for visual indicator)
+    socket.on('voice:speaking', async ({ channelId, isSpeaking }) => {
+      try {
+        // Broadcast speaking status to all users in voice channel
+        socket.to(`voice:${channelId}`).emit('voice:speaking', {
+          userId: socket.userId,
+          username: socket.user.username,
+          isSpeaking
+        });
+      } catch (error) {
+        console.error('Speaking status error:', error);
+      }
+    });
+
+    // ==================== END VOICE CHANNEL WEBRTC SIGNALING ====================
+
     // Handle disconnect
     socket.on('disconnect', async () => {
       // Remove from connected users

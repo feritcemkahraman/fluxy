@@ -94,6 +94,9 @@ export const useVoiceChat = () => {
     setIsDeafened(deafened);
   }, []);
 
+  // Track processed join events to prevent duplicates
+  const processedJoinsRef = useRef(new Set());
+
   // WebSocket event handlers with throttling - Component level
   const handleVoiceChannelUpdate = useCallback((data) => {
     if (!mountedRef.current) return;
@@ -134,6 +137,37 @@ export const useVoiceChat = () => {
       });
       
       setParticipants(newParticipants);
+      
+      // WebRTC Mesh Network: Handle new user joining
+      if (action === 'join' && userId !== voiceChatService.currentUserId) {
+        const joinKey = `${channelId}-${userId}`;
+        
+        // Prevent duplicate processing
+        if (processedJoinsRef.current.has(joinKey)) {
+          console.log(`⏭️ Skipping duplicate join for ${userId}`);
+          return;
+        }
+        
+        processedJoinsRef.current.add(joinKey);
+        
+        // Only create peer connection if doesn't exist AND we have currentChannel
+        if (!voiceChatService.peerConnections.has(userId) && voiceChatService.currentChannel) {
+          voiceChatService.createPeerConnection(userId, data.joinedUser?.displayName || 'User')
+            .then(() => voiceChatService.sendOffer(userId))
+            .catch(err => console.error('Failed to create peer connection:', err));
+        } else if (!voiceChatService.currentChannel) {
+          console.log(`⏸️ Waiting for offer from ${userId} (passive mode)`);
+          // Passive mode: Wait for the other user to send offer
+          // This happens when voiceChannelUpdate arrives before joinChannel completes
+        }
+      }
+      
+      // WebRTC Mesh Network: Handle user leaving
+      if (action === 'leave' && userId !== voiceChatService.currentUserId) {
+        const joinKey = `${channelId}-${userId}`;
+        processedJoinsRef.current.delete(joinKey); // Clean up tracking
+        voiceChatService.closePeerConnection(userId);
+      }
       
       // If current user left, disconnect
       if (action === 'leave' && userId === voiceChatService.currentUserId) {

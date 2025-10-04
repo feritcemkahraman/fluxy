@@ -12,6 +12,17 @@ class VoiceChatService {
     this.isMuted = false;
     this.isDeafened = false;
     
+    // WebRTC Mesh Network (Discord-like group calls)
+    this.peerConnections = new Map(); // userId -> RTCPeerConnection
+    this.remoteStreams = new Map(); // userId -> MediaStream
+    this.webrtcListenersSetup = false; // Prevent duplicate listeners
+    this.rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+    
     // Simple callback system instead of EventEmitter
     this.callbacks = {
       connected: [],
@@ -58,32 +69,49 @@ class VoiceChatService {
   // Enhanced getUserMedia for Electron
   async getUserMedia() {
     try {
-      // Enhanced audio constraints for desktop app
+      // Discord Krisp-like audio constraints (maximum noise suppression)
       const constraints = {
         audio: {
-          // Browser built-in processing
+          // Core processing - MANDATORY for quality
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
           
-          // Quality settings for desktop
+          // High quality audio
           sampleRate: 48000,
+          sampleSize: 16,
           channelCount: 1,
           
-          // Advanced Chrome settings (works in Electron)
+          // Chrome/Electron advanced processing (Krisp-like)
           googEchoCancellation: true,
-          googNoiseSuppression: true,
+          googExperimentalEchoCancellation: true,
           googAutoGainControl: true,
+          googExperimentalAutoGainControl: true,
+          googNoiseSuppression: true,
+          googExperimentalNoiseSuppression: true,
           googHighpassFilter: true,
           googTypingNoiseDetection: true,
+          googAudioMirroring: false,
+          googNoiseReduction: true,
           
-          // Latency optimization for desktop
-          latency: 0.01 // 10ms target latency
+          // Advanced noise suppression (Krisp-like)
+          googBeamforming: true,
+          googArrayGeometry: true,
+          
+          // Voice Activity Detection
+          googDucking: false,
+          
+          // Low latency
+          latency: 0.01
         }
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      // console.log('✅ Enhanced audio stream acquired for desktop');
+      console.log('✅ Discord-like audio processing enabled');
+      
+      // Note: Web Audio API processing disabled - it breaks the stream
+      // Browser's native processing (echoCancellation, noiseSuppression, autoGainControl) is enough
+      
       return this.localStream;
     } catch (error) {
       console.error('❌ Enhanced audio failed, falling back to basic:', error);
@@ -136,6 +164,9 @@ class VoiceChatService {
         isSpeaking: false
       }];
       
+      // Setup WebRTC signaling listeners
+      this.setupWebRTCSignaling();
+      
       // Notify server
       if (websocketService.socket?.connected) {
         websocketService.socket.emit('join-voice-channel', { channelId });
@@ -160,6 +191,11 @@ class VoiceChatService {
   async leaveChannel() {
     try {
       // console.log('🚪 Leaving voice channel:', this.currentChannel);
+      
+      // Close all peer connections
+      this.peerConnections.forEach((pc, userId) => {
+        this.closePeerConnection(userId);
+      });
       
       // Stop local stream
       if (this.localStream) {
@@ -544,6 +580,303 @@ class VoiceChatService {
       console.warn('⚠️ Quality adjustment failed:', error);
     }
   }
+
+  // Apply advanced audio processing (Discord-like)
+  async applyAdvancedAudioProcessing() {
+    try {
+      if (!this.localStream) return;
+      
+      // Create audio context
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(this.localStream);
+      const destination = audioContext.createMediaStreamDestination();
+      
+      // 1. High-pass filter (remove low frequency noise like breathing)
+      const highpassFilter = audioContext.createBiquadFilter();
+      highpassFilter.type = 'highpass';
+      highpassFilter.frequency.value = 100; // Cut below 100Hz (breathing, wind)
+      highpassFilter.Q.value = 0.7;
+      
+      // 2. Compressor (normalize volume, Discord-like)
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.value = -50; // Start compressing at -50dB
+      compressor.knee.value = 40;
+      compressor.ratio.value = 12; // Aggressive compression
+      compressor.attack.value = 0.003; // 3ms attack
+      compressor.release.value = 0.25; // 250ms release
+      
+      // 3. Noise gate (cut very quiet sounds)
+      const noiseGate = audioContext.createGain();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      
+      // Connect nodes
+      source.connect(highpassFilter);
+      highpassFilter.connect(compressor);
+      compressor.connect(noiseGate);
+      noiseGate.connect(analyser);
+      analyser.connect(destination);
+      
+      // Noise gate logic (Discord-like)
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const checkNoise = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        
+        // Threshold: if sound is below 25, mute it (noise gate)
+        if (average < 25) {
+          noiseGate.gain.setValueAtTime(0, audioContext.currentTime);
+        } else {
+          noiseGate.gain.setValueAtTime(1, audioContext.currentTime);
+        }
+        
+        if (this.localStream && this.localStream.active) {
+          requestAnimationFrame(checkNoise);
+        }
+      };
+      checkNoise();
+      
+      // Replace original stream with processed stream
+      const processedTrack = destination.stream.getAudioTracks()[0];
+      const originalTrack = this.localStream.getAudioTracks()[0];
+      
+      this.localStream.removeTrack(originalTrack);
+      this.localStream.addTrack(processedTrack);
+      originalTrack.stop();
+      
+      console.log('✅ Advanced audio processing applied (noise gate + compressor + highpass)');
+    } catch (error) {
+      console.warn('⚠️ Advanced audio processing failed, using basic:', error);
+    }
+  }
+
+  // ==================== WEBRTC MESH NETWORK (Discord-like Group Calls) ====================
+  
+  // Setup WebRTC signaling listeners
+  setupWebRTCSignaling() {
+    // Prevent duplicate listeners
+    if (this.webrtcListenersSetup) return;
+    
+    const socket = websocketService.getSocket();
+    if (!socket) return;
+    
+    this.webrtcListenersSetup = true;
+
+    // Receive offer from another user
+    socket.on('voice:offer', async ({ channelId, fromUserId, fromUsername, offer }) => {
+      if (channelId !== this.currentChannel) return;
+      
+      console.log(`📡 Received offer from ${fromUsername}`);
+      
+      try {
+        // Create peer connection if doesn't exist
+        if (!this.peerConnections.has(fromUserId)) {
+          await this.createPeerConnection(fromUserId, fromUsername);
+        }
+        
+        const pc = this.peerConnections.get(fromUserId);
+        
+        // Check signaling state before setting remote description
+        if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
+          console.warn(`⚠️ Ignoring offer, peer connection in state: ${pc.signalingState}`);
+          return;
+        }
+        
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        
+        // Create and send answer
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        
+        socket.emit('voice:answer', {
+          channelId: this.currentChannel,
+          targetUserId: fromUserId,
+          answer: pc.localDescription
+        });
+        
+        console.log(`✅ Sent answer to ${fromUsername}`);
+      } catch (error) {
+        console.error('Error handling offer:', error);
+      }
+    });
+
+    // Receive answer from another user
+    socket.on('voice:answer', async ({ channelId, fromUserId, answer }) => {
+      if (channelId !== this.currentChannel) return;
+      
+      try {
+        const pc = this.peerConnections.get(fromUserId);
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log(`✅ Answer received from user ${fromUserId}`);
+        }
+      } catch (error) {
+        console.error('Error handling answer:', error);
+      }
+    });
+
+    // Receive ICE candidate from another user
+    socket.on('voice:ice-candidate', async ({ channelId, fromUserId, candidate }) => {
+      if (channelId !== this.currentChannel) return;
+      
+      try {
+        const pc = this.peerConnections.get(fromUserId);
+        if (pc && candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      } catch (error) {
+        console.error('Error adding ICE candidate:', error);
+      }
+    });
+  }
+
+  // Create peer connection for a user
+  async createPeerConnection(userId, username) {
+    try {
+      const pc = new RTCPeerConnection(this.rtcConfig);
+      
+      // Add local stream tracks
+      if (this.localStream) {
+        this.localStream.getTracks().forEach(track => {
+          console.log(`📤 Adding local track to peer ${username}`);
+          pc.addTrack(track, this.localStream);
+        });
+      }
+      
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          const socket = websocketService.getSocket();
+          socket.emit('voice:ice-candidate', {
+            channelId: this.currentChannel,
+            targetUserId: userId,
+            candidate: event.candidate
+          });
+        }
+      };
+      
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        console.log(`🎵 Received remote stream from ${username}`);
+        const remoteStream = event.streams[0];
+        this.remoteStreams.set(userId, remoteStream);
+        
+        // Play remote audio
+        this.playRemoteAudio(userId, remoteStream);
+      };
+      
+      // Handle connection state changes
+      pc.onconnectionstatechange = () => {
+        console.log(`Connection state with ${username}: ${pc.connectionState}`);
+        
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          // Attempt reconnection
+          setTimeout(() => {
+            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+              this.restartIce(userId);
+            }
+          }, 3000);
+        }
+      };
+      
+      this.peerConnections.set(userId, pc);
+      console.log(`✅ Peer connection created for ${username}`);
+      
+      return pc;
+    } catch (error) {
+      console.error(`❌ Failed to create peer connection for ${username}:`, error);
+      throw error;
+    }
+  }
+
+  // Send offer to a user
+  async sendOffer(userId) {
+    try {
+      const pc = this.peerConnections.get(userId);
+      if (!pc || !this.currentChannel) {
+        console.error('❌ Cannot send offer: missing peer connection or channel');
+        return;
+      }
+      
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      const socket = websocketService.getSocket();
+      socket.emit('voice:offer', {
+        channelId: this.currentChannel,
+        targetUserId: userId,
+        offer: pc.localDescription
+      });
+      
+      console.log(`📡 Sent offer to user ${userId}`);
+    } catch (error) {
+      console.error('Error sending offer:', error);
+    }
+  }
+
+  // ICE restart for reconnection
+  async restartIce(userId) {
+    try {
+      console.log(`🔄 Attempting ICE restart for user ${userId}`);
+      const pc = this.peerConnections.get(userId);
+      if (!pc || !this.currentChannel) return;
+      
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      
+      const socket = websocketService.getSocket();
+      socket.emit('voice:offer', {
+        channelId: this.currentChannel,
+        targetUserId: userId,
+        offer: pc.localDescription
+      });
+      
+      console.log(`✅ ICE restart offer sent to user ${userId}`);
+    } catch (error) {
+      console.error('ICE restart failed:', error);
+    }
+  }
+
+  // Play remote audio
+  playRemoteAudio(userId, stream) {
+    // Create audio element for remote stream
+    let audioElement = document.getElementById(`remote-audio-${userId}`);
+    
+    if (!audioElement) {
+      audioElement = document.createElement('audio');
+      audioElement.id = `remote-audio-${userId}`;
+      audioElement.autoplay = true;
+      document.body.appendChild(audioElement);
+    }
+    
+    audioElement.srcObject = stream;
+    audioElement.play().catch(err => {
+      console.error('Failed to play remote audio:', err);
+    });
+  }
+
+  // Close peer connection
+  closePeerConnection(userId) {
+    const pc = this.peerConnections.get(userId);
+    if (pc) {
+      pc.close();
+      this.peerConnections.delete(userId);
+    }
+    
+    const stream = this.remoteStreams.get(userId);
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      this.remoteStreams.delete(userId);
+    }
+    
+    // Remove audio element
+    const audioElement = document.getElementById(`remote-audio-${userId}`);
+    if (audioElement) {
+      audioElement.remove();
+    }
+  }
+
+  // ==================== END WEBRTC MESH NETWORK ====================
 
   // Desktop-specific: Check if running in Electron
   isElectronApp() {
