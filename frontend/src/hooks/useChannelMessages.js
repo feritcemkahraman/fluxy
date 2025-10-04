@@ -164,19 +164,24 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
   }, [channelId, loadMessages]);
 
   // Send message with optimistic update
-  const sendMessage = useCallback(async (content, currentUser) => {
+  const sendMessage = useCallback(async (content, currentUser, options = {}) => {
     if (!content.trim() || !channelId || !currentUser) return;
     
-    // Create optimistic message
-    const optimisticMsg = createOptimisticMessage({
-      content: content.trim(),
-      author: currentUser,
-      channelId,
-      serverId
-    });
+    // Skip optimistic update for GIFs (they load instantly anyway)
+    const skipOptimistic = options.type === 'gif';
     
-    // Add optimistic message immediately
-    setMessages(prev => mergeMessages(prev, [optimisticMsg]));
+    if (!skipOptimistic) {
+      // Create optimistic message
+      const optimisticMsg = createOptimisticMessage({
+        content: content.trim(),
+        author: currentUser,
+        channelId,
+        serverId
+      });
+      
+      // Add optimistic message immediately
+      setMessages(prev => mergeMessages(prev, [optimisticMsg]));
+    }
     
     try {
       // Send to backend
@@ -190,12 +195,14 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
     } catch (err) {
       console.error('Failed to send message:', err);
       
-      // Mark optimistic message as failed
-      setMessages(prev => prev.map(msg => 
-        msg._id === optimisticMsg._id 
-          ? { ...msg, status: 'failed', isOptimistic: false }
-          : msg
-      ));
+      if (!skipOptimistic) {
+        // Mark optimistic message as failed
+        setMessages(prev => prev.map(msg => 
+          msg.isOptimistic && msg.content === content.trim()
+            ? { ...msg, status: 'failed', isOptimistic: false }
+            : msg
+        ));
+      }
     }
   }, [channelId, serverId, socket]);
 

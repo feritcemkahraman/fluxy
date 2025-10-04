@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Hash, Users, Send, Search } from "lucide-react";
+import { Hash, Users, Send, Search, Smile, Image as ImageIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 import { UserProfileModal } from "./UserProfileModal";
+import { EmojiGifPicker } from "./EmojiGifPicker";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { useChannelMessages } from "../hooks/useChannelMessages";
@@ -34,6 +35,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const [message, setMessage] = useState("");
   const [contextMenu, setContextMenu] = useState(null);
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberActionDialog, setMemberActionDialog] = useState({ open: false, action: '', member: null });
@@ -515,7 +517,71 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                           ? 'text-red-400' 
                           : 'text-gray-200'
                       }`}>
-                        {msg.content}
+                        {/* Render GIF if message is a GIF URL */}
+                        {msg.content.match(/^https?:\/\/.*\.(gif|tenor\.com)/) ? (
+                          <img 
+                            src={msg.content} 
+                            alt="GIF" 
+                            className="max-w-md max-h-80 rounded-lg"
+                          />
+                        ) : (
+                          // Render text with Pepe emoji support
+                          (() => {
+                            const pepePattern = /:(\w+):/g;
+                            const parts = [];
+                            let lastIndex = 0;
+                            let match;
+                            
+                            while ((match = pepePattern.exec(msg.content)) !== null) {
+                              // Add text before emoji
+                              if (match.index > lastIndex) {
+                                parts.push(msg.content.substring(lastIndex, match.index));
+                              }
+                              
+                              // Find Pepe emoji - Import from EmojiGifPicker
+                              const pepeId = match[1];
+                              // Simplified lookup - just use the ID to construct the path
+                              const pepeMap = {
+                                'pepe_king': '/pepe/11998-pepe-king.png',
+                                'pepe_rapper': '/pepe/13328-rapper.png',
+                                'pepe_smoke': '/pepe/136857-pepesmoke.gif',
+                                'pepe_laugh': '/pepe/1502_pepelaugh.gif',
+                                'pepe_cry': '/pepe/471114-pepecry.png',
+                                'pepe_thinking': '/pepe/32226-pepethinking.png',
+                                'pepe_sus': '/pepe/6605-sus.png',
+                                'pepe_jam': '/pepe/45997-pepejam.gif',
+                                'pepe_hmm': '/pepe/PepeHmm.gif',
+                                'pepe_rain': '/pepe/PepeRain.gif',
+                                'pepe_sip': '/pepe/PepeSip.gif',
+                                // Add more as needed - or use dynamic lookup
+                              };
+                              const pepeUrl = pepeMap[pepeId];
+                              const pepe = pepeUrl ? { id: pepeId, url: pepeUrl } : null;
+                              
+                              if (pepe) {
+                                parts.push(
+                                  <img 
+                                    key={`pepe-${match.index}`}
+                                    src={pepe.url} 
+                                    alt={pepeId}
+                                    className="inline-block w-6 h-6 mx-0.5 align-middle"
+                                  />
+                                );
+                              } else {
+                                parts.push(match[0]);
+                              }
+                              
+                              lastIndex = match.index + match[0].length;
+                            }
+                            
+                            // Add remaining text
+                            if (lastIndex < msg.content.length) {
+                              parts.push(msg.content.substring(lastIndex));
+                            }
+                            
+                            return parts.length > 0 ? parts : msg.content;
+                          })()
+                        )}
                         {msg.isOptimistic && msg.status === 'failed' && (
                           <span className="ml-2 text-xs text-red-500">❌ Gönderilemedi</span>
                         )}
@@ -567,6 +633,17 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           
           <div className="relative">
             <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
+              {/* File Upload Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowFileUpload(true)}
+                className="w-9 h-9 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                title="Dosya Ekle"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </Button>
+              
               <Input
                 value={message}
                 onChange={handleInputChange}
@@ -575,6 +652,35 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                 className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none text-base"
                 autoFocus
               />
+              
+              {/* Emoji/GIF Picker Button */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="w-9 h-9 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  title="Emoji & GIF"
+                >
+                  <Smile className="w-5 h-5" />
+                </Button>
+                
+                {showEmojiPicker && (
+                  <EmojiGifPicker
+                    onSelect={(content, type) => {
+                      if (type === 'gif') {
+                        // Send GIF directly
+                        sendChannelMessage(content, { type: 'gif' });
+                      } else {
+                        // Add emoji to message
+                        setMessage(prev => prev + content);
+                      }
+                      setShowEmojiPicker(false);
+                    }}
+                    onClose={() => setShowEmojiPicker(false)}
+                  />
+                )}
+              </div>
               
               <Button
                 onClick={handleSendMessage}

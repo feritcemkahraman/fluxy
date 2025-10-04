@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Send, 
   Paperclip, 
@@ -7,6 +7,7 @@ import {
   File,
   Smile
 } from 'lucide-react';
+import { EmojiGifPicker } from '../../../components/EmojiGifPicker';
 
 import { useMessageInput } from '../hooks/useMessageInput';
 import { useTypingIndicator } from '../hooks/useTypingIndicator';
@@ -49,6 +50,8 @@ const MessageInput = ({
     channelId, 
     conversationId
   );
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleInputChangeWithTyping = (e) => {
     handleContentChange(e);
@@ -172,11 +175,11 @@ const MessageInput = ({
       {/* Input Area */}
       <div className="p-4">
         <div className="bg-gray-700 rounded-lg flex items-end space-x-2 p-2">
-          {/* File Upload Button */}
+          {/* File Upload Button - Disabled */}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 p-2 text-gray-400 hover:text-white transition-colors rounded"
-            title="Dosya ekle"
+            disabled
+            className="flex-shrink-0 p-2 text-gray-600 cursor-not-allowed rounded opacity-50"
+            title="Dosya ekleme devre dışı"
           >
             <Paperclip className="w-5 h-5" />
           </button>
@@ -194,13 +197,35 @@ const MessageInput = ({
             />
           </div>
 
-          {/* Emoji Button */}
-          <button
-            className="flex-shrink-0 p-2 text-gray-400 hover:text-white transition-colors rounded"
-            title="Emoji ekle"
-          >
-            <Smile className="w-5 h-5" />
-          </button>
+          {/* Emoji/GIF Button */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded"
+              title="Emoji & GIF"
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+            
+            {showEmojiPicker && (
+              <EmojiGifPicker
+                onSelect={(content, type) => {
+                  if (type === 'gif') {
+                    // Send GIF directly
+                    handleContentChange({ target: { value: content } });
+                    setTimeout(() => handleSendWithTyping(), 100);
+                  } else {
+                    // Add emoji to message
+                    const newContent = (textareaRef.current?.value || '') + content;
+                    handleContentChange({ target: { value: newContent } });
+                    textareaRef.current?.focus();
+                  }
+                  setShowEmojiPicker(false);
+                }}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            )}
+          </div>
 
           {/* Send Button */}
           <button

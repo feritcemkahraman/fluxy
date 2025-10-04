@@ -157,7 +157,63 @@ const MessageItem = ({
           <div className={`text-sm leading-relaxed ${
             isFailed ? 'text-red-300' : 'text-gray-200'
           }`}>
-            {message.content}
+            {/* Render GIF if message is a GIF URL */}
+            {message.content.match(/^https?:\/\/.*\.(gif|tenor\.com)/) ? (
+              <img 
+                src={message.content} 
+                alt="GIF" 
+                className="max-w-md max-h-80 rounded-lg"
+              />
+            ) : (
+              // Render text with Pepe emoji support
+              (() => {
+                const pepePattern = /:(\w+):/g;
+                const parts = [];
+                let lastIndex = 0;
+                let match;
+                
+                while ((match = pepePattern.exec(message.content)) !== null) {
+                  if (match.index > lastIndex) {
+                    parts.push(message.content.substring(lastIndex, match.index));
+                  }
+                  
+                  const pepeId = match[1];
+                  const pepeMap = {
+                    'pepe_king': '/pepe/11998-pepe-king.png',
+                    'pepe_laugh': '/pepe/1502_pepelaugh.gif',
+                    'pepe_cry': '/pepe/471114-pepecry.png',
+                    'pepe_thinking': '/pepe/32226-pepethinking.png',
+                    'pepe_sus': '/pepe/6605-sus.png',
+                    'pepe_jam': '/pepe/45997-pepejam.gif',
+                    'pepe_hmm': '/pepe/PepeHmm.gif',
+                    'pepe_rain': '/pepe/PepeRain.gif',
+                    'pepe_sip': '/pepe/PepeSip.gif',
+                  };
+                  const pepeUrl = pepeMap[pepeId];
+                  
+                  if (pepeUrl) {
+                    parts.push(
+                      <img 
+                        key={`pepe-${match.index}`}
+                        src={pepeUrl} 
+                        alt={pepeId}
+                        className="inline-block w-6 h-6 mx-0.5 align-middle"
+                      />
+                    );
+                  } else {
+                    parts.push(match[0]);
+                  }
+                  
+                  lastIndex = match.index + match[0].length;
+                }
+                
+                if (lastIndex < message.content.length) {
+                  parts.push(message.content.substring(lastIndex));
+                }
+                
+                return parts.length > 0 ? parts : message.content;
+              })()
+            )}
             {isFailed && (
               <span className="ml-2 text-xs text-red-500">❌</span>
             )}
