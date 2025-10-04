@@ -3,64 +3,124 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dial
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { 
-  User, 
   MessageSquare, 
   UserPlus,
   UserCheck,
   Crown, 
-  Shield,
-  Star,
-  Calendar,
-  Clock,
-  Gamepad2,
-  UserMinus,
-  X
+  Edit3,
+  Check,
+  X,
+  Users
 } from 'lucide-react';
-import { dmAPI } from '../services/api';
+import { dmAPI, serverAPI } from '../services/api';
 import friendsAPI from '../services/friendsAPI';
+import socketService from '../services/socket';
 
-export function UserProfileModal({ user, open, onOpenChange, currentUser, showMessageButton = true, showFriendButton = true, onDirectMessageNavigation }) {
-  const [activeTab, setActiveTab] = useState('profile');
+export function UserProfileModal({ user, open, onOpenChange, currentUser, server, roles = [], showMessageButton = true, showFriendButton = true, onDirectMessageNavigation }) {
   const [loading, setLoading] = useState(false);
   const [displayUser, setDisplayUser] = useState(user);
-  const [friendshipStatus, setFriendshipStatus] = useState('none'); // none, pending, friend, blocked
-
-  const activities = [
-    { id: 1, type: 'playing', game: 'Visual Studio Code', timestamp: '2 saat önce' },
-    { id: 2, type: 'listening', music: 'Lo-fi Hip Hop', timestamp: '1 saat önce' },
-    { id: 3, type: 'online', timestamp: 'Çevrimiçi' }
-  ];
-
-  const mutualFriends = [
-    { id: 1, username: 'Alex', avatar: null },
-    { id: 2, username: 'Sarah', avatar: null },
-    { id: 3, username: 'Mike', avatar: null }
-  ];
+  const [friendshipStatus, setFriendshipStatus] = useState('none');
+  const [mutualFriends, setMutualFriends] = useState([]);
+  const [userRoles, setUserRoles] = useState([]);
+  const [serverStatus, setServerStatus] = useState('');
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [tempStatus, setTempStatus] = useState('');
 
   useEffect(() => {
-    if (user) {
-      // Reset friendship status immediately when user changes
+    if (user && open) {
       setFriendshipStatus('none');
       setDisplayUser(user);
-      checkFriendshipStatus();
+      loadUserData();
     }
-  }, [user]);
+  }, [user, open]);
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!open) {
       setFriendshipStatus('none');
-      setActiveTab('profile');
+      setIsEditingStatus(false);
     }
   }, [open]);
+
+  // Listen for status updates from other users
+  useEffect(() => {
+    if (!open || !server || !user) return;
+
+    const io = socketService.getSocket();
+    if (!io) return;
+
+    const handleStatusUpdate = ({ userId, serverId, status }) => {
+      // Check if this update is for the currently viewed user in this server
+      if ((userId === user.id || userId === user._id) && 
+          (serverId === server._id || serverId === server.id)) {
+        setServerStatus(status);
+        // Also update localStorage
+        const statusKey = `server_status_${serverId}_${userId}`;
+        localStorage.setItem(statusKey, status);
+      }
+    };
+
+    io.on('userStatusUpdate', handleStatusUpdate);
+
+    return () => {
+      io.off('userStatusUpdate', handleStatusUpdate);
+    };
+  }, [open, server, user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+    
+    try {
+      // Load mutual friends - find common friends between current user and viewed user
+      if (currentUser && (user.id !== currentUser.id && user._id !== currentUser._id)) {
+        const friends = await friendsAPI.getFriends();
+        // Filter out the viewed user from mutual friends
+        const mutual = friends.filter(f => {
+          const friendId = f.id || f._id;
+          const viewedUserId = user.id || user._id;
+          return friendId !== viewedUserId;
+        }).slice(0, 5);
+        setMutualFriends(mutual);
+      } else {
+        setMutualFriends([]);
+      }
+      
+      // Load user roles
+      if (user.roles && roles.length > 0) {
+        const memberRoles = user.roles
+          .map(roleId => roles.find(r => r._id === roleId))
+          .filter(Boolean)
+          .sort((a, b) => (b.position || 0) - (a.position || 0));
+        setUserRoles(memberRoles);
+      }
+      
+      // Check friendship status
+      await checkFriendshipStatus();
+      
+      // Load server status (from localStorage for now)
+      // In production, this should be stored in backend per server
+      if (server && user.id === currentUser?.id) {
+        const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
+        const savedStatus = localStorage.getItem(statusKey) || '';
+        setServerStatus(savedStatus);
+        setTempStatus(savedStatus);
+      } else if (server) {
+        // Load other user's status
+        const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
+        const savedStatus = localStorage.getItem(statusKey) || '';
+        setServerStatus(savedStatus);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
 
   const checkFriendshipStatus = async () => {
     if (!user || !user.username) return;
     
     try {
-      // Get all friends data to check relationship status
       const [friends, sentRequests, pendingRequests] = await Promise.all([
         friendsAPI.getFriends(),
         friendsAPI.getSentRequests(),
@@ -69,23 +129,17 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
 
       const userId = user.id || user._id;
       
-      // Check if already friends
-      const isFriend = friends.some(f => (f.id || f._id) === userId);
-      if (isFriend) {
+      if (friends.some(f => (f.id || f._id) === userId)) {
         setFriendshipStatus('friend');
         return;
       }
 
-      // Check if request sent
-      const requestSent = sentRequests.some(r => (r.to?.id || r.to?._id) === userId);
-      if (requestSent) {
+      if (sentRequests.some(r => (r.to?.id || r.to?._id) === userId)) {
         setFriendshipStatus('pending');
         return;
       }
 
-      // Check if request received
-      const requestReceived = pendingRequests.some(r => (r.from?.id || r.from?._id) === userId);
-      if (requestReceived) {
+      if (pendingRequests.some(r => (r.from?.id || r.from?._id) === userId)) {
         setFriendshipStatus('received');
         return;
       }
@@ -101,21 +155,15 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
     if (!displayUser || loading) return;
     
     const userId = displayUser.id || displayUser._id;
-    if (!userId) {
-      console.error('No user ID found in displayUser:', displayUser);
-      return;
-    }
+    if (!userId) return;
     
     setLoading(true);
     try {
       const response = await dmAPI.createConversation(userId);
       
-      // Check for success in multiple formats
       if (response.success || response.conversation || response.data?.conversation) {
-        // Close modal first
         onOpenChange(false);
         
-        // Navigate to direct messages section
         if (onDirectMessageNavigation) {
           onDirectMessageNavigation(userId);
         }
@@ -130,7 +178,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
   const handleAddFriend = async () => {
     if (!displayUser || loading) return;
     
-    // If user has sent us a request, accept it
     if (friendshipStatus === 'received') {
       setLoading(true);
       try {
@@ -140,7 +187,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
         
         if (request) {
           await friendsAPI.acceptFriendRequest(request.id);
-          console.log('✅ Friend request accepted');
           setFriendshipStatus('friend');
         }
       } catch (error) {
@@ -151,136 +197,233 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
       return;
     }
     
-    // Otherwise, send a friend request
     const username = displayUser.username;
-    if (!username) {
-      console.error('No username found in displayUser:', displayUser);
-      return;
-    }
+    if (!username) return;
     
     setLoading(true);
     try {
       const response = await friendsAPI.sendFriendRequest(username);
       if (response && response.request) {
-        // Friend request sent successfully
-        console.log('✅ Friend request sent:', response);
-        // Update friendship status to pending (don't close modal)
         setFriendshipStatus('pending');
       }
     } catch (error) {
       console.error('Error sending friend request:', error);
-      // Error handled - could show toast notification
     } finally {
       setLoading(false);
     }
   };
 
-  const getRoleIcon = (role) => {
-    switch(role) {
-      case 'Owner': return <Crown className="w-3 h-3 text-yellow-400" />;
-      case 'Admin': return <Shield className="w-3 h-3 text-red-400" />;
-      case 'Moderator': return <Star className="w-3 h-3 text-blue-400" />;
-      default: return null;
-    }
-  };
-
-  const getRoleBadgeColor = (role) => {
-    switch(role) {
-      case 'Owner': return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30';
-      case 'Admin': return 'bg-red-600/20 text-red-400 border-red-600/30';
-      case 'Moderator': return 'bg-blue-600/20 text-blue-400 border-blue-600/30';
-      default: return 'bg-gray-600/20 text-gray-400 border-gray-600/30';
+  const handleSaveStatus = () => {
+    if (server) {
+      const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
+      localStorage.setItem(statusKey, tempStatus);
+      setServerStatus(tempStatus);
+      setIsEditingStatus(false);
+      
+      // Broadcast status change to other users via socket
+      const io = socketService.getSocket();
+      if (io) {
+        io.emit('userStatusUpdate', {
+          userId: user.id || user._id,
+          serverId: server._id || server.id,
+          status: tempStatus
+        });
+      }
     }
   };
 
   if (!displayUser) return null;
 
+  const isOwner = server && (displayUser.id === server.owner || displayUser._id === server.owner);
+  
+  // Fix: Properly compare user IDs
+  const displayUserId = String(displayUser.id || displayUser._id);
+  const currentUserId = String(currentUser?.id || currentUser?._id);
+  const isOwnProfile = displayUserId === currentUserId;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-gray-900/95 backdrop-blur-xl border border-white/10 text-white p-0 overflow-hidden">
+      <DialogContent className="max-w-[340px] bg-[#232428] border-none text-white p-0 overflow-hidden rounded-xl">
         <DialogTitle className="sr-only">
           {displayUser.username ? `${displayUser.username} Profili` : 'Kullanıcı Profili'}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          Kullanıcı profil bilgileri, durum ve etkileşim seçenekleri
+          Kullanıcı profil bilgileri ve etkileşim seçenekleri
         </DialogDescription>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white bg-black/50 backdrop-blur-sm hover:bg-black/70"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="w-4 h-4" />
-        </Button>
 
-        {/* Extended Banner - covers half of avatar */}
-        <div className="h-36 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 relative">
-          <div className="absolute inset-0 bg-black/20"></div>
+        {/* Banner */}
+        <div className="h-[100px] bg-gradient-to-r from-[#5865F2] via-[#5865F2] to-[#5865F2] relative">
         </div>
 
-        {/* Profile Section with Centered Avatar */}
-        <div className="p-4 space-y-4 -mt-16 relative">
-          {/* Centered Avatar and Info */}
-          <div className="flex flex-col items-center space-y-2">
-            <Avatar className="w-32 h-32 border-4 border-gray-900">
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-bold">
-                {displayUser.username?.charAt(0) || 'U'}
+        {/* Profile Content */}
+        <div className="px-4 pb-4 -mt-14">
+          {/* Avatar */}
+          <div className="relative w-20 h-20 mb-3">
+            <Avatar className="w-20 h-20 border-[6px] border-[#232428]">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl font-bold">
+                {displayUser.displayName?.charAt(0) || displayUser.username?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2">
-                <h2 className="text-base font-bold text-white">
-                  {displayUser.username || 'Bilinmeyen Kullanıcı'}
-                </h2>
-                {displayUser.role && getRoleIcon(displayUser.role)}
+            {isOwner && (
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#232428] rounded-full flex items-center justify-center">
+                <Crown className="w-4 h-4 text-yellow-400" />
               </div>
-              
-              {displayUser.role && (
-                <Badge className={`text-xs px-2 py-0.5 mt-1 ${getRoleBadgeColor(displayUser.role)}`}>
-                  {displayUser.role}
-                </Badge>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Action Buttons - Horizontal Layout */}
-          {displayUser.id !== currentUser?.id && (
-            <div className="flex space-x-2">
+          {/* Server Status - Only show for current user or if other user has status */}
+          {server && isOwnProfile && (
+            <div className="mb-3">
+              {isEditingStatus ? (
+                <div className="space-y-2">
+                  <Input
+                    value={tempStatus}
+                    onChange={(e) => setTempStatus(e.target.value)}
+                    placeholder="Sunucudaki durumunu belirle..."
+                    className="bg-[#1e1f22] border-white/10 text-white text-sm h-9"
+                    maxLength={128}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleSaveStatus}
+                      className="flex-1 bg-[#5865F2] hover:bg-[#4752C4] h-7 text-xs"
+                    >
+                      <Check className="w-3 h-3 mr-1" />
+                      Kaydet
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setTempStatus(serverStatus);
+                        setIsEditingStatus(false);
+                      }}
+                      className="flex-1 bg-[#2b2d31] border-white/10 hover:bg-[#35373c] h-7 text-xs"
+                    >
+                      İptal
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  onClick={() => setIsEditingStatus(true)}
+                  className="bg-[#2b2d31] rounded-lg p-3 border border-white/5 cursor-pointer hover:bg-[#35373c] transition-colors"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">💬</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-white font-medium">
+                        {serverStatus || 'Durum yazısı ekle...'}
+                      </p>
+                    </div>
+                    <Edit3 className="w-3 h-3 text-gray-400" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Other user's status - view only */}
+          {server && !isOwnProfile && serverStatus && (
+            <div className="mb-3">
+              <div className="bg-[#2b2d31] rounded-lg p-3 border border-white/5">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">💬</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-white font-medium">{serverStatus}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Username */}
+          <div className="mb-3">
+            <h2 className="text-xl font-bold text-white">
+              {displayUser.displayName || displayUser.username}
+            </h2>
+            <p className="text-sm text-gray-400">
+              {displayUser.username}
+              {displayUser.discriminator && ` • ${displayUser.discriminator}`}
+            </p>
+          </div>
+
+
+          {/* Roles Section - Discord-like badges */}
+          {userRoles.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Roller</h3>
+              <div className="flex flex-wrap gap-2">
+                {userRoles.map((role) => (
+                  <Badge 
+                    key={role._id}
+                    className="text-xs px-3 py-1 border font-medium"
+                    style={{ 
+                      backgroundColor: `${role.color}20`,
+                      borderColor: role.color,
+                      color: role.color
+                    }}
+                  >
+                    <div 
+                      className="w-2 h-2 rounded-full mr-1.5 inline-block"
+                      style={{ backgroundColor: role.color }}
+                    />
+                    {role.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mutual Friends */}
+          {mutualFriends.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2 flex items-center gap-2">
+                <Users className="w-3 h-3" />
+                Ortak Arkadaşlar — {mutualFriends.length}
+              </h3>
+              <div className="space-y-1">
+                {mutualFriends.map((friend) => (
+                  <div 
+                    key={friend.id || friend._id}
+                    className="flex items-center gap-2 p-2 bg-[#2b2d31] rounded hover:bg-[#35373c] transition-colors cursor-pointer"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
+                        {(friend.displayName || friend.username)?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-white">{friend.displayName || friend.username}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons - Outside card, at bottom */}
+          {!isOwnProfile && (
+            <div className="flex gap-2 pt-2 border-t border-white/10">
               {showFriendButton && (
                 <Button 
                   onClick={handleAddFriend}
                   disabled={loading || friendshipStatus === 'pending' || friendshipStatus === 'friend'}
-                  variant="outline"
-                  size="sm"
-                  className={`flex-1 backdrop-blur-sm text-white border text-xs py-2 ${
-                    friendshipStatus === 'pending' 
-                      ? 'bg-yellow-600/80 border-yellow-500/50 cursor-not-allowed' 
-                      : friendshipStatus === 'friend'
-                      ? 'bg-green-600/80 border-green-500/50 cursor-not-allowed'
-                      : friendshipStatus === 'received'
-                      ? 'bg-blue-600/80 hover:bg-blue-700 border-blue-500/50'
-                      : 'bg-gray-700/80 hover:bg-gray-700 border-gray-600/50'
+                  className={`flex-1 h-9 text-sm font-medium ${
+                    friendshipStatus === 'friend'
+                      ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/50'
+                      : friendshipStatus === 'pending'
+                      ? 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-500/50'
+                      : 'bg-[#2b2d31] hover:bg-[#35373c] text-white border border-white/10'
                   }`}
                 >
-                  {friendshipStatus === 'pending' ? (
+                  {friendshipStatus === 'friend' || friendshipStatus === 'pending' ? (
                     <>
-                      <UserCheck className="w-3 h-3 mr-1" />
-                      İstek Beklemede
-                    </>
-                  ) : friendshipStatus === 'friend' ? (
-                    <>
-                      <UserCheck className="w-3 h-3 mr-1" />
-                      Arkadaş
-                    </>
-                  ) : friendshipStatus === 'received' ? (
-                    <>
-                      <UserCheck className="w-3 h-3 mr-1" />
-                      İstek Kabul Et
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      {friendshipStatus === 'friend' ? 'Arkadaş' : 'Beklemede'}
                     </>
                   ) : (
                     <>
-                      <UserPlus className="w-3 h-3 mr-1" />
+                      <UserPlus className="w-4 h-4 mr-2" />
                       Arkadaş Ekle
                     </>
                   )}
@@ -291,149 +434,16 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, showMe
                 <Button 
                   onClick={handleSendMessage}
                   disabled={loading}
-                  size="sm"
-                  className="flex-1 bg-indigo-600/80 backdrop-blur-sm hover:bg-indigo-600 text-white border border-indigo-500/30 text-xs py-2"
+                  className="flex-1 bg-[#5865F2] hover:bg-[#4752C4] text-white h-9 text-sm font-medium"
                 >
-                  <MessageSquare className="w-3 h-3 mr-1" />
-                  Mesaj
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Mesaj Gönder
                 </Button>
               )}
             </div>
           )}
         </div>
-
-        {/* Compact Tabs */}
-        <div className="px-3 pb-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full bg-black/30 backdrop-blur-sm border border-white/10 h-8">
-              <TabsTrigger 
-                value="profile" 
-                className="flex-1 text-xs data-[state=active]:bg-indigo-600/50 data-[state=active]:text-white text-gray-400 h-6"
-              >
-                Profil
-              </TabsTrigger>
-              <TabsTrigger 
-                value="activity" 
-                className="flex-1 text-xs data-[state=active]:bg-indigo-600/50 data-[state=active]:text-white text-gray-400 h-6"
-              >
-                Aktivite
-              </TabsTrigger>
-              <TabsTrigger 
-                value="mutual" 
-                className="flex-1 text-xs data-[state=active]:bg-indigo-600/50 data-[state=active]:text-white text-gray-400 h-6"
-              >
-                Arkadaş
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="mt-2">
-              {/* Profile Tab */}
-              <TabsContent value="profile" className="space-y-2">
-                <div className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Katılma Tarihi</span>
-                      <span className="text-xs text-white">15 Ocak 2024</span>
-                    </div>
-                  </div>
-                </div>
-
-                {displayUser.bio && (
-                  <div className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10">
-                    <h3 className="text-xs font-semibold mb-1 text-white">Hakkında</h3>
-                    <p className="text-xs text-gray-300 leading-relaxed">{displayUser.bio}</p>
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* Activity Tab */}
-              <TabsContent value="activity" className="space-y-2">
-                <div className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10">
-                  <h3 className="text-xs font-semibold mb-2 text-white">Son Aktiviteler</h3>
-                  <div className="space-y-1">
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="flex items-center space-x-2 p-1.5 bg-white/5 rounded-md">
-                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white text-xs">
-                            {activity.type === 'playing' && `${activity.game} oynuyor`}
-                            {activity.type === 'listening' && `${activity.music} dinliyor`}
-                            {activity.type === 'online' && 'Çevrimiçi'}
-                          </div>
-                        </div>
-                        <div className="text-gray-400 text-xs">{activity.timestamp}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10">
-                  <h3 className="text-xs font-semibold mb-2 text-white">Şu Anda Oynuyor</h3>
-                  <div className="flex items-center space-x-2 p-1.5 bg-indigo-600/20 border border-indigo-500/30 rounded-md">
-                    <Gamepad2 className="w-3 h-3 text-indigo-400" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white font-medium text-xs">Visual Studio Code</div>
-                      <div className="text-indigo-300 text-xs truncate">Fluxy Geliştiriliyor</div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Mutual Friends Tab */}
-              <TabsContent value="mutual" className="space-y-2">
-                <div className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10">
-                  <h3 className="text-xs font-semibold mb-2 text-white">
-                    Ortak Arkadaşlar ({mutualFriends.length})
-                  </h3>
-                  <div className="space-y-1">
-                    {mutualFriends.map((friend) => (
-                      <div key={friend.id} className="flex items-center space-x-2 p-1.5 bg-white/5 rounded-md hover:bg-white/10 transition-colors cursor-pointer">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                            {friend.username.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white font-medium text-xs">{friend.username}</div>
-                          <div className="text-gray-400 text-xs">Ortak Arkadaş</div>
-                        </div>
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white w-5 h-5 p-0">
-                          <MessageSquare className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
-
-        {/* Admin Actions - Compact */}
-        {currentUser?.role === "Admin" && displayUser.id !== currentUser.id && (
-          <div className="px-3 py-2 border-t border-white/10 bg-black/50">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400">Yönetici</span>
-              <div className="flex space-x-1">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10 text-xs px-1.5 py-1 h-6"
-                >
-                  <UserMinus className="w-3 h-3" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-red-400 hover:text-red-300 hover:bg-red-400/10 text-xs px-1.5 py-1 h-6"
-                >
-                  <Shield className="w-3 h-3" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );
-};
+}

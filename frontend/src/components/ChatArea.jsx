@@ -10,12 +10,13 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { useChannelMessages } from "../hooks/useChannelMessages";
 import socketService from "../services/socket";
-import { messageAPI } from "../services/api";
+import { messageAPI, roleAPI } from "../services/api";
 import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
   const { joinChannel, leaveChannel } = useSocket();
+  const [roles, setRoles] = useState([]);
   
   // Use new Discord-style messages hook
   const { 
@@ -40,6 +41,21 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const typingTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const serverMembersCache = useRef(null);
+
+  // Load roles for the server
+  useEffect(() => {
+    const loadRoles = async () => {
+      if (server?._id || server?.id) {
+        try {
+          const response = await roleAPI.getRoles(server._id || server.id);
+          setRoles(response.data || []);
+        } catch (error) {
+          console.error('Failed to load roles:', error);
+        }
+      }
+    };
+    loadRoles();
+  }, [server]);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -605,6 +621,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           }}
           user={memberActionDialog.member}
           currentUser={user}
+          server={server}
+          roles={roles}
           showMessageButton={true}
           showFriendButton={true}
         />

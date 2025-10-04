@@ -300,6 +300,25 @@ const handleConnection = (io) => {
       }
     });
 
+    // Handle user server status update (custom status message)
+    socket.on('userStatusUpdate', async (data) => {
+      try {
+        const { userId, serverId, status } = data;
+        console.log(`💬 User ${userId} updated server status in ${serverId}: "${status}"`);
+        
+        // Broadcast to all users in this server
+        io.to(`server:${serverId}`).emit('userStatusUpdate', {
+          userId,
+          serverId,
+          status
+        });
+        
+        console.log(`✅ Server status broadcast to server:${serverId}`);
+      } catch (error) {
+        console.error('User status update error:', error);
+      }
+    });
+
     // Handle voice mute/deafen status updates - REAL-TIME
     socket.on('voice-mute-status', async (data) => {
       try {

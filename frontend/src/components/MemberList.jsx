@@ -54,6 +54,13 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     return memberRoles[0]?.color || '#99AAB5';
   };
 
+  // Get member's server status
+  const getMemberServerStatus = (member) => {
+    if (!server) return '';
+    const statusKey = `server_status_${server._id || server.id}_${member.id || member._id}`;
+    return localStorage.getItem(statusKey) || '';
+  };
+
   // Fetch server members
   useEffect(() => {
     const fetchMembers = async () => {
@@ -198,7 +205,17 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
       }
     };
 
-    on('userStatusUpdate', handleUserStatusUpdate);
+    const handleServerStatusUpdate = ({ userId, serverId, status }) => {
+      if (serverId === server?._id || serverId === server?.id) {
+        // Update localStorage for this user's server status (custom status message)
+        const statusKey = `server_status_${serverId}_${userId}`;
+        localStorage.setItem(statusKey, status);
+        // Force re-render to show updated status
+        setMembers(prev => [...prev]);
+      }
+    };
+
+    on('userStatusUpdate', handleServerStatusUpdate);
     on('userJoinedServer', handleUserJoinedServer);
     on('userLeftServer', handleUserLeftServer);
     on('newMemberJoined', handleNewMemberJoined);
@@ -334,6 +351,11 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                                 <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
                               )}
                             </div>
+                            {getMemberServerStatus(member) && (
+                              <p className="text-xs text-gray-400 truncate mt-0.5">
+                                {getMemberServerStatus(member)}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -352,6 +374,8 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
         onOpenChange={setIsProfileOpen}
         user={selectedUser}
         currentUser={currentUser}
+        server={server}
+        roles={roles}
         onDirectMessageNavigation={onDirectMessageNavigation}
       />
     </>
