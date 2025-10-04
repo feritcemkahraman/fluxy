@@ -207,7 +207,7 @@ export const roleAPI = {
   updateRole: (roleId, roleData) => apiCall('PUT', `/roles/${roleId}`, roleData),
   deleteRole: (roleId) => apiCall('DELETE', `/roles/${roleId}`),
   assignRole: (roleId, userId, serverId) => apiCall('POST', `/roles/${roleId}/assign/${userId}`, { serverId }),
-  removeRole: (roleId, userId, serverId) => apiCall('DELETE', `/roles/${roleId}/remove/${userId}`, { serverId }),
+  removeRole: (roleId, userId, serverId) => apiCall('DELETE', `/roles/${roleId}/remove/${userId}?serverId=${serverId}`),
   reorderRoles: (serverId, roleOrder) => apiCall('PUT', `/roles/server/${serverId}/reorder`, { roleOrder })
 };
 

@@ -194,9 +194,17 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
         setMembers(prev => prev.map(member => {
           const memberUserId = String(member.user?._id || member.user?.id || member.id || member._id);
           if (memberUserId === String(userId)) {
-            const updatedRoles = action === 'assigned'
-              ? [...(member.roles || []), roleId]
-              : (member.roles || []).filter(r => r !== roleId);
+            const currentRoles = member.roles || [];
+            let updatedRoles;
+            
+            if (action === 'assigned') {
+              // Prevent duplicates
+              updatedRoles = currentRoles.includes(roleId) 
+                ? currentRoles 
+                : [...currentRoles, roleId];
+            } else {
+              updatedRoles = currentRoles.filter(r => r !== roleId);
+            }
             
             return { ...member, roles: updatedRoles };
           }

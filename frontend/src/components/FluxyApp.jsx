@@ -417,7 +417,8 @@ const FluxyApp = () => {
         return prevServers.map(server => {
           if ((server._id || server.id) === serverId) {
             const updatedMembers = server.members?.map(member => {
-              if (member.user._id === userId || member.user.id === userId) {
+              const memberUserId = member.user?._id || member.user?.id || member._id || member.id;
+              if (memberUserId === userId) {
                 if (action === 'assigned') {
                   // Add role if not already present
                   if (!member.roles?.includes(roleId)) {
@@ -453,7 +454,8 @@ const FluxyApp = () => {
         }
         
         const updatedMembers = prevServer.members?.map(member => {
-          if (member.user._id === userId || member.user.id === userId) {
+          const memberUserId = member.user?._id || member.user?.id || member._id || member.id;
+          if (memberUserId === userId) {
             if (action === 'assigned') {
               // Add role if not already present
               if (!member.roles?.includes(roleId)) {

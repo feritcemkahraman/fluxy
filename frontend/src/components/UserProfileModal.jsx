@@ -44,7 +44,7 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
     }
   }, [open]);
 
-  // Listen for status updates from other users
+  // Listen for status updates and role changes from other users
   useEffect(() => {
     if (!open || !server || !user) return;
 
@@ -62,12 +62,68 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
       }
     };
 
+    const handleRoleAssignment = ({ userId, serverId, roleId, action }) => {
+      // Check if this update is for the currently viewed user in this server
+      const viewedUserId = String(user.id || user._id);
+      const updateUserId = String(userId);
+      const currentServerId = String(server._id || server.id);
+      const updateServerId = String(serverId);
+      
+      if (viewedUserId === updateUserId && currentServerId === updateServerId) {
+        
+        // Update displayUser roles
+        setDisplayUser(prev => {
+          if (!prev) return prev;
+          const currentRoles = prev.roles || [];
+          let updatedRoles;
+          
+          if (action === 'assigned') {
+            // Prevent duplicates
+            updatedRoles = currentRoles.includes(roleId) 
+              ? currentRoles 
+              : [...currentRoles, roleId];
+          } else {
+            updatedRoles = currentRoles.filter(r => r !== roleId);
+          }
+          
+          return {
+            ...prev,
+            roles: updatedRoles
+          };
+        });
+        
+        // Reload user roles to update UI
+        if (user.roles && roles.length > 0) {
+          const currentUserRoles = user.roles || [];
+          let updatedUserRoles;
+          
+          if (action === 'assigned') {
+            // Prevent duplicates
+            updatedUserRoles = currentUserRoles.includes(roleId) 
+              ? currentUserRoles 
+              : [...currentUserRoles, roleId];
+          } else {
+            updatedUserRoles = currentUserRoles.filter(r => r !== roleId);
+          }
+          
+          const memberRoles = updatedUserRoles
+            .map(roleId => roles.find(r => r._id === roleId))
+            .filter(Boolean)
+            .sort((a, b) => (b.position || 0) - (a.position || 0));
+          
+          setUserRoles(memberRoles);
+        }
+      }
+    };
+
     io.on('userStatusUpdate', handleStatusUpdate);
+    io.on('roleAssignment', handleRoleAssignment);
 
     return () => {
       io.off('userStatusUpdate', handleStatusUpdate);
+      io.off('roleAssignment', handleRoleAssignment);
     };
-  }, [open, server, user]);
+  }, [open, server, user, roles]);
 
   const loadUserData = async () => {
     if (!user) return;

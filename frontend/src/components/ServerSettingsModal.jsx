@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import socketService from '../services/socket';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -131,20 +132,11 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const handleAssignRole = async (memberId, roleId) => {
     try {
       await roleAPI.assignRole(roleId, memberId, serverId);
-      // Optimistic update - immediately update UI
-      setMembers(prev => prev.map(member => {
-        const mId = member.id || member._id;
-        if (mId === memberId) {
-          return {
-            ...member,
-            roles: [...(member.roles || []), roleId]
-          };
-        }
-        return member;
-      }));
+      // Real-time update will handle UI via socket event
+      // No need for manual update here
     } catch (error) {
       console.error('Failed to assign role:', error);
-      // Reload on error to revert optimistic update
+      // Reload on error to revert
       await loadMembers();
     }
   };
@@ -152,20 +144,11 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const handleRemoveRole = async (memberId, roleId) => {
     try {
       await roleAPI.removeRole(roleId, memberId, serverId);
-      // Optimistic update - immediately update UI
-      setMembers(prev => prev.map(member => {
-        const mId = member.id || member._id;
-        if (mId === memberId) {
-          return {
-            ...member,
-            roles: (member.roles || []).filter(r => r !== roleId)
-          };
-        }
-        return member;
-      }));
+      // Real-time update will handle UI via socket event
+      // No need for manual update here
     } catch (error) {
       console.error('Failed to remove role:', error);
-      // Reload on error to revert optimistic update
+      // Reload on error to revert
       await loadMembers();
     }
   };
@@ -303,6 +286,48 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       loadRoles();
       loadMembers();
       setInviteLink(""); // Clear invite link when server changes
+      
+      // Listen for real-time role assignment updates
+      const socket = socketService.getSocket();
+      if (socket) {
+        const handleRoleAssignment = ({ userId, serverId, roleId, action }) => {
+          // Only update if this is for the current server
+          if (serverId === server.id || serverId === server._id) {
+            // Update members list
+            setMembers(prev => prev.map(member => {
+              const mId = String(member.id || member._id);
+              const targetUserId = String(userId);
+              
+              if (mId === targetUserId) {
+                const currentRoles = member.roles || [];
+                let updatedRoles;
+                
+                if (action === 'assigned') {
+                  // Add role only if not already present (prevent duplicates)
+                  updatedRoles = currentRoles.includes(roleId) 
+                    ? currentRoles 
+                    : [...currentRoles, roleId];
+                } else {
+                  // Remove role
+                  updatedRoles = currentRoles.filter(r => r !== roleId);
+                }
+                
+                return {
+                  ...member,
+                  roles: updatedRoles
+                };
+              }
+              return member;
+            }));
+          }
+        };
+        
+        socket.on('roleAssignment', handleRoleAssignment);
+        
+        return () => {
+          socket.off('roleAssignment', handleRoleAssignment);
+        };
+      }
     }
   }, [isOpen, server?.id]);
 
@@ -807,152 +832,247 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                         const isOwner = server.owner === member.userId;
                         
                         return (
-                          <div key={member.id || member._id} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <div
+                            key={member.id || member._id}
+                            className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors"
+                          >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
                                 <div className="relative">
                                   <Avatar className="w-12 h-12">
-                                    <AvatarFallback 
+                                    <AvatarFallback
                                       className="text-white"
-                                      style={{ backgroundColor: highestRole?.color || '#6b7280' }}
+                                      style={{
+                                        backgroundColor:
+                                          highestRole?.color || "#6b7280",
+                                      }}
                                     >
-                                      {(member.displayName || member.username).charAt(0).toUpperCase()}
+                                      {(member.displayName || member.username)
+                                        .charAt(0)
+                                        .toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
-                                  
+
                                   {/* Online Status */}
-                                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-black ${
-                                    member.status === 'online' ? 'bg-green-500' :
-                                    member.status === 'idle' ? 'bg-yellow-500' :
-                                    member.status === 'dnd' ? 'bg-red-500' : 'bg-gray-500'
-                                  }`} />
+                                  <div
+                                    className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-black ${
+                                      member.status === "online"
+                                        ? "bg-green-500"
+                                        : member.status === "idle"
+                                        ? "bg-yellow-500"
+                                        : member.status === "dnd"
+                                        ? "bg-red-500"
+                                        : "bg-gray-500"
+                                    }`}
+                                  />
                                 </div>
-                                
+
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-2">
-                                    <span 
+                                    <span
                                       className="font-medium truncate"
-                                      style={{ color: highestRole?.color || '#ffffff' }}
+                                      style={{
+                                        color: highestRole?.color || "#ffffff",
+                                      }}
                                     >
                                       {member.displayName || member.username}
                                     </span>
                                     {isOwner && (
-                                      <Crown className="w-4 h-4 text-yellow-500" title="Sunucu Sahibi" />
+                                      <Crown
+                                        className="w-4 h-4 text-yellow-500"
+                                        title="Sunucu Sahibi"
+                                      />
                                     )}
                                     {member.isBot && (
-                                      <Badge variant="secondary" className="text-xs bg-blue-600/20 text-blue-400">
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs bg-blue-600/20 text-blue-400"
+                                      >
                                         BOT
                                       </Badge>
                                     )}
                                   </div>
-                                  
+
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {memberRoles.length > 0 ? (
-                                      memberRoles.slice(0, 3).map(role => (
-                                        <Badge 
+                                      memberRoles.slice(0, 3).map((role) => (
+                                        <Badge
                                           key={role._id}
-                                          variant="secondary" 
+                                          variant="secondary"
                                           className="text-xs px-2"
-                                          style={{ 
+                                          style={{
                                             backgroundColor: `${role.color}20`,
                                             color: role.color,
-                                            borderColor: `${role.color}40`
+                                            borderColor: `${role.color}40`,
                                           }}
                                         >
                                           {role.name}
                                         </Badge>
                                       ))
                                     ) : (
-                                      <Badge variant="secondary" className="text-xs bg-gray-600/20 text-gray-400">
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs bg-gray-600/20 text-gray-400"
+                                      >
                                         Rol yok
                                       </Badge>
                                     )}
                                     {memberRoles.length > 3 && (
-                                      <Badge variant="secondary" className="text-xs bg-gray-600/20 text-gray-400">
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs bg-gray-600/20 text-gray-400"
+                                      >
                                         +{memberRoles.length - 3}
                                       </Badge>
                                     )}
                                   </div>
-                                  
+
                                   <p className="text-xs text-gray-400 mt-1">
-                                    Katıldı: {new Date(member.joinedAt).toLocaleDateString('tr-TR')}
+                                    Katıldı:{" "}
+                                    {new Date(
+                                      member.joinedAt
+                                    ).toLocaleDateString("tr-TR")}
                                   </p>
                                 </div>
                               </div>
-                              
+
                               {/* Member Actions */}
                               {canManageMember(member) && !isOwner && (
                                 <div className="flex items-center space-x-2">
                                   {/* Role Assignment */}
-                                  <Select onValueChange={(roleId) => handleAssignRole(member.id || member._id, roleId)}>
+                                  <Select
+                                    key={`select-${member.id || member._id}-${memberRoles.length}`}
+                                    onValueChange={(roleId) =>
+                                      handleAssignRole(
+                                        member.id || member._id,
+                                        roleId
+                                      )
+                                    }
+                                  >
                                     <SelectTrigger className="w-32 h-8 text-xs bg-black/30 border-white/20">
                                       <Plus className="w-3 h-3 mr-1" />
                                       <SelectValue placeholder="Rol Ver" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-black/90 border-white/20 text-white">
-                                      {roles.filter(role => 
-                                        !role.isDefault && 
-                                        !memberRoles.some(mr => mr._id === role._id)
-                                      ).map(role => (
-                                        <SelectItem key={role._id} value={role._id} className="focus:bg-white/10 focus:text-white">
-                                          <div className="flex items-center">
-                                            <div 
-                                              className="w-3 h-3 rounded mr-2" 
-                                              style={{ backgroundColor: role.color }}
-                                            />
-                                            {role.name}
-                                          </div>
-                                        </SelectItem>
-                                      ))}
+                                      {roles
+                                        .filter(
+                                          (role) =>
+                                            !role.isDefault &&
+                                            !memberRoles.some(
+                                              (mr) => mr._id === role._id
+                                            )
+                                        )
+                                        .map((role) => (
+                                          <SelectItem
+                                            key={role._id}
+                                            value={role._id}
+                                            className="focus:bg-white/10 focus:text-white"
+                                          >
+                                            <div className="flex items-center">
+                                              <div
+                                                className="w-3 h-3 rounded mr-2"
+                                                style={{
+                                                  backgroundColor: role.color,
+                                                }}
+                                              />
+                                              {role.name}
+                                            </div>
+                                          </SelectItem>
+                                        ))}
                                     </SelectContent>
                                   </Select>
 
                                   {/* More Actions Dropdown */}
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                      >
                                         <MoreVertical className="w-4 h-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                      <DropdownMenuItem 
-                                        onClick={() => {/* Open DM */}}
+                                    <DropdownMenuContent
+                                      align="end"
+                                      className="w-48 bg-[#1e1f22] border-white/10 text-white"
+                                    >
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          /* Open DM */
+                                        }}
                                         className="text-blue-400 hover:text-blue-300"
                                       >
                                         <MessageSquare className="w-4 h-4 mr-2" />
                                         Mesaj Gönder
                                       </DropdownMenuItem>
-                                      
-                                      <DropdownMenuSeparator />
-                                      
+
+                                      <DropdownMenuSeparator className="bg-white/10" />
+
                                       {memberRoles.length > 0 && (
-                                        <DropdownMenuItem 
-                                          onClick={() => {
-                                            // Remove all roles
-                                            memberRoles.forEach(role => {
-                                              handleRemoveRole(member.id || member._id, role._id);
-                                            });
-                                          }}
-                                          className="text-yellow-400 hover:text-yellow-300"
-                                        >
-                                          <UserMinus className="w-4 h-4 mr-2" />
-                                          Tüm Rolleri Kaldır
-                                        </DropdownMenuItem>
+                                        <>
+                                          {memberRoles.map((role) => (
+                                            <DropdownMenuItem
+                                              key={role._id}
+                                              onClick={() =>
+                                                handleRemoveRole(
+                                                  member.id || member._id,
+                                                  role._id
+                                                )
+                                              }
+                                              className="text-yellow-400 hover:text-yellow-300 hover:bg-white/10"
+                                            >
+                                              <div
+                                                className="w-3 h-3 rounded-full mr-2"
+                                                style={{
+                                                  backgroundColor: role.color,
+                                                }}
+                                              />
+                                              {role.name} Kaldır
+                                            </DropdownMenuItem>
+                                          ))}
+
+                                          {memberRoles.length > 1 && (
+                                            <>
+                                              <DropdownMenuSeparator className="bg-white/10" />
+                                              <DropdownMenuItem
+                                                onClick={() => {
+                                                  memberRoles.forEach(
+                                                    (role) => {
+                                                      handleRemoveRole(
+                                                        member.id || member._id,
+                                                        role._id
+                                                      );
+                                                    }
+                                                  );
+                                                }}
+                                                className="text-red-400 hover:text-red-300 hover:bg-white/10"
+                                              >
+                                                <UserMinus className="w-4 h-4 mr-2" />
+                                                Tüm Rolleri Kaldır
+                                              </DropdownMenuItem>
+                                            </>
+                                          )}
+                                        </>
                                       )}
-                                      
-                                      <DropdownMenuSeparator />
-                                      
-                                      <DropdownMenuItem 
-                                        onClick={() => openMemberActionDialog('kick', member)}
-                                        className="text-orange-400 hover:text-orange-300"
+
+                                      <DropdownMenuSeparator className="bg-white/10" />
+
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          openMemberActionDialog("kick", member)
+                                        }
+                                        className="text-orange-400 hover:text-orange-300 hover:bg-white/10 focus:bg-white/10"
                                       >
                                         <UserX className="w-4 h-4 mr-2" />
                                         Sunucudan At
                                       </DropdownMenuItem>
-                                      
-                                      <DropdownMenuItem 
-                                        onClick={() => openMemberActionDialog('ban', member)}
-                                        className="text-red-400 hover:text-red-300"
+
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          openMemberActionDialog("ban", member)
+                                        }
+                                        className="text-red-400 hover:text-red-300 hover:bg-white/10 focus:bg-white/10"
                                       >
                                         <Ban className="w-4 h-4 mr-2" />
                                         Yasakla

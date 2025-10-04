@@ -230,8 +230,8 @@ router.post('/:roleId/assign/:userId', [auth], async (req, res) => {
         action: 'assigned'
       };
       
-      io.to(`server:${serverId}`).emit('roleAssignment', roleAssignmentData);
-      console.log(`🎭 Role ${role.name} assigned to user ${userId} - broadcasted to server:${serverId}`);
+      io.to(`server_${serverId}`).emit('roleAssignment', roleAssignmentData);
+      console.log(`🎭 Role ${role.name} assigned to user ${userId} - broadcasted to server_${serverId}`);
     }
 
     res.json({ message: 'Role assigned successfully' });
@@ -245,7 +245,7 @@ router.post('/:roleId/assign/:userId', [auth], async (req, res) => {
 router.delete('/:roleId/remove/:userId', [auth], async (req, res) => {
   try {
     const { roleId, userId } = req.params;
-    const { serverId } = req.body;
+    const { serverId } = req.query.serverId ? req.query : req.body;
 
     const server = await Server.findById(serverId);
     if (!server) {
@@ -281,7 +281,7 @@ router.delete('/:roleId/remove/:userId', [auth], async (req, res) => {
     const io = req.app.get('io');
     if (role && io) {
       // Broadcast role removal to all server members
-      io.to(`server:${serverId}`).emit('roleAssignment', {
+      io.to(`server_${serverId}`).emit('roleAssignment', {
         userId,
         serverId,
         roleId,
@@ -289,7 +289,7 @@ router.delete('/:roleId/remove/:userId', [auth], async (req, res) => {
         roleColor: role.color,
         action: 'removed'
       });
-      console.log(`🎭 Role ${role.name} removed from user ${userId} - broadcasted to server:${serverId}`);
+      console.log(`🎭 Role ${role.name} removed from user ${userId} - broadcasted to server_${serverId}`);
     }
 
     res.json({ message: 'Role removed successfully' });
