@@ -301,7 +301,7 @@ export const dmAPI = {
   createConversation: (recipientId) => 
     apiCall('POST', '/dm/conversations', { userId: recipientId }),
   markAsRead: (conversationId) => 
-    apiCall('PUT', `/dm/conversations/${conversationId}/read`),
+    apiCall('PUT', `/dm/conversations/${conversationId}/read`, {}),
   deleteMessage: (conversationId, messageId) => 
     apiCall('DELETE', `/dm/conversations/${conversationId}/messages/${messageId}`),
   addReaction: (conversationId, messageId, emoji) => 

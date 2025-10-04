@@ -19,8 +19,30 @@ router.get('/conversations', auth, async (req, res) => {
     .populate('lastMessage')
     .sort({ lastActivity: -1 });
 
-    const formattedConversations = conversations.map(conv => {
+    const formattedConversations = await Promise.all(conversations.map(async (conv) => {
       const otherParticipant = conv.participants.find(p => p._id.toString() !== req.user.id);
+      
+      // Calculate unread count
+      const userReadStatus = conv.readStatus.find(rs => rs.user.toString() === req.user.id);
+      
+      let unreadCount = 0;
+      if (userReadStatus?.lastReadAt) {
+        // User has read status - count messages after last read
+        unreadCount = await DirectMessage.countDocuments({
+          conversation: conv._id,
+          author: { $ne: req.user.id },
+          createdAt: { $gt: userReadStatus.lastReadAt }
+        });
+        console.log(`📊 Conversation ${conv._id}: lastReadAt=${userReadStatus.lastReadAt}, unreadCount=${unreadCount}`);
+      } else {
+        // No read status - count all messages from other user
+        unreadCount = await DirectMessage.countDocuments({
+          conversation: conv._id,
+          author: { $ne: req.user.id }
+        });
+        console.log(`📊 Conversation ${conv._id}: NO READ STATUS, total messages from other=${unreadCount}`);
+      }
+      
       return {
         id: conv._id,
         type: 'dm',
@@ -37,9 +59,9 @@ router.get('/conversations', auth, async (req, res) => {
           author: { username: conv.lastMessage.author?.username }
         } : null,
         lastActivity: conv.lastActivity,
-        unreadCount: 0 // TODO: Calculate unread count
+        unreadCount
       };
-    });
+    }));
 
     res.json({ conversations: formattedConversations });
   } catch (error) {
