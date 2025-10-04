@@ -1108,6 +1108,7 @@ const FluxyApp = () => {
                 user={user}
                 onChannelCreated={handleChannelCreated}
                 onServerUpdate={handleServerUpdate}
+                onServerLeft={(serverId) => handleServerUpdate({ type: 'leave', serverId })}
               />
             )}
             <div className="flex-1 flex overflow-hidden">

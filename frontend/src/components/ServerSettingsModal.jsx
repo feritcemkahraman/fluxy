@@ -81,6 +81,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberActionDialog, setMemberActionDialog] = useState({ open: false, action: '', member: null });
   const [inviteLink, setInviteLink] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
   const [kickReason, setKickReason] = useState("");
   const [banReason, setBanReason] = useState("");
@@ -156,7 +157,8 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const copyInviteCode = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
-      toast.success('Davet kodu kopyalandı!');
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
     }
   };
 
@@ -660,9 +662,27 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
                             <p className="text-white text-lg font-mono tracking-wider">{inviteLink}</p>
                           </div>
                         </div>
-                        <Button onClick={copyInviteCode} variant="outline" size="sm" className="border-blue-500/50 hover:bg-blue-600/20">
-                          <Copy className="w-4 h-4 mr-2" />
-                          Kopyala
+                        <Button 
+                          onClick={copyInviteCode} 
+                          variant="outline" 
+                          size="sm" 
+                          className={`transition-all duration-300 ${
+                            inviteCopied 
+                              ? 'border-green-500/50 bg-green-600/20 text-green-400' 
+                              : 'border-blue-500/50 hover:bg-blue-600/20'
+                          }`}
+                        >
+                          {inviteCopied ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 animate-in zoom-in duration-200" />
+                              Kopyalandı!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Kopyala
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

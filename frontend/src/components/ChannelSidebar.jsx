@@ -1,29 +1,36 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edit, Trash2, MoreHorizontal, Mic, MicOff, Headphones, HeadphonesIcon, VolumeX } from "lucide-react";
+import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edit, Trash2, MoreHorizontal, Mic, MicOff, Headphones, HeadphonesIcon, VolumeX, LogOut } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Badge } from "./ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ServerSettingsModal from "./ServerSettingsModal";
+import ServerInviteModal from "./ServerInviteModal";
 import CreateChannelModal from "./CreateChannelModal";
 import VoiceParticipantList from "./VoiceParticipantList";
-import { channelAPI } from '../services/api';
+import { channelAPI, serverAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
-const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user }) => {
+const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user, onServerLeft }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [channelToDelete, setChannelToDelete] = useState(null);
   const [editingChannel, setEditingChannel] = useState(null);
   const [editChannelName, setEditChannelName] = useState('');
   
   const { playVoiceJoin } = useAudio();
+  
+  // Check if current user is server owner
+  const isOwner = server?.owner?.toString() === user?._id?.toString() || 
+                  server?.owner?.toString() === user?.id?.toString();
 
   const toggleCategory = (category) => {
     const newExpanded = new Set(expandedCategories);
@@ -127,6 +134,27 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
     }
   };
 
+  const handleLeaveServer = async () => {
+    const serverId = server?._id || server?.id;
+    
+    try {
+      setLoading(true);
+      await serverAPI.leaveServer(serverId);
+      toast.success(`${server.name} sunucusundan ayrıldınız`);
+      
+      // Notify parent component
+      if (onServerLeft) {
+        onServerLeft(serverId);
+      }
+    } catch (error) {
+      console.error('Leave server error:', error);
+      toast.error(error.response?.data?.message || 'Sunucudan ayrılırken bir hata oluştu');
+    } finally {
+      setLoading(false);
+      setLeaveDialogOpen(false);
+    }
+  };
+
   if (!server) {
     return (
       <div className="w-72 bg-black/40 backdrop-blur-md border-r border-white/10 flex items-center justify-center">
@@ -140,16 +168,62 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
       <div className="w-72 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col">
         {/* Server Header */}
         <div className="p-5 border-b border-white/10">
-          <Button
-            variant="ghost"
-            onClick={() => setIsServerSettingsOpen(true)}
-            className="w-full justify-between hover:bg-white/10 transition-colors"
-          >
-            <div className="text-left">
-              <h2 className="text-white font-semibold text-lg truncate">{server.name}</h2>
-            </div>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-between hover:bg-white/10 transition-colors"
+              >
+                <div className="text-left">
+                  <h2 className="text-white font-semibold text-lg truncate">{server.name}</h2>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              className="w-56 bg-black/95 backdrop-blur-md border-white/10"
+              align="start"
+              sideOffset={5}
+            >
+              {isOwner ? (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => setIsInviteModalOpen(true)}
+                    className="text-blue-400 hover:text-blue-300 hover:bg-white/10 focus:bg-white/10 focus:text-blue-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Arkadaşlarını Davet Et
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    onClick={() => setIsServerSettingsOpen(true)}
+                    className="text-gray-300 hover:text-white hover:bg-white/10 focus:bg-white/10 focus:text-white cursor-pointer transition-colors duration-150"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Sunucu Ayarları
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => setIsInviteModalOpen(true)}
+                    className="text-blue-400 hover:text-blue-300 hover:bg-white/10 focus:bg-white/10 focus:text-blue-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Arkadaşlarını Davet Et
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    onClick={() => setLeaveDialogOpen(true)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-300 cursor-pointer transition-colors duration-150"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sunucudan Ayrıl
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Channel List */}
@@ -310,12 +384,21 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
 
       </div>
 
-      {/* Server Settings Modal */}
-      <ServerSettingsModal
-        isOpen={isServerSettingsOpen}
-        onClose={() => setIsServerSettingsOpen(false)}
+      {/* Server Settings Modal - Only for owners */}
+      {isOwner && (
+        <ServerSettingsModal
+          isOpen={isServerSettingsOpen}
+          onClose={() => setIsServerSettingsOpen(false)}
+          server={server}
+          onServerUpdate={handleServerUpdate}
+        />
+      )}
+      
+      {/* Invite Modal */}
+      <ServerInviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
         server={server}
-        onServerUpdate={handleServerUpdate}
       />
       
       {/* Create Channel Modal */}
@@ -349,6 +432,38 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
               className="bg-red-600 hover:bg-red-700 text-white shadow-lg"
             >
               {loading ? 'Siliniyor...' : 'Sil'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Leave Server Confirmation Dialog */}
+      <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <AlertDialogContent className="bg-gray-900/98 border border-gray-600 shadow-2xl backdrop-blur-md text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-xl font-bold flex items-center gap-2">
+              <LogOut className="w-5 h-5 text-red-400" />
+              Sunucudan Ayrıl
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-300">
+              <span className="font-semibold text-white">{server?.name}</span> sunucusundan ayrılmak istediğinizden emin misiniz?
+              <br /><br />
+              Tekrar katılmak için davet linki gerekecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={loading}
+              className="bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600 hover:border-gray-500 transition-colors"
+            >
+              İptal
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleLeaveServer} 
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 text-white shadow-lg"
+            >
+              {loading ? 'Ayrılıyor...' : 'Sunucudan Ayrıl'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
