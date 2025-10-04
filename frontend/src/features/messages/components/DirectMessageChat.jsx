@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import { Avatar, AvatarFallback } from "../../../components/ui/avatar";
@@ -26,8 +26,9 @@ import ScreenSharePicker from '../../../components/ScreenSharePicker';
 /**
  * DirectMessageChat Component - Discord Style
  * Refactored to use new Messages feature module
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
-const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, remoteScreenSharing: remoteScreenSharingProp, startScreenShare }) => {
+const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, callState, endCall, toggleMute, isSpeaking, remoteSpeaking, isMuted, remoteMuted, callDuration, isScreenSharing, remoteScreenSharing: remoteScreenSharingProp, startScreenShare }) => {
   const { user } = useAuth();
   const messagesEndRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -819,6 +820,9 @@ const DirectMessageChat = ({ conversation, initiateVoiceCall, currentCall, callS
       )}
     </div>
   );
-};
+});
+
+// Display name for debugging
+DirectMessageChat.displayName = 'DirectMessageChat';
 
 export default DirectMessageChat;

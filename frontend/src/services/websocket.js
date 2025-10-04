@@ -21,40 +21,30 @@ class WebSocketService {
     }
     
     if (this.socket && this.socket.connecting) {
-      console.log('Socket already connecting, waiting...');
-      return;
-    }
-    
-    // Only cleanup if socket exists and is in a bad state
-    if (this.socket && !this.socket.connected && !this.socket.connecting) {
-      console.log('Cleaning up disconnected socket');
-      this.socket.disconnect();
-      this.socket = null;
     }
 
     try {
-      // Use configured Socket.IO URL (ngrok backend)
+      console.log('Connecting to WebSocket...');
+      
       const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
-      
-      if (!process.env.REACT_APP_SOCKET_URL) {
-        console.warn('REACT_APP_SOCKET_URL is not configured, using default: http://localhost:5000');
-      }
-      
+      console.log('Socket URL:', socketUrl);
+
       this.socket = io(socketUrl, {
-        auth: {
-          token: token
-        },
-        transports: ['polling'], // Start with polling only for stability
-        timeout: 30000, // Increased timeout
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        timeout: 10000,
         reconnection: true,
-        reconnectionAttempts: 3, // Reduced attempts to prevent spam
-        reconnectionDelay: 2000, // Longer delay between attempts
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
         reconnectionDelayMax: 10000,
         forceNew: false, // Don't force new connection
         upgrade: false, // Disable websocket upgrade initially
         autoConnect: true,
         closeOnBeforeunload: false // Prevent premature closing
       });
+
+      // DEBUG: Make socket globally accessible
+      window.socket = this.socket;
       
       this.socket.on('connect', () => {
         this.reconnectAttempts = 0;
@@ -473,6 +463,9 @@ class WebSocketService {
       }
       this.listeners.get(event).push(callback);
     }
+    
+    // Return unsubscribe function
+    return () => this.off(event, callback);
   }
 
   off(event, callback) {

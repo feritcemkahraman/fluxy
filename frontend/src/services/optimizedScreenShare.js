@@ -5,6 +5,7 @@
  */
 
 import adaptiveQualityController from '../utils/adaptiveQuality';
+import devLog from '../utils/devLogger';
 
 class OptimizedScreenShare {
   constructor() {
@@ -44,7 +45,7 @@ class OptimizedScreenShare {
     this.currentFPS = profile.fps;
     this.frameInterval = 1000 / this.currentFPS;
 
-    console.log(`🎨 OffscreenCanvas initialized: ${profile.width}x${profile.height} @ ${profile.fps}fps`);
+    devLog.log(`🎨 OffscreenCanvas: ${profile.width}x${profile.height}@${profile.fps}fps`);
 
     // Create output stream from canvas
     this.outputStream = this.canvas.captureStream(this.currentFPS);
@@ -72,7 +73,7 @@ class OptimizedScreenShare {
     if (this.isActive || !this.sourceVideo) return;
 
     this.isActive = true;
-    console.log('▶️ Frame processing started');
+    devLog.verbose('▶️ Frame processing started');
 
     // Use requestVideoFrameCallback for precise frame control (Chrome/Electron)
     if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
@@ -153,7 +154,7 @@ class OptimizedScreenShare {
    * Update quality settings
    */
   updateQuality(profile) {
-    console.log(`🎛️ Updating quality: ${profile.label}`);
+    devLog.log(`🏛️ Quality: ${profile.label}`);
 
     // Resize canvas
     if (this.canvas) {
@@ -171,7 +172,7 @@ class OptimizedScreenShare {
       if (videoTracks.length > 0) {
         videoTracks[0].applyConstraints({
           frameRate: { ideal: profile.fps, max: profile.fps }
-        }).catch(err => console.warn('Failed to update FPS:', err));
+        }).catch(err => devLog.warn('Failed to update FPS:', err));
       }
     }
   }
@@ -216,7 +217,7 @@ class OptimizedScreenShare {
     this.ctx = null;
     this.sourceVideo = null;
 
-    console.log('⏹️ Optimized screen share stopped');
+    devLog.log('⏹️ Optimized screen share stopped');
   }
 
   /**

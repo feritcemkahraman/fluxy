@@ -9,26 +9,22 @@ import { initPerformanceOptimizations } from './utils/performance';
 import './index.css';
 import '@radix-ui/themes/styles.css';
 import './App.css';
-
 function App() {
   useEffect(() => {
     initPerformanceOptimizations();
   }, []);
 
   return (
-    <SocketProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <SocketProvider>
         <Router>
           <div className="App">
-            <Routes>
-              <Route path="/" element={<AuthWrapper />} />
-            </Routes>
-            <Toaster />
+            <AuthWrapper />
+            <Toaster position="top-right" richColors />
           </div>
         </Router>
-      </AuthProvider>
-    </SocketProvider>
+      </SocketProvider>
+    </AuthProvider>
   );
 }
-
 export default App;

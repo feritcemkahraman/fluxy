@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from './useSocket';
 import voiceCallService from '../services/voiceCallService';
 
 export const useVoiceCall = () => {
   const { socket } = useSocket();
+  const socketRef = useRef(socket);
   const [incomingCall, setIncomingCall] = useState(null);
   const [currentCall, setCurrentCall] = useState(null);
   const [callState, setCallState] = useState('idle');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [remoteSpeaking, setRemoteSpeaking] = useState(false);
+  const speakingTimeoutRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
@@ -217,22 +219,24 @@ export const useVoiceCall = () => {
 
   // Voice activity detection
   useEffect(() => {
+    // Early return if not in active call
     if (callState !== 'connected' || !currentCall) {
       setIsSpeaking(false);
       setRemoteSpeaking(false);
       return;
     }
 
-    let audioContext;
-    let analyser;
-    let microphone;
-    let animationFrameId;
+    let audioContext = null;
+    let analyser = null;
+    let microphone = null;
+    let animationFrameId = null;
     let lastSpeakingState = false;
+    let isActive = true; // Flag to prevent race conditions
 
     const startVoiceDetection = async () => {
       try {
         const stream = voiceCallService.localStream;
-        if (!stream) return;
+        if (!stream || !isActive) return;
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
@@ -243,29 +247,54 @@ export const useVoiceCall = () => {
 
         microphone.connect(analyser);
 
-        // Use requestAnimationFrame instead of ScriptProcessorNode
-        const detectVoice = () => {
-          const array = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteFrequencyData(array);
-          const values = array.reduce((a, b) => a + b, 0);
-          const average = values / array.length;
-
-          // Threshold for voice detection (adjust as needed)
-          const speaking = average > 20 && !isMuted;
-          setIsSpeaking(speaking);
-
-          // Send speaking status to backend if changed
-          if (speaking !== lastSpeakingState) {
-            lastSpeakingState = speaking;
-            voiceCallService.sendSpeakingStatus(currentCall.userId, speaking);
+        // Use requestAnimationFrame with throttling (10 FPS instead of 60 FPS)
+        let lastCheckTime = 0;
+        const checkInterval = 100; // 10 times per second (10 FPS)
+        
+        const detectVoice = (currentTime) => {
+          // Stop if no longer active
+          if (!isActive) {
+            if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+              animationFrameId = null;
+            }
+            return;
           }
 
-          // Continue detection loop
-          animationFrameId = requestAnimationFrame(detectVoice);
+          // Throttle to 10 FPS for CPU optimization
+          if (currentTime - lastCheckTime >= checkInterval) {
+            try {
+              const array = new Uint8Array(analyser.frequencyBinCount);
+              analyser.getByteFrequencyData(array);
+              const values = array.reduce((a, b) => a + b, 0);
+              const average = values / array.length;
+
+              // Threshold for voice detection (adjust as needed)
+              const speaking = average > 20 && !isMuted;
+              
+              // Only update if changed (prevent unnecessary re-renders)
+              if (speaking !== lastSpeakingState && currentCall) {
+                lastSpeakingState = speaking;
+                setIsSpeaking(speaking);
+                voiceCallService.sendSpeakingStatus(currentCall.userId, speaking);
+              }
+              
+              lastCheckTime = currentTime;
+            } catch (error) {
+              // Ignore errors (e.g., analyser disconnected)
+            }
+          }
+
+          // Continue detection loop only if still active
+          if (isActive) {
+            animationFrameId = requestAnimationFrame(detectVoice);
+          }
         };
 
         // Start detection loop
-        detectVoice();
+        if (isActive) {
+          detectVoice(0);
+        }
       } catch (error) {
         console.error('Voice detection error:', error);
       }
@@ -273,11 +302,37 @@ export const useVoiceCall = () => {
 
     startVoiceDetection();
 
+    // Cleanup function - CRITICAL for stopping the loop
     return () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      if (analyser) analyser.disconnect();
-      if (microphone) microphone.disconnect();
-      if (audioContext) audioContext.close();
+      isActive = false; // Stop the loop immediately
+      
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      
+      if (analyser) {
+        try {
+          analyser.disconnect();
+        } catch (e) {}
+        analyser = null;
+      }
+      
+      if (microphone) {
+        try {
+          microphone.disconnect();
+        } catch (e) {}
+        microphone = null;
+      }
+      
+      if (audioContext) {
+        try {
+          audioContext.close();
+        } catch (e) {}
+        audioContext = null;
+      }
+      
+      setIsSpeaking(false);
     };
   }, [callState, isMuted, currentCall]);
 

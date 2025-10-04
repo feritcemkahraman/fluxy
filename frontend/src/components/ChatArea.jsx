@@ -1,52 +1,45 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Hash, Users, Send, Smile, Paperclip, Search } from "lucide-react";
-import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Badge } from "./ui/badge";
-import { ScrollArea } from "./ui/scroll-area";
+import { Hash, Users, Send, Search } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 import { UserProfileModal } from "./UserProfileModal";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
-import { devLog } from "../utils/devLogger";
-import { messageAPI } from "../services/api";
+import { useChannelMessages } from "../hooks/useChannelMessages";
 import socketService from "../services/socket";
+import { messageAPI } from "../services/api";
 import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
-  const { sendMessage, on, joinChannel, leaveChannel, isAuthenticated } = useSocket();
+  const { joinChannel, leaveChannel } = useSocket();
+  
+  // Use new Discord-style messages hook
+  const { 
+    messages, 
+    loading, 
+    error: messagesError,
+    typingUsers, 
+    sendMessage: sendChannelMessage 
+  } = useChannelMessages(
+    channel?._id, 
+    server?._id, 
+    server?.members || []
+  );
   
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [typingUsers, setTypingUsers] = useState([]);
-  const [userDisplayNames, setUserDisplayNames] = useState(new Map()); // username -> displayName mapping
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberActionDialog, setMemberActionDialog] = useState({ open: false, action: '', member: null });
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const serverMembersCache = useRef(null); // Cache server members for faster profile opening
-  
-  // Refs to avoid dependency issues
-  const channelRef = useRef(channel);
-  const serverRef = useRef(server);
-  const userRef = useRef(user);
-  const sendMessageRef = useRef(sendMessage);
-  
-  // Update refs when values change
-  useEffect(() => {
-    channelRef.current = channel;
-    serverRef.current = server;
-    userRef.current = user;
-    sendMessageRef.current = sendMessage;
-  }, [channel, server, user, sendMessage]);
+  const serverMembersCache = useRef(null);
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -61,205 +54,22 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
   }, [messages]);
 
-  // Load messages when channel changes
+  // Join/leave channel on mount/unmount
   useEffect(() => {
-    if (channel && channel._id) {
-      // Clear messages when channel changes to prevent cross-channel duplication
-      setMessages([]);
-      setTypingUsers([]);
-      loadMessages();
-    } else {
-      // No fallback - show empty state
-      setMessages([]);
-      setTypingUsers([]);
-    }
-  }, [channel]);
-
-  // Debug: Log messages when they change (temporary)
-  useEffect(() => {
-    // Development logging removed for cleaner console
-  }, [messages, channel]);
-
-  // Socket event listeners
-  useEffect(() => {
-    // Wait for socket authentication before joining channel
-    const handleAuthenticated = () => {
-      if (channel?._id && joinChannel) {
-        joinChannel(channel._id);
-      }
-    };
-
-    // Listen for authentication
-    const unsubscribeAuth = on('authenticated', handleAuthenticated);
-
-    // If already authenticated, join immediately (but only once)
-    if (channel?._id && joinChannel && isAuthenticated()) {
+    if (channel?._id && joinChannel) {
       joinChannel(channel._id);
     }
-
-    const unsubscribeNewMessage = on('newMessage', (newMessage) => {
-      // Handle system messages first
-      if (newMessage.type === 'system' || newMessage.isSystemMessage) {
-        newMessage.isSystemMessage = true;
-        newMessage.systemMessageType = newMessage.systemMessageType || 'member_join';
-      }
-      
-      // Only add message if it belongs to the current channel OR it's a system message
-      if (newMessage.channel === channel?._id || newMessage.type === 'system' || newMessage.isSystemMessage) {
-        
-        // Fix displayName using our mapping
-        if (newMessage.author && newMessage.author.username) {
-          const correctDisplayName = userDisplayNames.get(newMessage.author.username);
-          if (correctDisplayName) {
-            newMessage.author.displayName = correctDisplayName;
-          } else if (!newMessage.author.displayName) {
-            newMessage.author.displayName = newMessage.author.username;
-          }
-        }
-        
-        // Optimized duplicate check with Map for O(1) lookup
-        setMessages(prev => {
-          const messageMap = new Map(prev.map(msg => [msg._id, msg]));
-          if (messageMap.has(newMessage._id)) {
-            return prev;
-          }
-          
-          // Remove optimistic message with same content (within 5 seconds)
-          const filtered = prev.filter(msg => {
-            if (!msg.isOptimistic) return true;
-            
-            // Check if this is the same message (same content and recent)
-            const timeDiff = Math.abs(new Date(newMessage.createdAt) - new Date(msg.createdAt));
-            const isSameContent = msg.content === newMessage.content;
-            const isRecent = timeDiff < 5000; // 5 seconds
-            
-            // Keep the message if it's not a match
-            return !(isSameContent && isRecent);
-          });
-          
-          return [...filtered, newMessage];
-        });
-      }
-    });
-
-    const unsubscribeError = on('error', (error) => {
-      console.error('Socket error:', error);
-      toast.error(error.message || 'Mesaj gönderilemedi');
-    });
-
-    const unsubscribeTyping = on('userTyping', (data) => {
-      // Only process typing for current channel
-      if (data.channelId === channel?._id && data.userId !== user?._id) {
-        if (data.isTyping) {
-          setTypingUsers(prev => {
-            if (!prev.includes(data.username)) {
-              return [...prev, data.username];
-            }
-            return prev;
-          });
-        } else {
-          setTypingUsers(prev => prev.filter(username => username !== data.username));
-        }
-      }
-    });
-
-    const unsubscribeReaction = on('reactionUpdate', (data) => {
-      // Only process reactions for current channel
-      if (data.channelId === channel?._id) {
-        setMessages(prev => prev.map(msg => 
-          msg._id === data.messageId ? { ...msg, reactions: data.reactions } : msg
-        ));
-      }
-    });
-
-    // Cleanup: leave channel when component unmounts or channel changes
+    
     return () => {
       if (channel?._id && leaveChannel) {
         leaveChannel(channel._id);
       }
-      unsubscribeAuth();
-      unsubscribeNewMessage();
-      unsubscribeError();
-      unsubscribeTyping();
-      unsubscribeReaction();
     };
-  }, [channel, user, on, joinChannel, leaveChannel, userDisplayNames]);
-
-  const loadMessages = async () => {
-    if (!channel?._id) return;
-
-    try {
-      setLoading(true);
-
-      const response = await messageAPI.getMessages(channel._id, 1, 50);
-      const newMessages = response.data.messages || [];
-
-      // Process messages - handle system messages
-      newMessages.forEach(message => {
-        if (message.type === 'system' || message.isSystemMessage) {
-          message.isSystemMessage = true;
-          message.systemMessageType = message.systemMessageType || 'member_join';
-        }
-      });
-
-      // Update displayName mapping from loaded messages
-      const newDisplayNames = new Map();
-      newMessages.forEach(message => {
-        if (message.author && message.author.username && message.author.displayName) {
-          // Only use displayName if it's different from username (means it's been set properly)
-          if (message.author.displayName !== message.author.username) {
-            newDisplayNames.set(message.author.username, message.author.displayName);
-          }
-        }
-      });
-      
-      // Update the mapping
-      setUserDisplayNames(prev => {
-        const updated = new Map(prev);
-        newDisplayNames.forEach((displayName, username) => {
-          updated.set(username, displayName);
-        });
-        return updated;
-      });
-
-      // Prevent duplicates when loading messages and ensure they belong to current channel
-      setMessages(prev => {
-        // Only keep messages that belong to the current channel
-        const currentChannelMessages = prev.filter(msg => msg.channel === channel._id);
-        
-        const existingIds = new Set(currentChannelMessages.map(msg => msg._id || msg.id));
-        const uniqueNewMessages = newMessages.filter(msg => 
-          !existingIds.has(msg._id || msg.id) && msg.channel === channel._id
-        );
-
-        if (uniqueNewMessages.length > 0) {
-        }
-
-        return [...currentChannelMessages, ...uniqueNewMessages];
-      });
-    } catch (error) {
-
-      // Show more specific error message
-      if (error.code === 'ERR_NETWORK') {
-        toast.error('Sunucuya bağlanılamıyor. Backend çalışıyor mu kontrol edin.');
-      } else if (error.response?.status === 403) {
-        toast.error('Bu kanala erişim izniniz yok.');
-      } else if (error.response?.status === 404) {
-        toast.error('Kanal bulunamadı.');
-      } else {
-        toast.error('Mesajlar yüklenirken hata oluştu.');
-      }
-
-      // No fallback - show empty state
-      setMessages([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [channel, joinChannel, leaveChannel]);
 
   // Handle typing indicator
   const handleTyping = useCallback((value) => {
-    if (!channelRef.current?._id || !userRef.current) return;
+    if (!channel?._id || !user) return;
 
     // Clear existing timeout
     if (typingTimeoutRef.current) {
@@ -271,7 +81,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       // Emit typing event
       if (socketService.socket) {
         socketService.socket.emit('typing', {
-          channelId: channelRef.current._id,
+          channelId: channel._id,
           isTyping: true
         });
       }
@@ -280,7 +90,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       typingTimeoutRef.current = setTimeout(() => {
         if (socketService.socket) {
           socketService.socket.emit('typing', {
-            channelId: channelRef.current._id,
+            channelId: channel._id,
             isTyping: false
           });
         }
@@ -289,12 +99,12 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       // Stop typing immediately if input is empty
       if (socketService.socket) {
         socketService.socket.emit('typing', {
-          channelId: channelRef.current._id,
+          channelId: channel._id,
           isTyping: false
         });
       }
     }
-  }, []);
+  }, [channel, user]);
 
   // Cleanup typing timeout on unmount
   useEffect(() => {
@@ -306,10 +116,9 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   }, []);
 
   const handleSendMessage = useCallback(async () => {
-    if (!message.trim() || !channelRef.current) return;
+    if (!message.trim() || !channel?._id || !user) return;
 
     const messageToSend = message.trim();
-    const currentChannelId = channelRef.current._id;
     
     // Stop typing indicator
     if (typingTimeoutRef.current) {
@@ -317,76 +126,23 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
     if (socketService.socket) {
       socketService.socket.emit('typing', {
-        channelId: currentChannelId,
+        channelId: channel._id,
         isTyping: false
       });
     }
     
-    // Clear input IMMEDIATELY for instant feedback (optimistic UI)
+    // Clear input IMMEDIATELY
     setMessage("");
 
-    // Create optimistic message
-    const optimisticMessage = {
-      _id: `optimistic_${Date.now()}_${Math.random()}`,
-      id: `optimistic_${Date.now()}_${Math.random()}`,
-      author: userRef.current || {
-        id: 'unknown',
-        username: 'Unknown User',
-        displayName: 'Unknown User',
-        avatar: '',
-        roleColor: '#6b7280'
-      },
-      content: messageToSend,
-      createdAt: new Date(),
-      timestamp: new Date(),
-      channel: currentChannelId,
-      reactions: [],
-      isOptimistic: true,
-      status: 'sending'
-    };
-
-    // Add optimistic message IMMEDIATELY
-    setMessages(prev => [...prev, optimisticMessage]);
-
-    try {
-      if (currentChannelId) {
-        // Send via WebSocket with error handling
-        await sendMessageRef.current(currentChannelId, messageToSend, serverRef.current?._id);
-        
-        // Mark optimistic message as sent (will be replaced by real message from socket)
-        setMessages(prev => 
-          prev.map(msg => 
-            msg._id === optimisticMessage._id 
-              ? { ...msg, status: 'sent' }
-              : msg
-          )
-        );
-      } else {
-        // Fallback for mock data - already added optimistically
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      
-      // Mark optimistic message as failed
-      setMessages(prev => 
-        prev.map(msg => 
-          msg._id === optimisticMessage._id 
-            ? { ...msg, status: 'failed', error: error.message }
-            : msg
-        )
-      );
-      
-      // Restore message on error
-      setMessage(messageToSend);
-      toast.error('Mesaj gönderilemedi. Tekrar deneyin.');
-    }
-  }, [message]);
+    // Send via new hook (handles optimistic update automatically)
+    await sendChannelMessage(messageToSend, user);
+  }, [message, channel, user, sendChannelMessage]);
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      if (channel._id) {
+      if (channel?._id) {
         await messageAPI.addReaction(messageId, emoji);
-        addReaction(messageId, emoji, channel._id);
+        // Reaction update will come via socket
       }
     } catch (error) {
       toast.error('Tepki eklenemedi');
@@ -404,18 +160,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   };
 
   const handleFileUpload = (files) => {
-    // Handle file upload - normally would upload to server
-    files.forEach(file => {
-      const newMessage = {
-        id: `msg${Date.now()}-${Math.random()}`,
-        author: user || { id: 'unknown', username: 'Unknown User', avatar: '', roleColor: '#6b7280' },
-        content: `📎 ${file.name}`,
-        timestamp: new Date(),
-        reactions: [],
-        file: file
-      };
-      setMessages(prev => [...prev, newMessage]);
-    });
+    // TODO: Implement file upload with new hook
+    toast.info('Dosya yükleme özelliği yakında eklenecek');
   };
 
   const formatTime = (timestamp) => {
@@ -453,6 +199,19 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       return 'Tarih yok';
     }
   };
+
+  const handleInputChange = useCallback((e) => {
+    const newValue = e.target.value;
+    setMessage(newValue);
+    handleTyping(newValue);
+  }, [handleTyping]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  }, [handleSendMessage]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-black/20 backdrop-blur-sm">
@@ -506,6 +265,21 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           className="flex-1 overflow-y-auto p-4" 
           style={{ maxHeight: 'calc(100vh - 200px)', scrollBehavior: 'auto' }}
         >
+          {/* Loading State */}
+          {loading && messages.length === 0 && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-gray-400">Mesajlar yükleniyor...</div>
+            </div>
+          )}
+          
+          {/* Error State */}
+          {messagesError && messages.length === 0 && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-red-400">Mesajlar yüklenemedi: {messagesError}</div>
+            </div>
+          )}
+          
+          {/* Messages */}
           <div className="w-full space-y-2">
             {messages.map((msg, index) => {
               const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -533,12 +307,20 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
               const currentUserId = getCurrentUserId(msg.author);
               const prevUserId = prevMessage ? getCurrentUserId(prevMessage.author) : null;
 
+              // System messages always show avatar and break grouping
+              const isSystemMessage = msg.type === 'system' || msg.isSystemMessage;
+              const prevIsSystemMessage = prevMessage?.type === 'system' || prevMessage?.isSystemMessage;
+
               const showAvatar = !prevMessage ||
+                isSystemMessage ||
+                prevIsSystemMessage ||
                 prevUserId !== currentUserId ||
                 (prevDate && currentDate && (currentDate - prevDate) > 300000); // 5 minutes
 
-              // Check if this message is grouped (same user, within time limit)
+              // Check if this message is grouped (same user, within time limit, not system messages)
               const isGrouped = prevMessage && 
+                !isSystemMessage &&
+                !prevIsSystemMessage &&
                 prevUserId === currentUserId && 
                 prevDate && currentDate && 
                 (currentDate - prevDate) <= 300000;
@@ -619,19 +401,19 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                                                 return;
                                               }
                                               
-                                              // Use cached members if available
-                                              let members;
-                                              if (serverMembersCache.current) {
-                                                members = serverMembersCache.current;
-                                              } else {
-                                                const response = await fetch(`http://localhost:5000/api/servers/${serverId}/members`, {
-                                                  headers: {
-                                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                                                  }
-                                                });
-                                                const data = await response.json();
-                                                members = data.members || data;
-                                                serverMembersCache.current = members; // Cache for next time
+                                              // Use cached members or server.members
+                                              let members = serverMembersCache.current || server?.members;
+                                              
+                                              if (!members) {
+                                                // Fallback: fetch from API
+                                                try {
+                                                  const response = await messageAPI.getServerMembers(serverId);
+                                                  members = response.data.members || response.data;
+                                                  serverMembersCache.current = members;
+                                                } catch (err) {
+                                                  toast.error('Üye listesi alınamadı');
+                                                  return;
+                                                }
                                               }
                                               
                                               const member = members?.find(m => 
@@ -685,8 +467,11 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                         className="w-10 h-10 ring-2 ring-white/10 cursor-pointer group-hover:ring-white/20 transition-all"
                         onContextMenu={(e) => handleRightClick(e, "user", msg.author)}
                       >
+                        {msg.author.avatar && (
+                          <AvatarImage src={msg.author.avatar} alt={msg.author.displayName || msg.author.username} />
+                        )}
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {msg.author.username.charAt(0)}
+                          {msg.author.username?.charAt(0)?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>
                     )}
@@ -701,12 +486,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                           <span 
                             className="font-semibold text-base text-white"
                           >
-                            {(() => {
-                              // Use mapping for correct displayName, fallback to author.displayName, then username
-                              const correctDisplayName = userDisplayNames.get(msg.author.username);
-                              const displayName = correctDisplayName || msg.author.displayName || msg.author.username;
-                              return displayName;
-                            })()}
+                            {msg.author ? (msg.author.displayName || msg.author.username) : 'Unknown User'}
                           </span>
                           <span className="text-sm text-gray-500">
                             {formatTime(msg.createdAt)}
@@ -755,21 +535,26 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       {/* Message Input - Only show for text channels */}
       {channel?.type === "text" && (
         <div className="p-4 bg-black/20 backdrop-blur-sm border-t border-white/10">
+          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <div className="px-4 pb-2">
+              <span className="text-sm text-gray-400">
+                {typingUsers.length === 1 
+                  ? `${typingUsers[0]} yazıyor...`
+                  : typingUsers.length === 2
+                  ? `${typingUsers[0]} ve ${typingUsers[1]} yazıyor...`
+                  : `${typingUsers.length} kişi yazıyor...`
+                }
+              </span>
+            </div>
+          )}
+          
           <div className="relative">
             <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
               <Input
                 value={message}
-                onChange={useCallback((e) => {
-                  const newValue = e.target.value;
-                  setMessage(newValue);
-                  handleTyping(newValue);
-                }, [handleTyping])}
-                onKeyDown={useCallback((e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }, [handleSendMessage])}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
                 placeholder={`#${channel?.name || 'kanal'} kanalına mesaj`}
                 className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 focus:outline-none text-base"
                 autoFocus

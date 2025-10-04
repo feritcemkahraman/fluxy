@@ -2,6 +2,7 @@
 // Discord-like individual calling system
 
 import OptimizedScreenShare from './optimizedScreenShare';
+import devLog from '../utils/devLogger';
 
 class VoiceCallService {
   constructor() {
@@ -85,7 +86,7 @@ class VoiceCallService {
 
     // WebRTC answer received
     this.socket.on('voiceCall:answer', async ({ userId, answer }) => {
-      console.log('🔄 Received WebRTC answer');
+      devLog.verbose('🔄 Received WebRTC answer');
       await this.handleAnswer(answer);
     });
 
@@ -132,7 +133,7 @@ class VoiceCallService {
   // Initiate a call
   async initiateCall(targetUserId, callType = 'voice') {
     try {
-      console.log(`📞 Initiating ${callType} call to:`, targetUserId);
+      devLog.log(`📞 Initiating ${callType} call to:`, targetUserId);
       
       // Check if socket is available
       if (!this.socket) {
@@ -286,14 +287,14 @@ class VoiceCallService {
     
     // Handle remote stream
     this.peerConnection.ontrack = (event) => {
-      console.log('🔊 Received remote stream');
+      devLog.verbose('🔊 Received remote stream');
       this.remoteStream = event.streams[0];
       this.emit('remoteStream', this.remoteStream);
     };
     
     // Handle connection state changes
     this.peerConnection.onconnectionstatechange = () => {
-      console.log('Connection state:', this.peerConnection.connectionState);
+      devLog.verbose('Connection state:', this.peerConnection.connectionState);
       this.emit('connectionStateChange', this.peerConnection.connectionState);
       
       if (this.peerConnection.connectionState === 'failed') {
@@ -416,7 +417,7 @@ class VoiceCallService {
       // Only set remote description if we're in the right state
       if (this.peerConnection.signalingState === 'have-local-offer') {
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('✅ WebRTC answer processed');
+        devLog.verbose('✅ WebRTC answer processed');
       } else {
         console.log('⚠️ Wrong signaling state for answer:', this.peerConnection.signalingState);
       }
@@ -600,7 +601,7 @@ class VoiceCallService {
         optimizedStream = await this.optimizedScreenShare.initialize(tempVideo);
         this.optimizedScreenShare.startProcessing();
         
-        console.log('✅ Optimized screen share initialized (OffscreenCanvas + Adaptive Quality)');
+        devLog.log('✅ Optimized screen share initialized');
       } catch (error) {
         console.warn('⚠️ Optimized screen share failed, using original stream:', error);
         optimizedStream = screenStream;
@@ -684,7 +685,7 @@ class VoiceCallService {
       if (this.optimizedScreenShare) {
         this.optimizedScreenShare.stop();
         this.optimizedScreenShare = null;
-        console.log('✅ Optimized screen share stopped');
+        devLog.log('✅ Optimized screen share stopped');
       }
       
       // Stop screen stream

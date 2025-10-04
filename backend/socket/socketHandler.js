@@ -424,9 +424,8 @@ const handleConnection = (io) => {
         const populatedMessage = await Message.findById(message._id)
           .populate('author', 'username displayName avatar discriminator status')
           .populate('replyTo', 'content author');
-
-        // Broadcast to all server members
-        io.to(`server_${channel.server}`).emit('newMessage', {
+        
+        const broadcastData = {
           _id: populatedMessage._id,
           content: populatedMessage.content,
           author: {
@@ -443,7 +442,10 @@ const handleConnection = (io) => {
           replyTo: populatedMessage.replyTo,
           reactions: populatedMessage.reactions,
           createdAt: populatedMessage.createdAt
-        });
+        };
+        
+        // Broadcast to all server members
+        io.to(`server_${channel.server}`).emit('newMessage', broadcastData);
 
       } catch (error) {
         console.error('❌ Send message error:', error);

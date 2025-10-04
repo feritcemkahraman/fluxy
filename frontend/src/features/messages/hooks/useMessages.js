@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../../../hooks/useSocket';
 import { messageService } from '../services/messageService';
 import { MESSAGE_BATCH_SIZE, MESSAGE_ERRORS } from '../constants';
+import websocketService from '../../../services/websocket';
 
 /**
  * Messages Hook - Discord Style
@@ -66,10 +67,21 @@ export const useMessages = (channelId) => {
   const sendMessage = useCallback(async (content, options = {}) => {
     if (!channelId || !content.trim()) return { success: false };
 
+    // Get current user from auth context
+    const currentUser = options.author || JSON.parse(localStorage.getItem('user') || '{}');
+
     const optimisticMessage = {
       id: `optimistic_${Date.now()}_${Math.random()}`,
       content: content.trim(),
-      author: options.author || { id: 'current_user', username: 'You' },
+      author: {
+        id: currentUser.id || currentUser._id || 'current_user',
+        _id: currentUser.id || currentUser._id || 'current_user',
+        username: currentUser.username || 'You',
+        displayName: currentUser.displayName || currentUser.username || 'You',
+        avatar: currentUser.avatar || null,
+        discriminator: currentUser.discriminator || null,
+        status: currentUser.status || 'online'
+      },
       channelId,
       timestamp: new Date(),
       reactions: [],
@@ -185,41 +197,57 @@ export const useMessages = (channelId) => {
     }
   }, []);
 
-  // Socket event handlers
+  // Socket event handlers - DIRECT SOCKET (exactly like useDirectMessages)
   useEffect(() => {
-    if (!socket || !isConnected || !channelId) return;
+    if (!socket || !isConnected() || !channelId) {
+      return;
+    }
 
     const handleNewMessage = (message) => {
-      if (message.channelId === channelId) {
+      // Normalize message channel ID (backend sends 'channel', frontend uses 'channelId')
+      const messageChannelId = message.channel?._id || message.channel || message.channelId;
+      
+      if (messageChannelId === channelId || messageChannelId?.toString() === channelId?.toString()) {
+        
         setMessages(prev => {
           // Check if message already exists (avoid duplicates)
-          const exists = prev.some(m => m.id === message.id);
+          const exists = prev.some(m => (m.id || m._id) === (message.id || message._id));
           if (exists) return prev;
+          
+          // Normalize message format
+          const normalizedMessage = {
+            ...message,
+            id: message._id || message.id,
+            channelId: messageChannelId,
+            timestamp: message.createdAt || message.timestamp
+          };
           
           // Remove any optimistic message with same content
           const filtered = prev.filter(m => 
-            !(m.isOptimistic && m.content === message.content && 
-              Math.abs(new Date(message.timestamp) - new Date(m.timestamp)) < 5000)
+            !(m.isOptimistic && m.content === normalizedMessage.content && 
+              Math.abs(new Date(normalizedMessage.timestamp) - new Date(m.timestamp)) < 5000)
           );
           
-          return [message, ...filtered];
+          return [normalizedMessage, ...filtered];
         });
       }
     };
 
     const handleMessageUpdated = (message) => {
-      if (message.channelId === channelId) {
+      const messageChannelId = message.channel?._id || message.channel || message.channelId;
+      
+      if (messageChannelId === channelId || messageChannelId?.toString() === channelId?.toString()) {
         setMessages(prev => 
-          prev.map(m => m.id === message.id ? message : m)
+          prev.map(m => (m.id || m._id) === (message.id || message._id) ? message : m)
         );
       }
     };
 
     const handleMessageDeleted = (messageId) => {
-      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setMessages(prev => prev.filter(m => (m.id || m._id) !== messageId));
     };
 
-    // Register socket listeners
+    // Register DIRECT socket listeners (exactly like useDirectMessages)
     socket.on('newMessage', handleNewMessage);
     socket.on('message_updated', handleMessageUpdated);
     socket.on('message_deleted', handleMessageDeleted);

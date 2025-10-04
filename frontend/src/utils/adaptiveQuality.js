@@ -3,6 +3,8 @@
  * Discord-like dynamic quality adjustment based on CPU usage
  */
 
+import devLog from './devLogger';
+
 class AdaptiveQualityController {
   constructor() {
     this.currentQuality = 'medium';
@@ -43,7 +45,7 @@ class AdaptiveQualityController {
   startMonitoring() {
     if (this.monitorInterval) return;
 
-    console.log('📊 Adaptive quality monitoring started');
+    devLog.perf('📊 Adaptive quality monitoring started');
     
     this.monitorInterval = setInterval(() => {
       this.checkAndAdjustQuality();
@@ -58,7 +60,7 @@ class AdaptiveQualityController {
       clearInterval(this.monitorInterval);
       this.monitorInterval = null;
       this.cpuSamples = [];
-      console.log('📊 Adaptive quality monitoring stopped');
+      devLog.perf('📊 Adaptive quality monitoring stopped');
     }
   }
 
@@ -77,7 +79,7 @@ class AdaptiveQualityController {
     // Average CPU usage
     const avgCPU = this.cpuSamples.reduce((a, b) => a + b, 0) / this.cpuSamples.length;
     
-    console.log(`📊 CPU Usage: ${avgCPU.toFixed(1)}% (Current quality: ${this.currentQuality})`);
+    devLog.perf(`📊 CPU: ${avgCPU.toFixed(1)}% (${this.currentQuality})`);
 
     // Adjust quality based on CPU
     if (avgCPU > 60 && this.currentQuality !== 'low') {
@@ -122,7 +124,7 @@ class AdaptiveQualityController {
     }
 
     if (newQuality !== this.currentQuality) {
-      console.log(`⬇️ Downgrading quality: ${this.currentQuality} → ${newQuality}`);
+      devLog.log(`⬇️ Quality: ${this.currentQuality} → ${newQuality}`);
       this.setQuality(newQuality);
     }
   }
@@ -140,7 +142,7 @@ class AdaptiveQualityController {
     }
 
     if (newQuality !== this.currentQuality) {
-      console.log(`⬆️ Upgrading quality: ${this.currentQuality} → ${newQuality}`);
+      devLog.log(`⬆️ Quality: ${this.currentQuality} → ${newQuality}`);
       this.setQuality(newQuality);
     }
   }
@@ -189,7 +191,7 @@ class AdaptiveQualityController {
    * Manually set quality (user override)
    */
   setManualQuality(quality) {
-    console.log(`🎛️ Manual quality set: ${quality}`);
+    devLog.log(`🏛️ Manual quality: ${quality}`);
     this.setQuality(quality);
   }
 }

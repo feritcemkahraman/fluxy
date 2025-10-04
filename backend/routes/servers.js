@@ -1,11 +1,12 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Server = require('../models/Server');
-const Channel = require('../models/Channel');
 const User = require('../models/User');
+const Channel = require('../models/Channel');
 const Role = require('../models/Role');
 const { auth } = require('../middleware/auth');
-const { requirePermission, requireOwner, requireMember, PERMISSIONS } = require('../middleware/permissions');
+const { PERMISSIONS, requirePermission, requireOwner, requireMember } = require('../middleware/permissions');
+const { sendWelcomeMessage } = require('../utils/welcomeMessage');
 
 const router = express.Router();
 
@@ -395,71 +396,28 @@ router.post('/:id/join', auth, [
     // Emit server joined event to the user for real-time UI update
     const io = req.app.get('io');
     
+    // CRITICAL: FIRST add ALL user's sockets to server room BEFORE sending any messages
     if (io) {
-      // FIRST: Find user's socket and join them to the new server room
-      const { connectedUsers } = require('../socket/socketHandler');
-      const userConnection = connectedUsers.get(req.user._id.toString());
-      if (userConnection) {
-        const userSocket = io.sockets.sockets.get(userConnection.socketId);
-        if (userSocket) {
-          userSocket.join(`server_${server._id}`);
-          console.log(`✅ User  joined server room: server_${server._id}`);
-        }
+      const userSockets = await io.in(`user_${req.user._id}`).fetchSockets();
+      
+      // Join all user sockets to server room
+      for (const socket of userSockets) {
+        socket.join(`server_${server._id}`);
+        console.log(`✅ User ${req.user.username} socket joined server_${server._id} room`);
       }
+      
+      // Wait to ensure socket join is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // THEN: Create and broadcast welcome message
-    const firstTextChannel = populatedServerForEvent.channels.find(ch => ch.type === 'text');
-    console.log('🔍 First text channel found:', firstTextChannel?._id);
-    
-    if (firstTextChannel && io) {
-      const Message = require('../models/Message');
-      const welcomeMessage = new Message({
-        content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin!`,
-        author: req.user._id,
-        channel: firstTextChannel._id,
-        server: server._id,
-        type: 'system', isSystemMessage: true, systemMessageType: 'member_join'
-      });
-      await welcomeMessage.save();
-      console.log('✅ Welcome message saved:', welcomeMessage._id);
-
-      // Update channel's last message
-      await Channel.findByIdAndUpdate(firstTextChannel._id, {
-        lastMessage: welcomeMessage._id,
-        $inc: { messageCount: 1 }
-      });
-
-      // Populate message for broadcast
-      const populatedMessage = await Message.findById(welcomeMessage._id)
-        .populate('author', 'username displayName avatar discriminator status');
-
-      console.log('📡 Broadcasting welcome message to server room:', `server_${server._id}`);
-      
-      const messageData = {
-        _id: populatedMessage._id,
-        content: populatedMessage.content,
-        author: {
-          _id: populatedMessage.author._id,
-          id: populatedMessage.author._id,
-          username: populatedMessage.author.username,
-          displayName: populatedMessage.author.displayName || populatedMessage.author.username,
-          avatar: populatedMessage.author.avatar,
-          discriminator: populatedMessage.author.discriminator,
-          status: populatedMessage.author.status
-        },
-        channel: populatedMessage.channel,
-        server: populatedMessage.server,
-        type: populatedMessage.type, isSystemMessage: populatedMessage.isSystemMessage, systemMessageType: populatedMessage.systemMessageType,
-        createdAt: populatedMessage.createdAt
-      };
-      
-      // Broadcast welcome message to all server members (system messages go to server room only)
-      io.to(`server_${server._id}`).emit('newMessage', messageData);
-    }
+    // Send welcome message using utility function
+    await sendWelcomeMessage({
+      user: req.user,
+      server: server,
+      io: io
+    });
     
     if (io) {
-
       // Emit serverJoined event to the user
       io.to(`user_${req.user._id}`).emit('serverJoined', {
         server: populatedServerForEvent
@@ -568,69 +526,26 @@ router.post('/join-by-invite', auth, [
     // Broadcast new member joined to all server members
     const io = req.io || req.app.get('io');
     
+    // CRITICAL: FIRST add ALL user's sockets to server room BEFORE sending any messages
     if (io) {
-      // FIRST: Find user's socket and join them to the new server room
-      const { connectedUsers } = require('../socket/socketHandler');
-      const userConnection = connectedUsers.get(req.user._id.toString());
-      if (userConnection) {
-        const userSocket = io.sockets.sockets.get(userConnection.socketId);
-        if (userSocket) {
-          userSocket.join(`server_${server._id}`);
-          console.log(`✅ User  joined server room: server_${server._id}`);
-        }
+      const userSockets = await io.in(`user_${req.user._id}`).fetchSockets();
+      
+      // Join all user sockets to server room
+      for (const socket of userSockets) {
+        socket.join(`server_${server._id}`);
+        console.log(`✅ User ${req.user.username} socket joined server_${server._id} room`);
       }
+      
+      // Wait to ensure socket join is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // THEN: Create and broadcast welcome message
-    const firstTextChannel = populatedServerForEvent.channels.find(ch => ch.type === 'text');
-    console.log('🔍 First text channel found:', firstTextChannel?._id);
-    
-    if (firstTextChannel && io) {
-      const Message = require('../models/Message');
-      const Channel = require('../models/Channel');
-      const welcomeMessage = new Message({
-        content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin!`,
-        author: req.user._id,
-        channel: firstTextChannel._id,
-        server: server._id,
-        type: 'system', isSystemMessage: true, systemMessageType: 'member_join'
-      });
-      await welcomeMessage.save();
-      console.log('✅ Welcome message saved:', welcomeMessage._id);
-
-      // Update channel's last message
-      await Channel.findByIdAndUpdate(firstTextChannel._id, {
-        lastMessage: welcomeMessage._id,
-        $inc: { messageCount: 1 }
-      });
-
-      // Populate message for broadcast
-      const populatedMessage = await Message.findById(welcomeMessage._id)
-        .populate('author', 'username displayName avatar discriminator status');
-
-      console.log('📡 Broadcasting welcome message to server room:', `server_${server._id}`);
-      
-      const messageData = {
-        _id: populatedMessage._id,
-        content: populatedMessage.content,
-        author: {
-          _id: populatedMessage.author._id,
-          id: populatedMessage.author._id,
-          username: populatedMessage.author.username,
-          displayName: populatedMessage.author.displayName || populatedMessage.author.username,
-          avatar: populatedMessage.author.avatar,
-          discriminator: populatedMessage.author.discriminator,
-          status: populatedMessage.author.status
-        },
-        channel: populatedMessage.channel,
-        server: populatedMessage.server,
-        type: populatedMessage.type, isSystemMessage: populatedMessage.isSystemMessage, systemMessageType: populatedMessage.systemMessageType,
-        createdAt: populatedMessage.createdAt
-      };
-      
-      // Broadcast welcome message to all server members (system messages go to server room only)
-      io.to(`server_${server._id}`).emit('newMessage', messageData);
-    }
+    // Send welcome message using utility function
+    await sendWelcomeMessage({
+      user: req.user,
+      server: server,
+      io: io
+    });
     
     if (io) {
       // Emit serverJoined event to the user for real-time UI update
@@ -662,52 +577,8 @@ router.post('/join-by-invite', auth, [
           avatar: req.user.avatar,
           discriminator: req.user.discriminator
         },
-        inviteCode: inviteCode,
         joinedAt: new Date()
       });
-    }
-
-    // Send welcome message to the first channel
-    try {
-      const Channel = require('../models/Channel');
-      const Message = require('../models/Message');
-      
-      // Find the first text channel in the server (usually general or similar)
-      const firstChannel = await Channel.findOne({ 
-        server: server._id, 
-        type: 'text' 
-      }).sort({ createdAt: 1 });
-      
-      if (firstChannel) {
-        // Create welcome message
-        const welcomeMessage = new Message({
-          content: `🎉 **${req.user.displayName || req.user.username}** sunucuya katıldı! Hoş geldin! 🎉`,
-          author: null, // System message
-          channel: firstChannel._id,
-          server: server._id,
-          isSystemMessage: true,
-          systemMessageType: 'member_join',
-          createdAt: new Date()
-        });
-
-        await welcomeMessage.save();
-
-        // Broadcast welcome message to all channel members
-        if (io) {
-          io.to(`channel_${firstChannel._id}`).emit('newMessage', {
-            ...welcomeMessage.toObject(),
-            author: {
-              _id: null,
-              username: 'Sistem',
-              avatar: null,
-              displayName: 'Sistem'
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Welcome message error:', error);
-      // Don't fail the join process if welcome message fails
     }
 
     res.json({

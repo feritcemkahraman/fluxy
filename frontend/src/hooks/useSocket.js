@@ -27,8 +27,8 @@ export function useSocket() {
   }, []);
 
   const on = useCallback((event, callback) => {
-    socketService.on(event, callback);
-    return () => socketService.off(event, callback);
+    // socketService.on now returns unsubscribe function
+    return socketService.on(event, callback);
   }, []);
 
   const isConnected = useCallback(() => {

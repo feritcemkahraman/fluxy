@@ -16,26 +16,6 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Initialize websocket connection only when we have a token
-    const initSocket = async () => {
-      try {
-        // Get token from storage before connecting
-        const token = localStorage.getItem('token');
-        if (!token) {
-          console.log('No authentication token found, skipping socket connection');
-          return;
-        }
-        
-        // Connect with token
-        websocketService.connect(token);
-        setSocket(websocketService.socket);
-        setIsConnected(websocketService.isConnected());
-      } catch (error) {
-        console.error('Socket connection failed:', error);
-        setIsConnected(false);
-      }
-    };
-
     // Listen for connection events
     const handleConnect = () => {
       console.log('Socket connected');
@@ -57,14 +37,41 @@ export const SocketProvider = ({ children }) => {
     websocketService.on('disconnect', handleDisconnect);
     websocketService.on('error', handleError);
 
-    // Initialize connection
+    // Initialize websocket connection only when we have a token
+    const initSocket = async () => {
+      try {
+        // Get token from storage before connecting
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        // Connect with token
+        websocketService.connect(token);
+        setSocket(websocketService.socket);
+        setIsConnected(websocketService.isConnected());
+      } catch (error) {
+        console.error('Socket connection failed:', error);
+        setIsConnected(false);
+      }
+    };
+
+    // Try to connect immediately
     initSocket();
+
+    // Also listen for storage changes (when user logs in)
+    const handleStorageChange = (e) => {
+      if (e.key === 'token' && e.newValue) {
+        initSocket();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
 
     // Cleanup
     return () => {
       websocketService.off('connect', handleConnect);
       websocketService.off('disconnect', handleDisconnect);
       websocketService.off('error', handleError);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
