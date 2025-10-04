@@ -308,15 +308,29 @@ export function EmojiGifPicker({ onSelect, onClose }) {
                     </h3>
                   </div>
                   <div className="grid grid-cols-8 gap-1">
-                    {recentEmojis.map((emoji, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleEmojiSelect(emoji)}
-                        className="text-2xl p-2 hover:bg-white/10 rounded transition-colors"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                    {recentEmojis.map((emoji, idx) => {
+                      // Check if it's a Pepe emoji (format: :pepe_name:)
+                      const pepeMatch = emoji.match(/^:(\w+):$/);
+                      const isPepe = pepeMatch && PEPE_EMOJIS.find(p => p.id === pepeMatch[1]);
+                      
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleEmojiSelect(emoji)}
+                          className="text-2xl p-2 hover:bg-white/10 rounded transition-colors flex items-center justify-center min-h-[40px]"
+                        >
+                          {isPepe ? (
+                            <img 
+                              src={isPepe.url} 
+                              alt={isPepe.name}
+                              className="w-8 h-8 object-contain"
+                            />
+                          ) : (
+                            <span className="inline-block">{emoji}</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -336,9 +350,9 @@ export function EmojiGifPicker({ onSelect, onClose }) {
                         <button
                           key={idx}
                           onClick={() => handleEmojiSelect(emoji)}
-                          className="text-2xl p-2 hover:bg-white/10 rounded transition-colors"
+                          className="text-2xl p-2 hover:bg-white/10 rounded transition-colors flex items-center justify-center min-h-[40px]"
                         >
-                          {emoji}
+                          <span className="inline-block">{emoji}</span>
                         </button>
                       ))}
                     </div>
@@ -371,7 +385,7 @@ export function EmojiGifPicker({ onSelect, onClose }) {
                   <button
                     key={pepe.id}
                     onClick={() => handleEmojiSelect(`:${pepe.id}:`)}
-                    className="aspect-square hover:bg-white/10 rounded transition-colors p-1 group relative overflow-hidden"
+                    className="aspect-square hover:bg-white/10 rounded transition-colors p-1 group relative overflow-hidden flex items-center justify-center"
                     title={pepe.name}
                   >
                     <img 

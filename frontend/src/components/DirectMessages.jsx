@@ -330,25 +330,21 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
 
       // Friend request received - update badge count
       unsubscribeFriendRequest = on('friendRequestReceived', (data) => {
-        console.log('📬 Friend request received:', data);
         loadPendingRequestsCount(); // Update badge count
       });
 
       // Friend request accepted - update badge count
       unsubscribeFriendAccepted = on('friendRequestAccepted', (data) => {
-        console.log('🤝 Friend request accepted:', data);
         loadPendingRequestsCount(); // Update badge count
       });
 
       // Friend added - update badge count
       unsubscribeFriendAdded = on('friendAdded', (data) => {
-        console.log('✅ Friend added:', data);
         loadPendingRequestsCount(); // Update badge count
       });
 
       // Friend removed - update badge count
       unsubscribeFriendRemoved = on('friendRemoved', (data) => {
-        console.log('💔 Friend removed:', data);
         loadPendingRequestsCount(); // Update badge count
       });
 
@@ -739,12 +735,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
               <FriendsPanel
                 onStartConversation={async (userId, friendData) => {
                   try {
-                    console.log(
-                      "🔵 Starting conversation with user:",
-                      userId,
-                      "Friend data:",
-                      friendData
-                    );
 
                     // First check if conversation already exists
                     const existingConv = conversations.find(
@@ -753,10 +743,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                     );
 
                     if (existingConv) {
-                      console.log(
-                        "✅ Found existing conversation:",
-                        existingConv
-                      );
                       setSelectedConversation(existingConv);
                       toast.success("Sohbet açıldı");
                       return;
@@ -764,7 +750,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
 
                     // Create new conversation
                     const response = await dmAPI.createConversation(userId);
-                    console.log("📩 Conversation response:", response);
 
                     let conv = null;
 
@@ -804,11 +789,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                         lastActivity: conv.lastActivity || new Date(),
                         unreadCount: 0,
                       };
-
-                      console.log(
-                        "✅ Opening conversation:",
-                        formattedConversation
-                      );
                       setSelectedConversation(formattedConversation);
                       await loadConversations();
                       toast.success("Sohbet açıldı");
