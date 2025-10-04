@@ -46,6 +46,7 @@ import {
 import { roleAPI, serverAPI, channelAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import RoleManagement from './RoleManagement';
 
 const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const { user } = useAuth();
@@ -130,18 +131,42 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const handleAssignRole = async (memberId, roleId) => {
     try {
       await roleAPI.assignRole(roleId, memberId, serverId);
-      loadMembers();
+      // Optimistic update - immediately update UI
+      setMembers(prev => prev.map(member => {
+        const mId = member.id || member._id;
+        if (mId === memberId) {
+          return {
+            ...member,
+            roles: [...(member.roles || []), roleId]
+          };
+        }
+        return member;
+      }));
     } catch (error) {
-      // console.error('Failed to assign role:', error);
+      console.error('Failed to assign role:', error);
+      // Reload on error to revert optimistic update
+      await loadMembers();
     }
   };
 
   const handleRemoveRole = async (memberId, roleId) => {
     try {
       await roleAPI.removeRole(roleId, memberId, serverId);
-      loadMembers();
+      // Optimistic update - immediately update UI
+      setMembers(prev => prev.map(member => {
+        const mId = member.id || member._id;
+        if (mId === memberId) {
+          return {
+            ...member,
+            roles: (member.roles || []).filter(r => r !== roleId)
+          };
+        }
+        return member;
+      }));
     } catch (error) {
-      // console.error('Failed to remove role:', error);
+      console.error('Failed to remove role:', error);
+      // Reload on error to revert optimistic update
+      await loadMembers();
     }
   };
 
@@ -323,20 +348,13 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     }
   };
 
-  const handleCreateRole = async () => {
-    if (!newRoleName.trim()) return;
-
+  const handleCreateRole = async (roleData) => {
     try {
       setLoading(true);
-      await roleAPI.createRole(serverId, {
-        name: newRoleName,
-        color: '#99aab5',
-        permissions: {}
-      });
-      setNewRoleName('');
+      await roleAPI.createRole(serverId, roleData);
       loadRoles();
     } catch (error) {
-      // console.error('Failed to create role:', error);
+      console.error('Failed to create role:', error);
     } finally {
       setLoading(false);
     }
@@ -1031,28 +1049,20 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
 
               {/* Roles Tab */}
               <TabsContent value="roles" className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-8rem)]">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">Roller</h2>
-                  <p className="text-gray-400">Sunucu rollerini ve izinlerini oluşturun ve yönetin.</p>
-                </div>
-
-                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      value={newRoleName}
-                      onChange={(e) => setNewRoleName(e.target.value)}
-                      placeholder="Rol adı"
-                      className="bg-black/30 border-white/20 text-white"
-                    />
-                    <Button
-                      onClick={handleCreateRole}
-                      disabled={!newRoleName.trim() || loading}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {loading ? 'Oluşturuluyor...' : 'Rol Oluştur'}
-                    </Button>
-                  </div>
-                </div>
+                <RoleManagement
+                  roles={roles}
+                  onCreateRole={handleCreateRole}
+                  onUpdateRole={async (roleId, updates) => {
+                    try {
+                      await roleAPI.updateRole(roleId, updates);
+                      loadRoles();
+                    } catch (error) {
+                      console.error('Failed to update role:', error);
+                    }
+                  }}
+                  onDeleteRole={handleDeleteRole}
+                  loading={loading}
+                />
               </TabsContent>
 
               {/* Moderation Tab */}

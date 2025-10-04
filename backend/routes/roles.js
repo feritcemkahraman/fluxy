@@ -60,7 +60,7 @@ router.post('/server/:serverId', [auth, requirePermission(PERMISSIONS.MANAGE_ROL
 });
 
 // Update a role
-router.put('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], async (req, res) => {
+router.put('/:roleId', [auth], async (req, res) => {
   try {
     const { roleId } = req.params;
     const updates = req.body;
@@ -68,6 +68,25 @@ router.put('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], asyn
     const role = await Role.findById(roleId);
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
+    }
+
+    // Check if user is server owner or has MANAGE_ROLES permission
+    const server = await Server.findById(role.server);
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    const isOwner = server.owner.toString() === req.user._id.toString();
+    if (!isOwner) {
+      const hasAccess = await require('../middleware/permissions').hasPermission(
+        req.user._id, 
+        role.server, 
+        PERMISSIONS.MANAGE_ROLES
+      );
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
     }
 
     // Don't allow updating @everyone role name or position
@@ -87,7 +106,7 @@ router.put('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], asyn
 });
 
 // Delete a role
-router.delete('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], async (req, res) => {
+router.delete('/:roleId', [auth], async (req, res) => {
   try {
     const { roleId } = req.params;
 
@@ -96,25 +115,40 @@ router.delete('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], a
       return res.status(404).json({ error: 'Role not found' });
     }
 
+    // Check if user is server owner or has MANAGE_ROLES permission
+    const server = await Server.findById(role.server);
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    const isOwner = server.owner.toString() === req.user._id.toString();
+    if (!isOwner) {
+      // Check if user has MANAGE_ROLES permission
+      const hasAccess = await require('../middleware/permissions').hasPermission(
+        req.user._id, 
+        role.server, 
+        PERMISSIONS.MANAGE_ROLES
+      );
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+    }
+
     // Don't allow deleting @everyone role
     if (role.isDefault) {
       return res.status(400).json({ error: 'Cannot delete @everyone role' });
     }
 
-    // Remove role from server and all members
-    const server = await Server.findById(role.server);
-    if (server) {
-      // Remove from server roles array
-      server.roles = server.roles.filter(r => r.toString() !== roleId);
-      
-      // Remove from all members
-      server.members.forEach(member => {
-        member.roles = member.roles.filter(r => r.toString() !== roleId);
-      });
-      
-      await server.save();
-    }
-
+    // Remove from server roles array
+    server.roles = server.roles.filter(r => r.toString() !== roleId);
+    
+    // Remove from all members
+    server.members.forEach(member => {
+      member.roles = member.roles.filter(r => r.toString() !== roleId);
+    });
+    
+    await server.save();
     await Role.findByIdAndDelete(roleId);
 
     res.json({ message: 'Role deleted successfully' });
@@ -125,29 +159,58 @@ router.delete('/:roleId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], a
 });
 
 // Assign role to member
-router.post('/:roleId/assign/:userId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], async (req, res) => {
+router.post('/:roleId/assign/:userId', [auth], async (req, res) => {
   try {
     const { roleId, userId } = req.params;
     const { serverId } = req.body;
 
+    console.log('🎭 Assign role request:', { roleId, userId, serverId });
+
     const server = await Server.findById(serverId);
     if (!server) {
+      console.log('❌ Server not found:', serverId);
       return res.status(404).json({ error: 'Server not found' });
+    }
+
+    // Check if user is server owner or has MANAGE_ROLES permission
+    const isOwner = server.owner.toString() === req.user._id.toString();
+    console.log('👑 Is owner:', isOwner);
+    
+    if (!isOwner) {
+      const hasAccess = await require('../middleware/permissions').hasPermission(
+        req.user._id, 
+        serverId, 
+        PERMISSIONS.MANAGE_ROLES
+      );
+      
+      console.log('🔐 Has MANAGE_ROLES permission:', hasAccess);
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
     }
 
     const role = await Role.findById(roleId);
     if (!role) {
+      console.log('❌ Role not found:', roleId);
       return res.status(404).json({ error: 'Role not found' });
     }
+
+    console.log('✅ Role found:', role.name);
 
     // Find member in server
     const member = server.members.find(m => m.user.toString() === userId);
     if (!member) {
+      console.log('❌ Member not found. UserId:', userId);
+      console.log('📋 Server members:', server.members.map(m => ({ user: m.user.toString(), username: m.username })));
       return res.status(404).json({ error: 'User is not a member of this server' });
     }
 
+    console.log('✅ Member found');
+
     // Check if user already has this role
     if (member.roles.includes(roleId)) {
+      console.log('⚠️ User already has this role');
       return res.status(400).json({ error: 'User already has this role' });
     }
 
@@ -160,6 +223,7 @@ router.post('/:roleId/assign/:userId', [auth, requirePermission(PERMISSIONS.MANA
     if (io) {
       const roleAssignmentData = {
         userId: userId,
+        serverId: serverId,
         roleId: roleId,
         roleName: role.name,
         roleColor: role.color,
@@ -178,7 +242,7 @@ router.post('/:roleId/assign/:userId', [auth, requirePermission(PERMISSIONS.MANA
 });
 
 // Remove role from member
-router.delete('/:roleId/remove/:userId', [auth, requirePermission(PERMISSIONS.MANAGE_ROLES)], async (req, res) => {
+router.delete('/:roleId/remove/:userId', [auth], async (req, res) => {
   try {
     const { roleId, userId } = req.params;
     const { serverId } = req.body;
@@ -186,6 +250,20 @@ router.delete('/:roleId/remove/:userId', [auth, requirePermission(PERMISSIONS.MA
     const server = await Server.findById(serverId);
     if (!server) {
       return res.status(404).json({ error: 'Server not found' });
+    }
+
+    // Check if user is server owner or has MANAGE_ROLES permission
+    const isOwner = server.owner.toString() === req.user._id.toString();
+    if (!isOwner) {
+      const hasAccess = await require('../middleware/permissions').hasPermission(
+        req.user._id, 
+        serverId, 
+        PERMISSIONS.MANAGE_ROLES
+      );
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
     }
 
     // Find member in server
@@ -200,9 +278,10 @@ router.delete('/:roleId/remove/:userId', [auth, requirePermission(PERMISSIONS.MA
 
     // Find role details for the broadcast
     const role = await Role.findById(roleId);
-    if (role) {
+    const io = req.app.get('io');
+    if (role && io) {
       // Broadcast role removal to all server members
-      req.io.to(`server_${serverId}`).emit('roleAssignment', {
+      io.to(`server:${serverId}`).emit('roleAssignment', {
         userId,
         serverId,
         roleId,
@@ -210,6 +289,7 @@ router.delete('/:roleId/remove/:userId', [auth, requirePermission(PERMISSIONS.MA
         roleColor: role.color,
         action: 'removed'
       });
+      console.log(`🎭 Role ${role.name} removed from user ${userId} - broadcasted to server:${serverId}`);
     }
 
     res.json({ message: 'Role removed successfully' });

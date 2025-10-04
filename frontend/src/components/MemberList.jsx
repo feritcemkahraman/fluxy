@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
-import { Loader2, User, Crown } from "lucide-react";
-import { serverAPI } from "../services/api";
+import { Loader2, Crown } from "lucide-react";
+import { serverAPI, roleAPI } from "../services/api";
 import { useSocket } from "../hooks/useSocket";
 import { useAuth } from "../context/AuthContext";
 import { UserProfileModal } from "./UserProfileModal";
@@ -11,6 +11,7 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [members, setMembers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const { on } = useSocket();
   const { user: currentUser } = useAuth();
@@ -38,6 +39,21 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     setIsProfileOpen(true);
   };
 
+  // Get member's highest role color
+  const getMemberRoleColor = (member) => {
+    if (!member.roles || !roles || member.roles.length === 0) {
+      return '#99AAB5'; // Default gray
+    }
+    
+    // Find highest positioned role
+    const memberRoles = member.roles
+      .map(roleId => roles.find(r => r._id === roleId))
+      .filter(Boolean)
+      .sort((a, b) => (b.position || 0) - (a.position || 0));
+    
+    return memberRoles[0]?.color || '#99AAB5';
+  };
+
   // Fetch server members
   useEffect(() => {
     const fetchMembers = async () => {
@@ -50,6 +66,14 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
       try {
         setLoading(true);
         const response = await serverAPI.getServerMembers(server._id || server.id);
+        
+        // Fetch roles for color mapping
+        try {
+          const rolesResponse = await roleAPI.getRoles(server._id || server.id);
+          setRoles(rolesResponse.data || []);
+        } catch (err) {
+          console.error('Failed to load roles:', err);
+        }
         
         let fetchedMembers = response.data.members || [];
         
@@ -158,10 +182,27 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
       }
     };
 
+    const handleRoleAssignment = ({ userId, serverId, roleId, roleName, roleColor, action }) => {
+      if (serverId === server?._id || serverId === server?.id) {
+        setMembers(prev => prev.map(member => {
+          const memberUserId = String(member.user?._id || member.user?.id || member.id || member._id);
+          if (memberUserId === String(userId)) {
+            const updatedRoles = action === 'assigned'
+              ? [...(member.roles || []), roleId]
+              : (member.roles || []).filter(r => r !== roleId);
+            
+            return { ...member, roles: updatedRoles };
+          }
+          return member;
+        }));
+      }
+    };
+
     on('userStatusUpdate', handleUserStatusUpdate);
     on('userJoinedServer', handleUserJoinedServer);
     on('userLeftServer', handleUserLeftServer);
     on('newMemberJoined', handleNewMemberJoined);
+    on('roleAssignment', handleRoleAssignment);
 
     return () => {
       // Note: Socket service doesn't support cleanup yet
@@ -179,11 +220,42 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     return member.role === 'Admin' || member.role === 'Yönetici';
   };
 
-  const onlineMembers = members.filter(m => m.status === "online" || m.status === "idle" || m.status === "dnd");
-  const offlineMembers = members.filter(m => m.status === "offline" || m.status === "invisible");
-  const onlineCount = onlineMembers.length;
-  const offlineCount = offlineMembers.length;
+  // Group members by their highest role
+  const groupMembersByRole = () => {
+    const grouped = {};
+    
+    members.forEach(member => {
+      const memberRolesList = (member.roles || [])
+        .map(roleId => roles.find(r => r._id === roleId))
+        .filter(Boolean)
+        .sort((a, b) => (b.position || 0) - (a.position || 0));
+      
+      const highestRole = memberRolesList[0];
+      const roleKey = highestRole ? highestRole._id : 'no-role';
+      const roleName = highestRole ? highestRole.name : 'Üyeler';
+      const roleColor = highestRole ? highestRole.color : '#99AAB5';
+      const rolePosition = highestRole ? highestRole.position : -1;
+      
+      if (!grouped[roleKey]) {
+        grouped[roleKey] = {
+          roleName,
+          roleColor,
+          rolePosition,
+          members: []
+        };
+      }
+      
+      grouped[roleKey].members.push(member);
+    });
+    
+    // Sort groups by role position (highest first)
+    return Object.entries(grouped)
+      .sort(([, a], [, b]) => (b.rolePosition || 0) - (a.rolePosition || 0));
+  };
+
+  const roleGroups = groupMembersByRole();
   const totalCount = members.length;
+  const onlineCount = members.filter(m => m.status === "online" || m.status === "idle" || m.status === "dnd").length;
 
   return (
     <>
@@ -208,100 +280,67 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
             </div>
           ) : (
             <>
-              {/* Online Members */}
-              {onlineMembers.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">
-                    Çevrimiçi — {onlineMembers.length}
-                  </h4>
-                  <div className="space-y-1">
-                    {onlineMembers.map((member) => (
-                      <div
-                        key={member.id}
-                        onClick={() => handleMemberClick(member)}
-                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group transition-colors"
-                      >
-                        <div className="relative">
-                          <Avatar className="w-8 h-8 ring-2 ring-white/10">
-                            <AvatarFallback 
-                              className="text-white text-sm font-medium"
-                              style={{ backgroundColor: member.roleColor }}
-                            >
-                              {(member.displayName || member.username).charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div 
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.user?.status || member.status || 'offline')}`}
-                            title={getStatusText(member.user?.status || member.status || 'offline')}
-                          />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-white truncate group-hover:text-gray-200 transition-colors">
-                              {member.displayName || member.username}
-                            </span>
-                            {(isServerOwner(member) || isAdmin(member)) && (
-                              <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Offline Members */}
-              {offlineMembers.length > 0 && (
-                <div className="mt-4">
-                  <div className="flex items-center space-x-2 px-2 py-1 mb-2">
-                    <h3 className="text-xs font-semibold text-gray-400 uppercase">Çevrimdışı — {offlineMembers.length}</h3>
-                  </div>
-                  <div className="space-y-1">
-                    {offlineMembers.map((member) => (
-                      <div
-                        key={member.id}
-                        onClick={() => handleMemberClick(member)}
-                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group transition-colors opacity-50"
-                      >
-                        <div className="relative">
-                          <Avatar className="w-8 h-8 ring-2 ring-white/10 grayscale">
-                            <AvatarFallback 
-                              className="text-white text-sm font-medium bg-gray-600"
-                            >
-                              {(member.displayName || member.username).charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div 
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.user?.status || member.status || 'offline')}`}
-                            title={getStatusText(member.user?.status || member.status || 'offline')}
-                          />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-400 truncate group-hover:text-gray-300 transition-colors">
-                              {member.displayName || member.username}
-                            </span>
-                            {(isServerOwner(member) || isAdmin(member)) && (
-                              <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
-                            )}
-                            {member.role !== "Üye" && member.role !== "Member" && !isServerOwner(member) && !isAdmin(member) && (
-                              <Badge 
-                                variant="secondary" 
-                                className="text-xs px-1.5 py-0.5 bg-white/5 text-gray-400"
+              {/* Role Groups */}
+              {roleGroups.map(([roleKey, group]) => {
+                const onlineInGroup = group.members.filter(m => m.status === "online" || m.status === "idle" || m.status === "dnd");
+                const offlineInGroup = group.members.filter(m => m.status === "offline" || m.status === "invisible");
+                
+                return (
+                  <div key={roleKey} className="space-y-2">
+                    {/* Role Header */}
+                    <h4 className="text-xs font-semibold uppercase tracking-wide mb-2 px-2 flex items-center gap-2">
+                      <span style={{ color: group.roleColor }}>
+                        {group.roleName}
+                      </span>
+                      <span className="text-gray-500">
+                        — {group.members.length}
+                      </span>
+                    </h4>
+                    
+                    {/* Members in this role */}
+                    <div className="space-y-1">
+                      {group.members.map((member) => (
+                        <div
+                          key={member.id}
+                          onClick={() => handleMemberClick(member)}
+                          className={`flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group transition-colors ${
+                            member.status === "offline" || member.status === "invisible" ? "opacity-50" : ""
+                          }`}
+                        >
+                          <div className="relative">
+                            <Avatar className="w-8 h-8 ring-2 ring-white/10">
+                              <AvatarFallback 
+                                className="text-white text-sm font-medium"
+                                style={{ backgroundColor: member.roleColor }}
                               >
-                                {member.role === "Admin" ? "Yönetici" : member.role === "Moderator" ? "Moderatör" : member.role}
-                              </Badge>
-                            )}
+                                {(member.displayName || member.username).charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div 
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-black/30 ${getStatusColor(member.user?.status || member.status || 'offline')}`}
+                              title={getStatusText(member.user?.status || member.status || 'offline')}
+                            />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span 
+                                className="text-sm font-medium truncate group-hover:opacity-80 transition-all"
+                                style={{ color: getMemberRoleColor(member) }}
+                              >
+                                {member.displayName || member.username}
+                              </span>
+                              {(isServerOwner(member) || isAdmin(member)) && (
+                                <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
             </>
           )}
         </div>

@@ -741,11 +741,6 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
     const server = await Server.findById(req.params.id)
       .populate('members.user', 'username displayName avatar status discriminator')
       .populate('owner', 'username displayName avatar status discriminator');
-
-    if (!server) {
-      return res.status(404).json({ message: 'Server not found' });
-    }
-
     // Format members data
     const members = server.members.map(member => ({
       id: member.user._id,
@@ -755,6 +750,7 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
       status: member.user.status || 'offline',
       role: member.user._id.toString() === server.owner.toString() ? 'Yönetici' : 'Üye',
       roleColor: member.user._id.toString() === server.owner.toString() ? '#f04747' : '#99AAB5',
+      roles: member.roles || [],
       joinedAt: member.joinedAt
     }));
 
@@ -769,6 +765,7 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
         status: server.owner.status || 'offline',
         role: 'Yönetici',
         roleColor: '#F04747',
+        roles: [],
         joinedAt: server.createdAt
       });
     }
