@@ -72,21 +72,6 @@ function createWindow() {
     show: false,
     frame: true,
     backgroundColor: '#030712',
-    vibrancy: process.platform === 'darwin' ? 'dark' : null,
-    paintWhenInitiallyHidden: false,
-    thickFrame: false
-  });
-
-  // Production: Load from build folder
-  const startUrl = isDev 
-    ? 'http://localhost:3000' 
-    : `file://${path.join(__dirname, 'build/index.html')}`;
-
-  console.log('Loading URL:', startUrl);
-  console.log('isDev:', isDev);
-  
-  // PRODUCTION: Set strict CSP headers
-  if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
       callback({
         responseHeaders: {
