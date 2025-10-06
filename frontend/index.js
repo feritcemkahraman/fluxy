@@ -51,7 +51,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
-    title: 'Fluxy',
+    title: 'Fluxy - Group Chat That\'s All Fun & Games',
     icon: path.join(process.resourcesPath, 'icon.ico'),
     webPreferences: {
       nodeIntegration: false, // Security: ALWAYS false
@@ -496,9 +496,9 @@ if (!gotTheLock) {
 
 // Auto updater (production only)
 if (!isDev) {
-  // Türkçe bildirimler için autoUpdater ayarları
+  // Discord-like auto update: Silent background updates
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = false; // Manuel kontrol için false
+  autoUpdater.autoInstallOnAppQuit = true; // Auto-install on quit (Discord-like)
   
   // checkForUpdatesAndNotify yerine checkForUpdates kullan (kendi bildirimlerimiz için)
   autoUpdater.checkForUpdates();
@@ -525,12 +525,16 @@ if (!isDev) {
         });
       } else {
         // Uygulama çalışıyorsa bildirim göster
-        dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'Güncelleme Mevcut',
-          message: `Yeni versiyon (${info.version}) indiriliyor...`,
-          buttons: ['Tamam']
-        });
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Güncelleme Mevcut',
+            message: `Yeni versiyon (${info.version}) indiriliyor...`,
+            buttons: ['Tamam'],
+            modal: true,
+            noLink: true
+          });
+        }
       }
     }
   });
@@ -550,25 +554,28 @@ if (!isDev) {
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
       
-      // Uygulama yeni başladıysa otomatik yükle
-      if (isAppJustStarted) {
-        console.log('App just started, installing update automatically...');
-        // Hemen yükle, beklemeden
-        setImmediate(() => {
-          autoUpdater.quitAndInstall(true, true);
-        });
-      } else {
-        // Uygulama çalışıyorsa kullanıcıya sor
-        dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'Güncelleme Hazır',
-          message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı kapatıp açtığınızda güncellenecek.`,
-          buttons: ['Şimdi Yeniden Başlat', 'Sonra'],
-        }).then((result) => {
-          if (result.response === 0) {
-            autoUpdater.quitAndInstall();
-          }
-        });
+      // Discord-like behavior: Silent update, install on next restart
+      console.log('Update downloaded, will install on next app quit');
+      
+      // Wait for window to be ready before showing dialog
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const showUpdateDialog = () => {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Güncelleme Hazır',
+            message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı yeniden başlattığınızda güncellenecek.`,
+            buttons: ['Tamam'],
+            modal: true,
+            noLink: true
+          });
+        };
+        
+        // If window is ready, show immediately. Otherwise wait.
+        if (mainWindow.isVisible()) {
+          showUpdateDialog();
+        } else {
+          mainWindow.once('ready-to-show', showUpdateDialog);
+        }
       }
     }
   });

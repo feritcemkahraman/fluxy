@@ -117,6 +117,16 @@ body {
   background: #718096;
 }
 
+/* Hide scrollbar on auth pages */
+body.auth-page::-webkit-scrollbar {
+  display: none;
+}
+
+body.auth-page {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Desktop-specific animations */
 @keyframes desktop-fade-in {
   from {

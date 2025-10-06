@@ -70,8 +70,14 @@ export default function RegisterForm({ onToggleMode }) {
     setIsLoading(false);
   };
 
+  // Add auth-page class to body
+  React.useEffect(() => {
+    document.body.classList.add('auth-page');
+    return () => document.body.classList.remove('auth-page');
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+    <div className="fixed inset-0 w-screen h-screen flex items-center justify-center overflow-hidden" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
       {/* Modern geometric background */}
       <div className="absolute inset-0 bg-gray-900">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-blue-900/20"></div>

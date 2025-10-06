@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -164,10 +164,16 @@
       "category": "Network"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "allowElevation": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": true,
+      "installerSidebar": "build/installerSidebar.bmp"
     },
     "publish": {
       "provider": "github",

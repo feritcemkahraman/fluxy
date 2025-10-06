@@ -48,8 +48,14 @@ export default function LoginForm({ onToggleMode, onBack }) {
     setIsLoading(false);
   };
 
+  // Add auth-page class to body
+  React.useEffect(() => {
+    document.body.classList.add('auth-page');
+    return () => document.body.classList.remove('auth-page');
+  }, []);
+
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#030712] text-white">
+    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#030712] text-white" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
       <GridBeams
         className="min-h-screen w-full"
         gridSize={48}
