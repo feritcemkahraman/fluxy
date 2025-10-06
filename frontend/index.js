@@ -77,6 +77,14 @@ function createWindow() {
   // Open DevTools in production for debugging
   mainWindow.webContents.openDevTools();
 
+  // Load the app
+  const startUrl = isDev 
+    ? 'http://localhost:3000'
+    : `file://${path.join(__dirname, '../build/index.html')}`;
+  
+  console.log('Loading URL:', startUrl);
+  console.log('isDev:', isDev);
+  
   // PRODUCTION: Set strict CSP headers
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
