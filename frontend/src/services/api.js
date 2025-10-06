@@ -11,6 +11,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning
+    'User-Agent': 'Fluxy-Desktop-App', // Custom user agent
   },
   withCredentials: true,
 });

@@ -77,7 +77,7 @@ export default function RegisterForm({ onToggleMode }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen flex items-center justify-center overflow-hidden" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
+    <div className="fixed inset-0 w-screen h-screen flex items-center justify-center overflow-hidden" style={{overflowX: 'hidden', overflowY: 'hidden', maxWidth: '100vw', width: '100vw'}}>
       {/* Modern geometric background */}
       <div className="absolute inset-0 bg-gray-900">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-blue-900/20"></div>

@@ -58,7 +58,7 @@ function createWindow() {
       nodeIntegration: false, // Security: ALWAYS false
       contextIsolation: true, // Security: ALWAYS true
       enableRemoteModule: false, // Security: ALWAYS false
-      webSecurity: true, // Security: ALWAYS true in production
+      webSecurity: false, // Disable for ngrok CORS (Electron-specific)
       allowRunningInsecureContent: false, // Security: ALWAYS false
       preload: path.join(__dirname, 'preload.js'),
       experimentalFeatures: false,

@@ -55,9 +55,9 @@ export default function LoginForm({ onToggleMode, onBack }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#030712] text-white" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
+    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-[#030712] text-white" style={{overflowX: 'hidden', overflowY: 'hidden', maxWidth: '100vw', width: '100vw'}}>
       <GridBeams
-        className="min-h-screen w-full"
+        className="w-full h-full"
         gridSize={48}
         gridColor="rgba(94, 234, 212, 0.18)"
         rayCount={18}
