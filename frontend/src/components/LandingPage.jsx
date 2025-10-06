@@ -57,7 +57,7 @@ const features = [
 
 const LandingPage = ({ onLogin, onRegister }) => {
   return (
-    <div className="min-h-screen w-full bg-[#030712] text-white">
+    <div className="min-h-screen w-full bg-[#030712] text-white" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
       <GridBeams
         className=""
         gridSize={48}
@@ -130,7 +130,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 </InteractiveHoverButton>
                 <InteractiveHoverButton
                   as="a"
-                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-0.1.9.exe"
+                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-0.2.0.exe"
                   download="Fluxy-Setup.exe"
                   target="_blank"
                   rel="noopener noreferrer"

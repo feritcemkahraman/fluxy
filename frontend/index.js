@@ -222,6 +222,14 @@ function createTray() {
       label: 'Güncellemeleri Denetle',
       click: () => {
         if (!isDev) {
+          // Önce kontrol başladığını göster
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Güncelleme Kontrolü',
+            message: 'Güncellemeler kontrol ediliyor...',
+            buttons: ['Tamam']
+          });
+
           const checkPromise = autoUpdater.checkForUpdates();
           
           // 10 saniye timeout
@@ -234,15 +242,16 @@ function createTray() {
               dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 title: 'Güncelleme Yok',
-                message: 'Şu anda yeni güncelleme bulunmuyor.',
+                message: 'Şu anda yeni güncelleme bulunmuyor. En son sürümü kullanıyorsunuz.',
                 buttons: ['Tamam']
               });
             }
-          }).catch(() => {
+          }).catch((error) => {
+            console.error('Update check error:', error);
             dialog.showMessageBox(mainWindow, {
               type: 'error',
               title: 'Hata',
-              message: 'Güncelleme kontrolü yapılamadı.',
+              message: 'Güncelleme kontrolü yapılamadı. İnternet bağlantınızı kontrol edin.',
               buttons: ['Tamam']
             });
           });
