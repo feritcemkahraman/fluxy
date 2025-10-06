@@ -67,7 +67,7 @@ function createWindow() {
     },
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false,
-    frame: false,
+    frame: true,
     backgroundColor: '#030712',
     vibrancy: process.platform === 'darwin' ? 'dark' : null,
     paintWhenInitiallyHidden: false,

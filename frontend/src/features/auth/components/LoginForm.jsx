@@ -80,7 +80,7 @@ export default function LoginForm({ onToggleMode, onBack }) {
                 </button>
               )}
               <div className="flex items-center justify-center gap-3">
-                <img src="/fluxy.png" alt="Fluxy" className="h-12 w-12" />
+                <img src="fluxy.png" alt="Fluxy" className="h-12 w-12" />
                 <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
                   FLUXY
                 </h1>

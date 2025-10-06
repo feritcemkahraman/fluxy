@@ -56,7 +56,7 @@ export default function AuthWrapper() {
         return (
           <RegisterForm
             onToggleMode={showLogin}
-            onBack={!isElectron ? showLanding : null}  // Web'de landing'e dön
+            onBack={isElectron ? showLogin : null}  // Sadece Electron'da geri butonu
           />
         );
       

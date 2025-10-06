@@ -20,6 +20,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeSpeed;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -28,6 +30,10 @@ body {
   -webkit-transform: translate3d(0, 0, 0);
   /* Optimize scrolling */
   -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   overflow-scrolling: touch;
 }
 
