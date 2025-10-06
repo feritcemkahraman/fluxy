@@ -222,12 +222,29 @@ function createTray() {
       label: 'Güncellemeleri Denetle',
       click: () => {
         if (!isDev) {
-          autoUpdater.checkForUpdates();
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Güncelleme Kontrolü',
-            message: 'Güncellemeler kontrol ediliyor...',
-            buttons: ['Tamam']
+          const checkPromise = autoUpdater.checkForUpdates();
+          
+          // 10 saniye timeout
+          const timeoutPromise = new Promise((resolve) => {
+            setTimeout(() => resolve({ updateInfo: null }), 10000);
+          });
+          
+          Promise.race([checkPromise, timeoutPromise]).then((result) => {
+            if (!result || !result.updateInfo) {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Güncelleme Yok',
+                message: 'Şu anda yeni güncelleme bulunmuyor.',
+                buttons: ['Tamam']
+              });
+            }
+          }).catch(() => {
+            dialog.showMessageBox(mainWindow, {
+              type: 'error',
+              title: 'Hata',
+              message: 'Güncelleme kontrolü yapılamadı.',
+              buttons: ['Tamam']
+            });
           });
         } else {
           dialog.showMessageBox(mainWindow, {
@@ -477,6 +494,14 @@ if (!isDev) {
   // checkForUpdatesAndNotify yerine checkForUpdates kullan (kendi bildirimlerimiz için)
   autoUpdater.checkForUpdates();
   
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...');
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('Update not available:', info.version);
+  });
+
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info.version);
     if (mainWindow) {

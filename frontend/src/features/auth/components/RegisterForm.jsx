@@ -55,7 +55,7 @@ export default function RegisterForm({ onToggleMode, onBack }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="fixed inset-0 w-screen h-screen bg-[#030712] flex items-center justify-center p-4 overflow-hidden">
       <GridBeams
         className="absolute inset-0 w-full h-full"
         gridSize={48}

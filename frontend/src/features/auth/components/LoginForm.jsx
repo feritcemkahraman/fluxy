@@ -37,11 +37,12 @@ export default function LoginForm({ onToggleMode, onBack }) {
     const result = await login(data);
     
     if (result.success) {
-      toast.success(AUTH_SUCCESS_MESSAGES.LOGIN);
+      toast.success(AUTH_SUCCESS_MESSAGES.LOGIN, { duration: 3000 });
       return result;
     } else {
       const errorMessage = result.error || AUTH_ERRORS.INVALID_CREDENTIALS;
-      toast.error(errorMessage);
+      toast.error(errorMessage, { duration: 5000 });
+      console.error('Login error:', errorMessage);
       return result;
     }
   };
@@ -52,7 +53,7 @@ export default function LoginForm({ onToggleMode, onBack }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="fixed inset-0 w-screen h-screen bg-[#030712] flex items-center justify-center p-4 overflow-hidden">
       <GridBeams
         className="absolute inset-0 w-full h-full"
         gridSize={48}
