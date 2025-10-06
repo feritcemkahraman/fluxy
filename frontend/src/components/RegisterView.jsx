@@ -96,21 +96,9 @@ export default function RegisterView({ onToggleMode, onBack }) {
       >
         <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-16 sm:px-10">
           <div className="w-full max-w-xl space-y-10">
-            <div className="flex items-center justify-between">
-              {onBack ? (
-                <InteractiveHoverButton
-                  type="button"
-                  onClick={onBack}
-                  className="border-transparent bg-cyan-500/80 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-400/80"
-                  icon={ArrowLeft}
-                  showArrow={false}
-                >
-                  Ana Sayfa
-                </InteractiveHoverButton>
-              ) : (
-                <span />
-              )}
-              <div className="text-right text-xs uppercase tracking-[0.35em] text-white/40">
+            <div className="flex items-center justify-end">
+              <div className="flex items-center gap-2 text-right text-xs uppercase tracking-[0.35em] text-white/40">
+                <img src="/fluxy.png" alt="Fluxy" className="h-6 w-6" />
                 Fluxy
               </div>
             </div>

@@ -654,7 +654,8 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   <div className="grid gap-8 md:grid-cols-4">
                     {/* Brand Section */}
                     <div className="md:col-span-2 space-y-4">
-                      <div className="relative">
+                      <div className="flex items-center gap-3">
+                        <img src="/fluxy.png" alt="Fluxy" className="h-10 w-10" />
                         <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
                           FLUXY
                         </h1>
@@ -710,12 +711,9 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   {/* Bottom Section */}
                   <div className="mt-12 pt-8 border-t border-white">
                     <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                      <div className="flex items-center gap-2">
-                        <img src="/fluxy.png" alt="Fluxy" className="h-6 w-6" />
-                        <p className="text-sm text-slate-400">
-                          © {new Date().getFullYear()} Fluxy
-                        </p>
-                      </div>
+                      <p className="text-sm text-slate-400">
+                        © {new Date().getFullYear()} Fluxy. Tüm hakları saklıdır.
+                      </p>
                       <div className="flex items-center gap-6">
                         <button className="text-xs uppercase tracking-[0.25em] text-slate-400 hover:text-white transition-colors">
                           Gizlilik
