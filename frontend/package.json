@@ -60,7 +60,10 @@
     "socket.io-client": "^4.8.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "electron-is-dev": "^2.0.0",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7"
   },
   "main": "index.js",
   "homepage": "./",
@@ -105,10 +108,7 @@
     "cross-env": "^7.0.3",
     "electron": "^38.1.2",
     "electron-builder": "^24.9.1",
-    "electron-is-dev": "^2.0.0",
     "electron-reload": "^2.0.0-alpha.1",
-    "electron-store": "^8.1.0",
-    "electron-updater": "^6.1.7",
     "eslint": "9.23.0",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
