@@ -33,6 +33,7 @@
     "@radix-ui/react-toggle-group": "^1.1.7",
     "@radix-ui/react-tooltip": "^1.2.4",
     "@radix-ui/themes": "^3.2.1",
+    "7zip-bin": "^5.2.0",
     "ajv": "^8.17.1",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
@@ -41,7 +42,6 @@
     "cobe": "^0.6.5",
     "cra-template": "1.2.0",
     "date-fns": "^3.6.0",
-    "electron": "^38.1.2",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.21",
     "input-otp": "^1.4.2",
@@ -66,7 +66,7 @@
   "homepage": "./",
   "scripts": {
     "start": "craco start",
-    "build": "craco build", 
+    "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
     "electron": "electron .",
@@ -76,7 +76,7 @@
     "electron-pack": "electron-builder",
     "preelectron-pack": "npm run build",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win",
+    "dist:win": "npm run build && electron-builder --win -p always",
     "dist:linux": "npm run build && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -102,6 +102,7 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
+    "electron": "^38.1.2",
     "electron-builder": "^24.9.1",
     "electron-is-dev": "^2.0.0",
     "electron-reload": "^2.0.0-alpha.1",
@@ -126,9 +127,12 @@
     "directories": {
       "output": "dist"
     },
+    "extraMetadata": {
+      "main": "index.js"
+    },
     "files": [
       "build/**/*",
-      "main.js",
+      "index.js",
       "package.json",
       "node_modules/**/*"
     ],
@@ -139,7 +143,8 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "sign": null
     },
     "linux": {
       "target": "AppImage",
@@ -154,8 +159,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "fluxy",
-      "repo": "fluxy-desktop"
+      "owner": "feritcemkahraman",
+      "repo": "yerli-milli-projem"
     }
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"

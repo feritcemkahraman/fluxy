@@ -69,39 +69,20 @@ class VoiceChatService {
   // Enhanced getUserMedia for Electron
   async getUserMedia() {
     try {
-      // Discord Krisp-like audio constraints (maximum noise suppression)
+      // Discord Standard Mode - Natural voice quality with basic noise reduction
       const constraints = {
         audio: {
-          // Core processing - MANDATORY for quality
+          // Core WebRTC processing (natural, not robotic)
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
           
-          // High quality audio
+          // Discord-quality audio (48kHz Opus codec)
           sampleRate: 48000,
           sampleSize: 16,
           channelCount: 1,
           
-          // Chrome/Electron advanced processing (Krisp-like)
-          googEchoCancellation: true,
-          googExperimentalEchoCancellation: true,
-          googAutoGainControl: true,
-          googExperimentalAutoGainControl: true,
-          googNoiseSuppression: true,
-          googExperimentalNoiseSuppression: true,
-          googHighpassFilter: true,
-          googTypingNoiseDetection: true,
-          googAudioMirroring: false,
-          googNoiseReduction: true,
-          
-          // Advanced noise suppression (Krisp-like)
-          googBeamforming: true,
-          googArrayGeometry: true,
-          
-          // Voice Activity Detection
-          googDucking: false,
-          
-          // Low latency
+          // Low latency for real-time communication
           latency: 0.01
         }
       };
