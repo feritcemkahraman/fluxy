@@ -43,6 +43,7 @@ const store = new Store();
 let mainWindow;
 let tray = null;
 let isAppJustStarted = true; // Uygulama yeni mi başladı?
+let isManualUpdateCheck = false; // Manuel güncelleme kontrolü mü?
 
 function createWindow() {
   // Ana pencere oluştur - Production güvenli ayarlar
@@ -222,32 +223,11 @@ function createTray() {
       label: 'Güncellemeleri Denetle',
       click: () => {
         if (!isDev) {
-          // Önce kontrol başladığını göster
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Güncelleme Kontrolü',
-            message: 'Güncellemeler kontrol ediliyor...',
-            buttons: ['Tamam']
-          });
-
-          const checkPromise = autoUpdater.checkForUpdates();
-          
-          // 10 saniye timeout
-          const timeoutPromise = new Promise((resolve) => {
-            setTimeout(() => resolve({ updateInfo: null }), 10000);
-          });
-          
-          Promise.race([checkPromise, timeoutPromise]).then((result) => {
-            if (!result || !result.updateInfo) {
-              dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Güncelleme Yok',
-                message: 'Şu anda yeni güncelleme bulunmuyor. En son sürümü kullanıyorsunuz.',
-                buttons: ['Tamam']
-              });
-            }
-          }).catch((error) => {
+          // Manuel kontrol flag'ını set et ve kontrol başlat
+          isManualUpdateCheck = true;
+          autoUpdater.checkForUpdates().catch((error) => {
             console.error('Update check error:', error);
+            isManualUpdateCheck = false;
             dialog.showMessageBox(mainWindow, {
               type: 'error',
               title: 'Hata',
@@ -500,8 +480,11 @@ if (!isDev) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true; // Auto-install on quit (Discord-like)
   
-  // checkForUpdatesAndNotify yerine checkForUpdates kullan (kendi bildirimlerimiz için)
-  autoUpdater.checkForUpdates();
+  // Check for updates silently on startup (no notification if no update)
+  // Only show notification if update is actually available
+  setTimeout(() => {
+    autoUpdater.checkForUpdates();
+  }, 3000); // Wait 3 seconds after app start
   
   autoUpdater.on('checking-for-update', () => {
     console.log('Checking for updates...');
@@ -509,6 +492,17 @@ if (!isDev) {
 
   autoUpdater.on('update-not-available', (info) => {
     console.log('Update not available:', info.version);
+    
+    // Manuel kontrol ise bildir
+    if (isManualUpdateCheck) {
+      isManualUpdateCheck = false; // Reset flag
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Güncelleme Yok',
+        message: 'Şu anda yeni güncelleme bulunmuyor. En son sürümü kullanıyorsunuz.',
+        buttons: ['Tamam']
+      });
+    }
   });
 
   autoUpdater.on('update-available', (info) => {
@@ -516,25 +510,29 @@ if (!isDev) {
     if (mainWindow) {
       mainWindow.webContents.send('update-available', info);
       
+      // Manuel kontrol ise sistem bildirimi göster (dialog yerine)
+      if (isManualUpdateCheck) {
+        isManualUpdateCheck = false; // Reset flag
+        new Notification({
+          title: 'Güncelleme Mevcut',
+          body: `Yeni versiyon (${info.version}) bulundu! İndiriliyor...`
+        }).show();
+      }
       // Uygulama yeni başladıysa progress göster
-      if (isAppJustStarted) {
+      else if (isAppJustStarted) {
         console.log('App just started, showing update progress...');
         mainWindow.webContents.send('show-update-progress', { 
           version: info.version,
           message: 'Güncelleme indiriliyor...' 
         });
-      } else {
-        // Uygulama çalışıyorsa bildirim göster
-        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Güncelleme Mevcut',
-            message: `Yeni versiyon (${info.version}) indiriliyor...`,
-            buttons: ['Tamam'],
-            modal: true,
-            noLink: true
-          });
-        }
+      }
+      // Otomatik kontrol - sessiz bildirim
+      else {
+        console.log(`Update available: ${info.version}, downloading silently...`);
+        new Notification({
+          title: 'Güncelleme Mevcut',
+          body: `Yeni versiyon (${info.version}) arka planda indiriliyor...`
+        }).show();
       }
     }
   });
@@ -554,29 +552,21 @@ if (!isDev) {
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
       
-      // Discord-like behavior: Silent update, install on next restart
-      console.log('Update downloaded, will install on next app quit');
+      // Discord-like behavior: Auto-restart after download
+      console.log('Update downloaded, restarting app automatically...');
       
-      // Wait for window to be ready before showing dialog
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        const showUpdateDialog = () => {
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Güncelleme Hazır',
-            message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı yeniden başlattığınızda güncellenecek.`,
-            buttons: ['Tamam'],
-            modal: true,
-            noLink: true
-          });
-        };
-        
-        // If window is ready, show immediately. Otherwise wait.
-        if (mainWindow.isVisible()) {
-          showUpdateDialog();
-        } else {
-          mainWindow.once('ready-to-show', showUpdateDialog);
-        }
-      }
+      // Show notification before restart
+      new Notification({
+        title: 'Güncelleme Tamamlandı',
+        body: `Yeni versiyon (${info.version}) yükleniyor, uygulama yeniden başlatılıyor...`
+      }).show();
+      
+      // Wait 2 seconds for user to see notification, then restart
+      setTimeout(() => {
+        console.log('Restarting app to install update...');
+        app.isQuitting = true; // Prevent minimize on close
+        autoUpdater.quitAndInstall(true, true); // isSilent=true, isForceRunAfter=true
+      }, 2000);
     }
   });
   
