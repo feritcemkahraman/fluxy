@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, Tray, desktopCapturer } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const { autoUpdater } = require('electron-updater');
@@ -41,6 +41,7 @@ if (process.platform === 'win32') {
 
 const store = new Store();
 let mainWindow;
+let tray = null;
 
 function createWindow() {
   // Ana pencere oluştur - Production güvenli ayarlar
@@ -149,6 +150,10 @@ function createWindow() {
   // Pencere kapatıldığında
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
   });
 
   // External linkler için
@@ -174,6 +179,78 @@ function createWindow() {
   mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
     const allowedPermissions = ['media', 'microphone', 'camera', 'audioCapture', 'videoCapture', 'desktopCapture'];
     return allowedPermissions.includes(permission);
+  });
+
+  // Create system tray
+  createTray();
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, 'public/icon.ico');
+  tray = new Tray(iconPath);
+  
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Fluxy',
+      enabled: false
+    },
+    {
+      type: 'separator'
+    },
+    {
+      label: 'Uygulamayı Göster',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      }
+    },
+    {
+      label: 'Güncellemeleri Denetle',
+      click: () => {
+        if (!isDev) {
+          autoUpdater.checkForUpdatesAndNotify();
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Güncelleme Kontrolü',
+            message: 'Güncellemeler kontrol ediliyor...',
+            buttons: ['Tamam']
+          });
+        } else {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Geliştirme Modu',
+            message: 'Geliştirme modunda güncelleme kontrolü yapılamaz.',
+            buttons: ['Tamam']
+          });
+        }
+      }
+    },
+    {
+      type: 'separator'
+    },
+    {
+      label: 'Çıkış',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+  
+  tray.setToolTip('Fluxy - Sesli Sohbet Platformu');
+  tray.setContextMenu(contextMenu);
+  
+  // Tray icon'a tıklandığında pencereyi göster
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
   });
 }
 
@@ -383,15 +460,33 @@ if (!gotTheLock) {
 if (!isDev) {
   autoUpdater.checkForUpdatesAndNotify();
   
-  autoUpdater.on('update-available', () => {
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version);
     if (mainWindow) {
       mainWindow.webContents.send('update-available');
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Güncelleme Mevcut',
+        message: `Yeni versiyon (${info.version}) indiriliyor...`,
+        buttons: ['Tamam']
+      });
     }
   });
   
-  autoUpdater.on('update-downloaded', () => {
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info.version);
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Güncelleme Hazır',
+        message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı kapatıp açtığınızda güncellenecek.`,
+        buttons: ['Şimdi Yeniden Başlat', 'Sonra'],
+      }).then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
     }
   });
   
