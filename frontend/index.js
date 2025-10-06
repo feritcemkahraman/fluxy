@@ -71,7 +71,14 @@ function createWindow() {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false,
     frame: true,
-    backgroundColor: '#030712',
+    backgroundColor: '#030712'
+  });
+
+  // Open DevTools in production for debugging
+  mainWindow.webContents.openDevTools();
+
+  // PRODUCTION: Set strict CSP headers
+  if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
       callback({
         responseHeaders: {
