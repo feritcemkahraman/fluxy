@@ -67,8 +67,8 @@ function createWindow() {
     },
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false,
-    frame: true,
-    backgroundColor: '#1a1a1a',
+    frame: false,
+    backgroundColor: '#030712',
     vibrancy: process.platform === 'darwin' ? 'dark' : null,
     paintWhenInitiallyHidden: false,
     thickFrame: false
@@ -442,5 +442,5 @@ const template = [
   }
 ];
 
-const menu = Menu.buildFromTemplate(template);
-Menu.setApplicationMenu(menu);
+// Discord-like: No menu bar
+Menu.setApplicationMenu(null);

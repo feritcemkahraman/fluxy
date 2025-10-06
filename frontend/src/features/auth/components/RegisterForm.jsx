@@ -55,9 +55,9 @@ export default function RegisterForm({ onToggleMode, onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
       <GridBeams
-        className="absolute inset-0"
+        className="absolute inset-0 w-full h-full"
         gridSize={48}
         gridColor="rgba(94, 234, 212, 0.18)"
         rayCount={20}
@@ -73,16 +73,15 @@ export default function RegisterForm({ onToggleMode, onBack }) {
         <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-8 border border-white/10 shadow-2xl">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="absolute left-8 p-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-              )}
-              <div className="relative">
+            <div className="flex items-center justify-center mb-4 relative">
+              <button
+                onClick={onToggleMode}
+                className="absolute left-0 p-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center justify-center gap-3">
+                <img src="/fluxy.png" alt="Fluxy" className="h-12 w-12" />
                 <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
                   FLUXY
                 </h1>
