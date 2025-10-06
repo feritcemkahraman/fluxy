@@ -124,14 +124,14 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 >
                   Ücretsiz Katıl
                 </InteractiveHoverButton>
-                <InteractiveHoverButton
-                  type="button"
-                  onClick={() => window.open('https://github.com/feritcemkahraman/yerli-milli-projem/releases/latest/download/Fluxy-Setup-1.0.0.exe', '_blank')}
-                  className="w-full justify-center border-transparent bg-cyan-500/80 px-8 py-3 text-base font-semibold text-white hover:bg-cyan-400/80 sm:w-auto"
+                <a
+                  href="https://github.com/feritcemkahraman/yerli-milli-projem/releases/latest/download/Fluxy-Setup-0.1.0.exe"
+                  download
+                  className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3 text-base font-semibold text-white bg-cyan-500/80 hover:bg-cyan-400/80 rounded-lg transition-all duration-200 border border-transparent"
                 >
                   <Download className="w-5 h-5 mr-2" />
                   Şimdi İndir
-                </InteractiveHoverButton>
+                </a>
               </div>
             </section>
 
