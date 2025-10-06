@@ -78,7 +78,7 @@
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win -p always",
     "dist:linux": "npm run build && electron-builder --linux",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "node -e \"if (process.env.NETLIFY !== 'true') { require('child_process').execSync('electron-builder install-app-deps', {stdio: 'inherit'}) }\""
   },
   "browserslist": {
     "production": [
