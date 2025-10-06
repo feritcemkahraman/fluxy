@@ -212,7 +212,7 @@ Build dosyaları `frontend/dist/` klasöründe oluşacaktır.
 ## Proje Yapısı
 
 ```
-yerli-milli-projem/
+fluxy/
 ├── backend/                 # Backend API
 │   ├── models/             # MongoDB modelleri
 │   ├── routes/             # API route'ları
@@ -271,6 +271,6 @@ MIT License - Detaylar için `LICENSE` dosyasına bakın.
 ## Destek
 
 Sorun yaşarsanız:
-1. [Issues](https://github.com/feritcemkahraman/yerli-milli-projem/issues) sayfasından yeni bir issue açın
+1. [Issues](https://github.com/feritcemkahraman/fluxy/issues) sayfasından yeni bir issue açın
 2. Hata mesajını ve adımları detaylı yazın
 3. Sistem bilgilerinizi ekleyin (OS, Node version, vb.)

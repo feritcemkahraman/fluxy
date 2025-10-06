@@ -37,7 +37,7 @@ dir dist\*.exe
 echo.
 
 echo [5/5] GitHub Release kontrol...
-echo GitHub Releases: https://github.com/feritcemkahraman/yerli-milli-projem/releases
+echo GitHub Releases: https://github.com/feritcemkahraman/fluxy/releases
 echo.
 
 echo ========================================
@@ -45,6 +45,6 @@ echo ✓ BUILD TAMAMLANDI!
 echo ========================================
 echo.
 echo Dosyalar: frontend\dist\
-echo GitHub: https://github.com/feritcemkahraman/yerli-milli-projem/releases/latest
+echo GitHub: https://github.com/feritcemkahraman/fluxy/releases/latest
 echo.
 pause

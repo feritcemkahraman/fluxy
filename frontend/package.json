@@ -161,7 +161,7 @@
     "publish": {
       "provider": "github",
       "owner": "feritcemkahraman",
-      "repo": "yerli-milli-projem",
+      "repo": "fluxy",
       "releaseType": "release"
     }
   },

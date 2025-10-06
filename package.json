@@ -38,10 +38,3 @@
     "websocket",
     "netlify"
   ],
-  "author": "Fluxy Team",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/feritcemkahraman/yerli-milli-projem"
-  }
-}
