@@ -73,6 +73,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
         <div className="relative flex min-h-screen flex-col">
           <header className="relative z-20 flex items-center justify-between px-6 py-8 md:px-12">
             <div className="flex items-center gap-3">
+              <img src="/fluxy.png" alt="Fluxy Logo" className="h-10 w-10" />
               <div className="relative">
                 <h1 className="text-4xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
                   FLUXY
@@ -105,10 +106,13 @@ const LandingPage = ({ onLogin, onRegister }) => {
 
           <main className="relative z-20 flex-1 px-6 pb-16 md:px-12">
             <section className="mx-auto mt-10 max-w-4xl text-center md:mt-16">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-medium uppercase tracking-[0.3em] text-white/60">
-                <Sparkles className="h-4 w-4 text-cyan-300" />
-                Beta Aşamasında
-              </span>
+              <div className="flex items-center justify-center gap-4">
+                <img src="/fluxy.png" alt="Fluxy" className="h-16 w-16" />
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-medium uppercase tracking-[0.3em] text-white/60">
+                  <Sparkles className="h-4 w-4 text-cyan-300" />
+                  Beta Aşamasında
+                </span>
+              </div>
               <h2 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
                 Oyuncular için tasarlanmış yeni nesil sesli topluluk deneyimi
               </h2>
@@ -126,7 +130,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 </InteractiveHoverButton>
                 <InteractiveHoverButton
                   as="a"
-                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-0.1.3.exe"
+                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-0.1.4.exe"
                   download="Fluxy-Setup.exe"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -706,9 +710,12 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   {/* Bottom Section */}
                   <div className="mt-12 pt-8 border-t border-white">
                     <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                      <p className="text-sm text-slate-400">
-                        © {new Date().getFullYear()} Fluxy. Tüm hakları saklıdır.
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <img src="/fluxy.png" alt="Fluxy" className="h-8 w-8" />
+                        <p className="text-sm text-slate-400">
+                          © {new Date().getFullYear()} Fluxy. Tüm hakları saklıdır.
+                        </p>
+                      </div>
                       <div className="flex items-center gap-6">
                         <button className="text-xs uppercase tracking-[0.25em] text-slate-400 hover:text-white transition-colors">
                           Gizlilik

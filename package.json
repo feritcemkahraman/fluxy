@@ -1,7 +1,7 @@
 {
   "name": "fluxy-app",
   "version": "1.0.0",
-  "description": "Fluxy - Modern Discord-like chat application",
+  "description": "Fluxy - Modern chat application",
   "main": "frontend/index.js",
   "scripts": {
     "dev": "cd frontend && npm run start",

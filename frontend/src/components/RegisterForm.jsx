@@ -101,7 +101,8 @@ export default function RegisterForm({ onToggleMode }) {
       <div className="relative z-10 w-full max-w-md mx-auto p-6">
         {/* Logo and title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-16 mb-6">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <img src="/fluxy.png" alt="Fluxy" className="h-16 w-16" />
             <span className="text-3xl font-bold text-white tracking-wider drop-shadow-lg" style={{
               textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)',
               fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -116,7 +117,6 @@ export default function RegisterForm({ onToggleMode }) {
         {/* Register form */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username field */}
             <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-medium text-gray-200">
                 KULLANICI ADI

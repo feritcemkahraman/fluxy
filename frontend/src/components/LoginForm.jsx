@@ -84,9 +84,12 @@ export default function LoginForm({ onToggleMode, onBack }) {
             </div>
 
             <div className="space-y-4 text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/60">
-                Hoş Geldin
-              </span>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <img src="/fluxy.png" alt="Fluxy" className="h-12 w-12" />
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/60">
+                  Hoş Geldin
+                </span>
+              </div>
               <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
                 Fluxy hesabına giriş yap
               </h1>
@@ -94,7 +97,6 @@ export default function LoginForm({ onToggleMode, onBack }) {
                 Topluluğuna bağlanmak için e-posta ve şifren ile giriş yap.
               </p>
             </div>
-
             <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/10/60 p-8 backdrop-blur">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
