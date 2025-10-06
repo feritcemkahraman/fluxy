@@ -4,6 +4,7 @@ import LoginForm from './LoginForm';
 import RegisterView from './RegisterView';
 import FluxyApp from './FluxyApp';
 import LandingPage from './LandingPage';
+import UpdateProgress from './UpdateProgress';
 
 export default function AuthWrapper() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -12,6 +13,9 @@ export default function AuthWrapper() {
   const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
   
   const [view, setView] = useState(isElectron ? 'login' : 'landing');
+
+  // Update progress overlay (always render, component handles visibility)
+  const updateProgressOverlay = <UpdateProgress />;
 
   const showLogin = () => setView('login');
   const showRegister = () => setView('register');
@@ -32,24 +36,38 @@ export default function AuthWrapper() {
     switch (view) {
       case 'login':
         return (
-          <LoginForm
-            onToggleMode={showRegister}
-            onBack={showLanding}
-          />
+          <>
+            {updateProgressOverlay}
+            <LoginForm
+              onToggleMode={showRegister}
+              onBack={showLanding}
+            />
+          </>
         );
       case 'register':
         return (
-          <RegisterView
-            onToggleMode={showLogin}
-            onBack={showLanding}
-          />
+          <>
+            {updateProgressOverlay}
+            <RegisterView
+              onToggleMode={showLogin}
+              onBack={showLanding}
+            />
+          </>
         );
       default:
         return (
-          <LandingPage onLogin={showLogin} onRegister={showRegister} />
+          <>
+            {updateProgressOverlay}
+            <LandingPage onLogin={showLogin} onRegister={showRegister} />
+          </>
         );
     }
   }
 
-  return <FluxyApp />;
+  return (
+    <>
+      {updateProgressOverlay}
+      <FluxyApp />
+    </>
+  );
 }
