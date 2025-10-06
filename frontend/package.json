@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -134,8 +134,19 @@
     "files": [
       "build/**/*",
       "index.js",
+      "preload.js",
       "package.json",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "public/fluxy.png",
+        "to": "fluxy.png"
+      }
     ],
     "mac": {
       "category": "public.app-category.social-networking",

@@ -52,7 +52,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 600,
     title: 'Fluxy',
-    icon: path.join(__dirname, 'public/icon.ico'),
+    icon: path.join(process.resourcesPath, 'icon.ico'),
     webPreferences: {
       nodeIntegration: false, // Security: ALWAYS false
       contextIsolation: true, // Security: ALWAYS true
@@ -193,7 +193,12 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'public/icon.ico');
+  // Dev ve production için icon yolu
+  const iconPath = isDev 
+    ? path.join(__dirname, 'public/icon.ico')
+    : path.join(process.resourcesPath, 'icon.ico');
+  
+  console.log('Tray icon path:', iconPath);
   tray = new Tray(iconPath);
   
   const contextMenu = Menu.buildFromTemplate([
