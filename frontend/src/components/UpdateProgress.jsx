@@ -32,7 +32,7 @@ export default function UpdateProgress() {
       <div className="text-center space-y-6 max-w-md px-8">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src="fluxy.png" alt="Fluxy" className="h-16 w-16" />
+          <img src="/fluxy.png" alt="Fluxy" className="h-16 w-16" />
           <h1 className="text-4xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
             FLUXY
           </h1>
