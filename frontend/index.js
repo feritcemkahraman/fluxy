@@ -467,7 +467,7 @@ if (!gotTheLock) {
 if (!isDev) {
   // Türkçe bildirimler için autoUpdater ayarları
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoInstallOnAppQuit = false; // Manuel kontrol için false
   
   // checkForUpdatesAndNotify yerine checkForUpdates kullan (kendi bildirimlerimiz için)
   autoUpdater.checkForUpdates();
@@ -514,9 +514,10 @@ if (!isDev) {
       // Uygulama yeni başladıysa otomatik yükle
       if (isAppJustStarted) {
         console.log('App just started, installing update automatically...');
-        setTimeout(() => {
-          autoUpdater.quitAndInstall(false, true);
-        }, 1000);
+        // Hemen yükle, beklemeden
+        setImmediate(() => {
+          autoUpdater.quitAndInstall(true, true);
+        });
       } else {
         // Uygulama çalışıyorsa kullanıcıya sor
         dialog.showMessageBox(mainWindow, {
