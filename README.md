@@ -75,8 +75,8 @@ Modern, Discord-benzeri bir masaüstü chat uygulaması. Electron + React + Mong
 
 ### 1. Projeyi İndirin
 ```bash
-git clone https://github.com/feritcemkahraman/yerli-milli-projem.git
-cd yerli-milli-projem
+git clone https://github.com/feritcemkahraman/fluxy.git
+cd fluxy
 ```
 
 ### 2. Backend Kurulumu
