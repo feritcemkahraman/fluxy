@@ -50,6 +50,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 600,
     title: 'Fluxy',
+    icon: path.join(__dirname, 'public/icon.ico'),
     webPreferences: {
       nodeIntegration: false, // Security: ALWAYS false
       contextIsolation: true, // Security: ALWAYS true

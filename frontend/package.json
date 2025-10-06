@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -144,7 +144,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico",
+      "icon": "public/icon.ico",
       "sign": null
     },
     "linux": {
