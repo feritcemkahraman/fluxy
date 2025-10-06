@@ -710,10 +710,10 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   {/* Bottom Section */}
                   <div className="mt-12 pt-8 border-t border-white">
                     <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                      <div className="flex items-center gap-3">
-                        <img src="/fluxy.png" alt="Fluxy" className="h-8 w-8" />
+                      <div className="flex items-center gap-2">
+                        <img src="/fluxy.png" alt="Fluxy" className="h-6 w-6" />
                         <p className="text-sm text-slate-400">
-                          © {new Date().getFullYear()} Fluxy. Tüm hakları saklıdır.
+                          © {new Date().getFullYear()} Fluxy
                         </p>
                       </div>
                       <div className="flex items-center gap-6">

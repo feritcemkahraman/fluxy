@@ -78,18 +78,16 @@ export default function LoginForm({ onToggleMode, onBack }) {
               ) : (
                 <span />
               )}
-              <div className="text-right text-xs uppercase tracking-[0.35em] text-white/40">
+              <div className="flex items-center gap-2 text-right text-xs uppercase tracking-[0.35em] text-white/40">
+                <img src="/fluxy.png" alt="Fluxy" className="h-6 w-6" />
                 Fluxy
               </div>
             </div>
 
             <div className="space-y-4 text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <img src="/fluxy.png" alt="Fluxy" className="h-12 w-12" />
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/60">
-                  Hoş Geldin
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/60">
+                Hoş Geldin
+              </span>
               <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
                 Fluxy hesabına giriş yap
               </h1>
