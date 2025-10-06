@@ -43,6 +43,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Screen capture for Discord-style screen sharing
   getDesktopSources: (options) => ipcRenderer.invoke('get-desktop-sources', options),
 
+  // Auto-update
+  restartApp: () => ipcRenderer.send('restart-app'),
+  on: (channel, callback) => {
+    ipcRenderer.on(channel, (event, ...args) => callback(...args));
+  },
+  off: (channel, callback) => {
+    ipcRenderer.removeListener(channel, callback);
+  },
+
   // Check if running in Electron
   isElectron: true
 });

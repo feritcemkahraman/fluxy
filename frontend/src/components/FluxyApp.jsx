@@ -9,6 +9,7 @@ import DesktopTitleBar from "./DesktopTitleBar";
 import DesktopNotifications from "./DesktopNotifications";
 import UserPanel from "./UserPanel";
 import IncomingCallModal from "./IncomingCallModal";
+import UpdateProgress from "./UpdateProgress";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import voiceChatService from "../services/voiceChat";
@@ -73,6 +74,31 @@ const FluxyApp = () => {
       voiceCallService.initialize(socket, user);
     }
   }, [user, socket, isConnected]);
+
+  // Auto-update listener
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const handleUpdateDownloaded = () => {
+        toast.info('Güncelleme hazır! Uygulamayı yeniden başlatın.', {
+          duration: 10000,
+          action: {
+            label: 'Yeniden Başlat',
+            onClick: () => {
+              if (window.electronAPI.restartApp) {
+                window.electronAPI.restartApp();
+              }
+            }
+          }
+        });
+      };
+
+      window.electronAPI.on?.('update-downloaded', handleUpdateDownloaded);
+
+      return () => {
+        window.electronAPI.off?.('update-downloaded', handleUpdateDownloaded);
+      };
+    }
+  }, []);
 
   // Global DM notification listener - works everywhere in the app
   useEffect(() => {
@@ -1047,6 +1073,9 @@ const FluxyApp = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white overflow-hidden transition-optimized">
+      {/* Update Progress (Electron only - shown on app start if update available) */}
+      <UpdateProgress />
+      
       {/* Desktop Title Bar (Electron only) */}
       <DesktopTitleBar title={activeServer?.name ? `Fluxy - ${activeServer.name}` : 'Fluxy'} />
       

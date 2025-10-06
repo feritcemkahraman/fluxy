@@ -42,6 +42,7 @@ if (process.platform === 'win32') {
 const store = new Store();
 let mainWindow;
 let tray = null;
+let isAppJustStarted = true; // Uygulama yeni mi başladı?
 
 function createWindow() {
   // Ana pencere oluştur - Production güvenli ayarlar
@@ -128,6 +129,12 @@ function createWindow() {
       mainWindow.show();
       mainWindow.focus();
     }
+    
+    // 5 saniye sonra "yeni başlatma" modundan çık
+    setTimeout(() => {
+      isAppJustStarted = false;
+      console.log('App is now considered running (not just started)');
+    }, 5000);
   });
 
   // Pencere kapatıldığında minimize et (Discord-like behavior)
@@ -210,7 +217,7 @@ function createTray() {
       label: 'Güncellemeleri Denetle',
       click: () => {
         if (!isDev) {
-          autoUpdater.checkForUpdatesAndNotify();
+          autoUpdater.checkForUpdates();
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Güncelleme Kontrolü',
@@ -458,17 +465,43 @@ if (!gotTheLock) {
 
 // Auto updater (production only)
 if (!isDev) {
-  autoUpdater.checkForUpdatesAndNotify();
+  // Türkçe bildirimler için autoUpdater ayarları
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  
+  // checkForUpdatesAndNotify yerine checkForUpdates kullan (kendi bildirimlerimiz için)
+  autoUpdater.checkForUpdates();
   
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info.version);
     if (mainWindow) {
-      mainWindow.webContents.send('update-available');
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Güncelleme Mevcut',
-        message: `Yeni versiyon (${info.version}) indiriliyor...`,
-        buttons: ['Tamam']
+      mainWindow.webContents.send('update-available', info);
+      
+      // Uygulama yeni başladıysa progress göster
+      if (isAppJustStarted) {
+        console.log('App just started, showing update progress...');
+        mainWindow.webContents.send('show-update-progress', { 
+          version: info.version,
+          message: 'Güncelleme indiriliyor...' 
+        });
+      } else {
+        // Uygulama çalışıyorsa bildirim göster
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Güncelleme Mevcut',
+          message: `Yeni versiyon (${info.version}) indiriliyor...`,
+          buttons: ['Tamam']
+        });
+      }
+    }
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    if (mainWindow && isAppJustStarted) {
+      mainWindow.webContents.send('update-progress', {
+        percent: progressObj.percent,
+        transferred: progressObj.transferred,
+        total: progressObj.total
       });
     }
   });
@@ -477,21 +510,35 @@ if (!isDev) {
     console.log('Update downloaded:', info.version);
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Güncelleme Hazır',
-        message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı kapatıp açtığınızda güncellenecek.`,
-        buttons: ['Şimdi Yeniden Başlat', 'Sonra'],
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      });
+      
+      // Uygulama yeni başladıysa otomatik yükle
+      if (isAppJustStarted) {
+        console.log('App just started, installing update automatically...');
+        setTimeout(() => {
+          autoUpdater.quitAndInstall(false, true);
+        }, 1000);
+      } else {
+        // Uygulama çalışıyorsa kullanıcıya sor
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Güncelleme Hazır',
+          message: `Yeni versiyon (${info.version}) indirildi. Uygulamayı kapatıp açtığınızda güncellenecek.`,
+          buttons: ['Şimdi Yeniden Başlat', 'Sonra'],
+        }).then((result) => {
+          if (result.response === 0) {
+            autoUpdater.quitAndInstall();
+          }
+        });
+      }
     }
   });
   
   ipcMain.on('check-for-updates', () => {
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.checkForUpdates();
+  });
+
+  ipcMain.on('restart-app', () => {
+    autoUpdater.quitAndInstall();
   });
 }
 
