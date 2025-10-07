@@ -104,13 +104,23 @@ export const useMessages = (channelId) => {
 
       if (result.success) {
         // Replace optimistic message with real one
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === optimisticMessage.id 
-              ? { ...result.data, status: 'sent' }
-              : msg
-          )
-        );
+        const realMessage = { 
+          ...result.data, 
+          status: 'sent',
+          id: result.data._id || result.data.id 
+        };
+        
+        setMessages(prev => {
+          // Remove optimistic message
+          const filtered = prev.filter(msg => msg.id !== optimisticMessage.id);
+          // Check if real message already exists (from socket)
+          const realExists = filtered.some(m => 
+            (m.id || m._id) === realMessage.id || 
+            (m.id || m._id)?.toString() === realMessage.id?.toString()
+          );
+          // Only add if not already exists
+          return realExists ? filtered : [realMessage, ...filtered];
+        });
         return { success: true, message: result.data };
       } else {
         // Mark optimistic message as failed
