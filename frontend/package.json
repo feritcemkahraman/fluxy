@@ -1,6 +1,7 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.3.6",
+  "version": "0.3.7",
+  "homepage": ".",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -66,7 +67,6 @@
     "electron-updater": "^6.1.7"
   },
   "main": "index.js",
-  "homepage": "./",
   "scripts": {
     "start": "craco start",
     "build": "craco build",

@@ -6,22 +6,38 @@ export default function UpdateProgress() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      const handleShowProgress = (info) => {
-        setUpdateInfo(info);
-      };
+    // Safely check for electronAPI
+    const hasElectronAPI = typeof window !== 'undefined' && 
+                          window.electronAPI && 
+                          typeof window.electronAPI.on === 'function';
+    
+    if (!hasElectronAPI) {
+      console.log('UpdateProgress: electronAPI not available');
+      return;
+    }
 
-      const handleProgress = (progressInfo) => {
-        setProgress(Math.round(progressInfo.percent));
-      };
+    const handleShowProgress = (info) => {
+      console.log('UpdateProgress: show-update-progress', info);
+      setUpdateInfo(info);
+    };
 
-      window.electronAPI.on?.('show-update-progress', handleShowProgress);
-      window.electronAPI.on?.('update-progress', handleProgress);
+    const handleProgress = (progressInfo) => {
+      console.log('UpdateProgress: update-progress', progressInfo.percent);
+      setProgress(Math.round(progressInfo.percent));
+    };
+
+    try {
+      window.electronAPI.on('show-update-progress', handleShowProgress);
+      window.electronAPI.on('update-progress', handleProgress);
 
       return () => {
-        window.electronAPI.off?.('show-update-progress', handleShowProgress);
-        window.electronAPI.off?.('update-progress', handleProgress);
+        if (window.electronAPI && typeof window.electronAPI.off === 'function') {
+          window.electronAPI.off('show-update-progress', handleShowProgress);
+          window.electronAPI.off('update-progress', handleProgress);
+        }
       };
+    } catch (error) {
+      console.error('UpdateProgress: Error setting up listeners', error);
     }
   }, []);
 

@@ -14,9 +14,6 @@ export default function AuthWrapper() {
   
   const [view, setView] = useState(isElectron ? 'login' : 'landing');
 
-  // Update progress overlay (always render, component handles visibility)
-  const updateProgressOverlay = <UpdateProgress />;
-
   const showLogin = () => setView('login');
   const showRegister = () => setView('register');
   const showLanding = () => setView('landing');
@@ -36,37 +33,28 @@ export default function AuthWrapper() {
     switch (view) {
       case 'login':
         return (
-          <>
-            {updateProgressOverlay}
-            <LoginForm
-              onToggleMode={showRegister}
-              onBack={showLanding}
-            />
-          </>
+          <LoginForm
+            onToggleMode={showRegister}
+            onBack={showLanding}
+          />
         );
       case 'register':
         return (
-          <>
-            {updateProgressOverlay}
-            <RegisterView
-              onToggleMode={showLogin}
-              onBack={showLanding}
-            />
-          </>
+          <RegisterView
+            onToggleMode={showLogin}
+            onBack={showLanding}
+          />
         );
       default:
         return (
-          <>
-            {updateProgressOverlay}
-            <LandingPage onLogin={showLogin} onRegister={showRegister} />
-          </>
+          <LandingPage onLogin={showLogin} onRegister={showRegister} />
         );
     }
   }
 
   return (
     <>
-      {updateProgressOverlay}
+      <UpdateProgress />
       <FluxyApp />
     </>
   );
