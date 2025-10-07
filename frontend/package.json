@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -144,6 +144,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "public/icon.ico",
+        "to": "icon.ico"
       },
       {
         "from": "public/fluxy.png",
