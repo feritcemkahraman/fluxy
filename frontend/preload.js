@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Auto-update
   restartApp: () => ipcRenderer.send('restart-app'),
+  manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
   on: (channel, callback) => {
     ipcRenderer.on(channel, (event, ...args) => callback(...args));
   },
