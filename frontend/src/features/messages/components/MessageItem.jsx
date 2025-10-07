@@ -180,8 +180,8 @@ const MessageItem = ({
                 const getPepePath = (filename) => {
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   if (isElectron) {
-                    const isDev = process.env.NODE_ENV === 'development';
-                    return isDev ? `/pepe/${filename}` : `../resources/pepe/${filename}`;
+                    const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+                    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
                   }
                   return `/pepe/${filename}`;
                 };

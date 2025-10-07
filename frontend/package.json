@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -124,7 +124,7 @@
   },
   "build": {
     "appId": "com.fluxy.desktop",
-    "productName": "Fluxy - Oyuncular için tasarlanmış yeni nesil sesli topluluk deneyimi",
+    "productName": "Fluxy",
     "directories": {
       "output": "dist"
     },

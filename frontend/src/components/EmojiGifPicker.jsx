@@ -8,9 +8,9 @@ import { ScrollArea } from "./ui/scroll-area";
 const getPepePath = (filename) => {
   const isElectron = window.electronAPI?.isElectron || window.isElectron;
   if (isElectron) {
-    // In production Electron, resources are in process.resourcesPath
-    const isDev = process.env.NODE_ENV === 'development';
-    return isDev ? `/pepe/${filename}` : `../resources/pepe/${filename}`;
+    // Check if running on dev server (localhost:3000) or packaged app (file://)
+    const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
   }
   return `/pepe/${filename}`;
 };

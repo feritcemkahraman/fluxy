@@ -52,7 +52,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
-    title: 'Fluxy - Oyuncular için tasarlanmış yeni nesil sesli topluluk deneyimi',
+    title: 'Fluxy',
     icon: path.join(process.resourcesPath, 'icon.ico'),
     webPreferences: {
       nodeIntegration: false, // Security: ALWAYS false
