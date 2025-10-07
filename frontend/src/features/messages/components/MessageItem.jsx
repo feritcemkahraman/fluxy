@@ -181,7 +181,9 @@ const MessageItem = ({
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   if (isElectron) {
                     const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-                    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
+                    const path = isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
+                    console.log('🎨 Pepe path:', { filename, isDevServer, path, protocol: window.location.protocol });
+                    return path;
                   }
                   return `/pepe/${filename}`;
                 };

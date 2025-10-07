@@ -9,8 +9,9 @@ export default function AuthWrapper() {
   const { isAuthenticated, isLoading } = useAuth();
   
   // Electron uygulaması mı kontrol et
-  const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
+  const isElectron = typeof window !== 'undefined' && (window.electronAPI?.isElectron || window.isElectron);
   
+  // Web'de landing, Electron'da direkt login
   const [view, setView] = useState(isElectron ? 'login' : 'landing');
 
   const showLogin = () => setView('login');
