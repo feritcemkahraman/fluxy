@@ -64,6 +64,7 @@ const FluxyApp = () => {
   const [updateCheckState, setUpdateCheckState] = useState('checking');
   const [loading, setLoading] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
+  const [showVoiceScreen, setShowVoiceScreen] = useState(false);
   // Derive activeServerId from activeServer
   const activeServerId = activeServer?._id || activeServer?.id;
   const activeChannelId = activeChannel?._id || activeChannel?.id;
