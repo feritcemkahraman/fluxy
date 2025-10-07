@@ -5,6 +5,7 @@ import RegisterForm from './RegisterForm';
 import FluxyApp from '../../../components/FluxyApp';
 import LandingPage from '../../../components/LandingPage';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
+import UpdateProgress from '../../../components/UpdateProgress';
 
 import { AUTH_MODES } from '../constants';
 
@@ -38,7 +39,12 @@ export default function AuthWrapper() {
 
   // Authenticated - show main app
   if (isAuthenticated) {
-    return <FluxyApp />;
+    return (
+      <>
+        <UpdateProgress />
+        <FluxyApp />
+      </>
+    );
   }
 
   // Not authenticated - show auth flow
