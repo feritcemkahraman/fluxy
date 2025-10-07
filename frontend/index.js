@@ -85,7 +85,9 @@ function createWindow() {
   console.log('Loading URL:', startUrl);
   console.log('isDev:', isDev);
   
-  // PRODUCTION: Set strict CSP headers
+  // PRODUCTION: Disable CSP for now (debugging)
+  // CSP was blocking React app from loading
+  /*
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
       callback({
@@ -93,7 +95,7 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'",
-            "script-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
@@ -108,6 +110,7 @@ function createWindow() {
       });
     });
   }
+  */
   
   mainWindow.loadURL(startUrl);
 
@@ -510,35 +513,23 @@ if (!isDev) {
     if (mainWindow) {
       mainWindow.webContents.send('update-available', info);
       
-      // Manuel kontrol ise sistem bildirimi göster (dialog yerine)
+      // Her zaman progress ekranı göster
+      console.log('Update available, showing progress screen...');
+      mainWindow.webContents.send('show-update-progress', { 
+        version: info.version,
+        message: 'Güncelleme indiriliyor...' 
+      });
+      
+      // Manuel kontrol ise flag'i resetle
       if (isManualUpdateCheck) {
-        isManualUpdateCheck = false; // Reset flag
-        new Notification({
-          title: 'Güncelleme Mevcut',
-          body: `Yeni versiyon (${info.version}) bulundu! İndiriliyor...`
-        }).show();
-      }
-      // Uygulama yeni başladıysa progress göster
-      else if (isAppJustStarted) {
-        console.log('App just started, showing update progress...');
-        mainWindow.webContents.send('show-update-progress', { 
-          version: info.version,
-          message: 'Güncelleme indiriliyor...' 
-        });
-      }
-      // Otomatik kontrol - sessiz bildirim
-      else {
-        console.log(`Update available: ${info.version}, downloading silently...`);
-        new Notification({
-          title: 'Güncelleme Mevcut',
-          body: `Yeni versiyon (${info.version}) arka planda indiriliyor...`
-        }).show();
+        isManualUpdateCheck = false;
       }
     }
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    if (mainWindow && isAppJustStarted) {
+    // Her zaman progress gönder
+    if (mainWindow) {
       mainWindow.webContents.send('update-progress', {
         percent: progressObj.percent,
         transferred: progressObj.transferred,
