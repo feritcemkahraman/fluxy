@@ -10,6 +10,7 @@ import DesktopNotifications from "./DesktopNotifications";
 import UserPanel from "./UserPanel";
 import IncomingCallModal from "./IncomingCallModal";
 import UpdateProgress from "./UpdateProgress";
+import UpdateCheckModal from "./UpdateCheckModal";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import voiceChatService from "../services/voiceChat";
@@ -55,14 +56,12 @@ const FluxyApp = () => {
     remoteScreenSharing,
     startScreenShare
   } = useVoiceCall();
-  
-  
   const [servers, setServers] = useState([]);
   const [activeServer, setActiveServer] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
   const [showMemberList, setShowMemberList] = useState(true);
-  const [isDirectMessages, setIsDirectMessages] = useState(false);
-  const [showVoiceScreen, setShowVoiceScreen] = useState(false);
+  const [showUpdateCheckModal, setShowUpdateCheckModal] = useState(false);
+  const [updateCheckState, setUpdateCheckState] = useState('checking');
   const [loading, setLoading] = useState(true);
   // Derive activeServerId from activeServer
   const activeServerId = activeServer?._id || activeServer?.id;
@@ -75,27 +74,40 @@ const FluxyApp = () => {
     }
   }, [user, socket, isConnected]);
 
-  // Auto-update listener
+  // Electron update check modal handler
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
-      const handleUpdateDownloaded = () => {
-        toast.info('Güncelleme hazır! Uygulamayı yeniden başlatın.', {
-          duration: 10000,
-          action: {
-            label: 'Yeniden Başlat',
-            onClick: () => {
-              if (window.electronAPI.restartApp) {
-                window.electronAPI.restartApp();
-              }
-            }
-          }
-        });
+      const handleShowUpdateCheckModal = () => {
+        setUpdateCheckState('checking');
+        setShowUpdateCheckModal(true);
+        // Trigger manual update check
+        if (window.electronAPI.manualCheckForUpdates) {
+          window.electronAPI.manualCheckForUpdates();
+        }
       };
 
-      window.electronAPI.on?.('update-downloaded', handleUpdateDownloaded);
+      const handleUpdateNotAvailable = () => {
+        setUpdateCheckState('up-to-date');
+      };
+
+      const handleUpdateDownloadStarted = () => {
+        setUpdateCheckState('downloading');
+      };
+
+      const handleUpdateCheckError = () => {
+        setUpdateCheckState('error');
+      };
+
+      window.electronAPI.on?.('show-update-check-modal', handleShowUpdateCheckModal);
+      window.electronAPI.on?.('update-not-available', handleUpdateNotAvailable);
+      window.electronAPI.on?.('update-download-started', handleUpdateDownloadStarted);
+      window.electronAPI.on?.('update-check-error', handleUpdateCheckError);
 
       return () => {
-        window.electronAPI.off?.('update-downloaded', handleUpdateDownloaded);
+        window.electronAPI.off?.('show-update-check-modal', handleShowUpdateCheckModal);
+        window.electronAPI.off?.('update-not-available', handleUpdateNotAvailable);
+        window.electronAPI.off?.('update-download-started', handleUpdateDownloadStarted);
+        window.electronAPI.off?.('update-check-error', handleUpdateCheckError);
       };
     }
   }, []);
@@ -1254,8 +1266,13 @@ const FluxyApp = () => {
           }}
         />
       )}
+
+      {/* Update Check Modal */}
+      <UpdateCheckModal
+        isOpen={showUpdateCheckModal}
+        onClose={() => setShowUpdateCheckModal(false)}
+        initialState={updateCheckState}
+      />
     </div>
   );
-};
 
-export default FluxyApp;

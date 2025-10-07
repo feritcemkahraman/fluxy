@@ -97,7 +97,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' wss: https:",
+            "connect-src 'self' http://localhost:5000 wss://localhost:5000 ws://localhost:5000 https:",
             "media-src 'self' blob:",
             "worker-src 'self' blob:",
             "object-src 'none'",
@@ -223,18 +223,10 @@ function createTray() {
       label: 'Güncellemeleri Denetle',
       click: () => {
         if (!isDev) {
-          // Manuel kontrol flag'ını set et ve kontrol başlat
-          isManualUpdateCheck = true;
-          autoUpdater.checkForUpdates().catch((error) => {
-            console.error('Update check error:', error);
-            isManualUpdateCheck = false;
-            dialog.showMessageBox(mainWindow, {
-              type: 'error',
-              title: 'Hata',
-              message: 'Güncelleme kontrolü yapılamadı. İnternet bağlantınızı kontrol edin.',
-              buttons: ['Tamam']
-            });
-          });
+          // Send event to frontend to show update check modal
+          if (mainWindow) {
+            mainWindow.webContents.send('show-update-check-modal');
+          }
         } else {
           dialog.showMessageBox(mainWindow, {
             type: 'info',
@@ -492,16 +484,11 @@ if (!isDev) {
 
   autoUpdater.on('update-not-available', (info) => {
     console.log('Update not available:', info.version);
-    
-    // Manuel kontrol ise bildir
-    if (isManualUpdateCheck) {
+
+    // Send event to frontend for manual checks
+    if (mainWindow && isManualUpdateCheck) {
+      mainWindow.webContents.send('update-not-available');
       isManualUpdateCheck = false; // Reset flag
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Güncelleme Yok',
-        message: 'Şu anda yeni güncelleme bulunmuyor. En son sürümü kullanıyorsunuz.',
-        buttons: ['Tamam']
-      });
     }
   });
 
@@ -509,36 +496,17 @@ if (!isDev) {
     console.log('Update available:', info.version);
     if (mainWindow) {
       mainWindow.webContents.send('update-available', info);
-      
-      // Manuel kontrol ise sistem bildirimi göster (dialog yerine)
+
+      // For manual checks, notify that download started
       if (isManualUpdateCheck) {
+        mainWindow.webContents.send('update-download-started');
         isManualUpdateCheck = false; // Reset flag
-        new Notification({
-          title: 'Güncelleme Mevcut',
-          body: `Yeni versiyon (${info.version}) bulundu! İndiriliyor...`
-        }).show();
-      }
-      // Uygulama yeni başladıysa progress göster
-      else if (isAppJustStarted) {
-        console.log('App just started, showing update progress...');
-        mainWindow.webContents.send('show-update-progress', { 
-          version: info.version,
-          message: 'Güncelleme indiriliyor...' 
-        });
-      }
-      // Otomatik kontrol - sessiz bildirim
-      else {
-        console.log(`Update available: ${info.version}, downloading silently...`);
-        new Notification({
-          title: 'Güncelleme Mevcut',
-          body: `Yeni versiyon (${info.version}) arka planda indiriliyor...`
-        }).show();
       }
     }
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    if (mainWindow && isAppJustStarted) {
+    if (mainWindow) {
       mainWindow.webContents.send('update-progress', {
         percent: progressObj.percent,
         transferred: progressObj.transferred,
@@ -546,32 +514,27 @@ if (!isDev) {
       });
     }
   });
-  
+
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version);
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
-      
-      // Discord-like behavior: Auto-restart after download
-      console.log('Update downloaded, restarting app automatically...');
-      
-      // Show notification before restart
-      new Notification({
-        title: 'Güncelleme Tamamlandı',
-        body: `Yeni versiyon (${info.version}) yükleniyor, uygulama yeniden başlatılıyor...`
-      }).show();
-      
-      // Wait 2 seconds for user to see notification, then restart
-      setTimeout(() => {
-        console.log('Restarting app to install update...');
-        app.isQuitting = true; // Prevent minimize on close
-        autoUpdater.quitAndInstall(true, true); // isSilent=true, isForceRunAfter=true
-      }, 2000);
     }
   });
   
   ipcMain.on('check-for-updates', () => {
     autoUpdater.checkForUpdates();
+  });
+
+  ipcMain.on('manual-check-for-updates', () => {
+    isManualUpdateCheck = true;
+    autoUpdater.checkForUpdates().catch((error) => {
+      console.error('Manual update check error:', error);
+      if (mainWindow) {
+        mainWindow.webContents.send('update-check-error');
+      }
+      isManualUpdateCheck = false;
+    });
   });
 
   ipcMain.on('restart-app', () => {
