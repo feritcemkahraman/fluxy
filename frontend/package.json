@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",

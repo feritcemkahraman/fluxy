@@ -1275,4 +1275,6 @@ const FluxyApp = () => {
       />
     </div>
   );
+};
 
+export default FluxyApp;
