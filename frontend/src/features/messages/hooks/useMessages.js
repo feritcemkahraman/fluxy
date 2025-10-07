@@ -111,15 +111,23 @@ export const useMessages = (channelId) => {
         };
         
         setMessages(prev => {
-          // Remove optimistic message
-          const filtered = prev.filter(msg => msg.id !== optimisticMessage.id);
+          // Remove optimistic message first
+          let filtered = prev.filter(msg => msg.id !== optimisticMessage.id);
+          
           // Check if real message already exists (from socket)
-          const realExists = filtered.some(m => 
-            (m.id || m._id) === realMessage.id || 
-            (m.id || m._id)?.toString() === realMessage.id?.toString()
-          );
-          // Only add if not already exists
-          return realExists ? filtered : [realMessage, ...filtered];
+          const realMessageId = realMessage.id || realMessage._id;
+          const realExists = filtered.some(m => {
+            const existingId = m.id || m._id;
+            return existingId === realMessageId || existingId?.toString() === realMessageId?.toString();
+          });
+          
+          // If real message already exists, just return filtered (without optimistic)
+          if (realExists) {
+            return filtered;
+          }
+          
+          // Otherwise add real message
+          return [realMessage, ...filtered];
         });
         return { success: true, message: result.data };
       } else {

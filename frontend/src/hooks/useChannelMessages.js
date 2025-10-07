@@ -63,25 +63,29 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
     if (messageChannelId !== channelId) return;
     
     setMessages(prev => {
-      // Remove any optimistic message with same content
+      // First check if message already exists by ID
+      const messageId = normalized._id || normalized.id;
+      const alreadyExists = prev.some(msg => 
+        (msg._id === messageId) || (msg.id === messageId) ||
+        (msg._id?.toString() === messageId?.toString()) || 
+        (msg.id?.toString() === messageId?.toString())
+      );
+      
+      if (alreadyExists) return prev;
+      
+      // Remove any optimistic message with same content and author
       const filtered = prev.filter(msg => {
         if (!msg.isOptimistic) return true;
         
-        // Remove optimistic if content matches and recent
+        // Remove optimistic if content matches and same author
         const isSameContent = msg.content === normalized.content;
-        const isSameAuthor = msg.author?.id === normalized.author?.id;
+        const isSameAuthor = msg.author?.id === normalized.author?.id || 
+                            msg.author?._id === normalized.author?._id;
         const timeDiff = Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp));
-        const isRecent = timeDiff < 5000;
+        const isRecent = timeDiff < 10000; // 10 seconds window
         
         return !(isSameContent && isSameAuthor && isRecent);
       });
-      
-      // Check if message already exists
-      const exists = filtered.some(msg => 
-        (msg._id === normalized._id) || (msg.id === normalized.id)
-      );
-      
-      if (exists) return prev;
       
       // Add new message and sort
       return mergeMessages(filtered, [normalized]);
