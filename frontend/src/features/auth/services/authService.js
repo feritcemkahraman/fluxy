@@ -19,8 +19,6 @@ class AuthService {
     const config = {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true', // Skip ngrok warning
-        'User-Agent': 'Fluxy-Desktop-App', // Custom user agent
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },

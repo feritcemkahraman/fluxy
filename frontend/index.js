@@ -1,25 +1,18 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, Tray, desktopCapturer, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, Tray, desktopCapturer } = require('electron');
 const path = require('path');
-const isDev = process.env.NODE_ENV !== 'production';
-let store;
-try {
-  const Store = require('electron-store');
-  const { autoUpdater } = require('electron-updater');
-  store = new Store();
-} catch (error) {
-  console.error('Error initializing modules:', error);
-  process.exit(1);
-}
+const isDev = require('electron-is-dev');
+const { autoUpdater } = require('electron-updater');
+const Store = require('electron-store');
 
 // PRODUCTION: Optimized memory settings
-// app.commandLine.appendSwitch('--max-old-space-size', '4096');
-// app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
+app.commandLine.appendSwitch('--max-old-space-size', '4096');
+app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
 
 // PRODUCTION: Minimal GPU optimization (removed unsafe flags)
-// app.commandLine.appendSwitch('--enable-gpu-rasterization');
-// app.commandLine.appendSwitch('--enable-zero-copy');
-// app.commandLine.appendSwitch('--enable-hardware-overlays');
-// app.commandLine.appendSwitch('--enable-accelerated-video-decode');
+app.commandLine.appendSwitch('--enable-gpu-rasterization');
+app.commandLine.appendSwitch('--enable-zero-copy');
+app.commandLine.appendSwitch('--enable-hardware-overlays');
+app.commandLine.appendSwitch('--enable-accelerated-video-decode');
 
 // PRODUCTION: High refresh rate display support
 app.commandLine.appendSwitch('--disable-frame-rate-limit');
@@ -46,41 +39,165 @@ if (process.platform === 'win32') {
   });
 }
 
+const store = new Store();
 let mainWindow;
 let tray = null;
 let isAppJustStarted = true; // Uygulama yeni mi başladı?
 let isManualUpdateCheck = false; // Manuel güncelleme kontrolü mü?
 
 function createWindow() {
-  console.log('🚀 Starting createWindow...');
-  
+  // Ana pencere oluştur - Production güvenli ayarlar
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    minWidth: 1000,
+    minHeight: 600,
+    title: 'Fluxy - Group Chat That\'s All Fun & Games',
+    icon: path.join(process.resourcesPath, 'icon.ico'),
     webPreferences: {
+      nodeIntegration: false, // Security: ALWAYS false
+      contextIsolation: true, // Security: ALWAYS true
+      enableRemoteModule: false, // Security: ALWAYS false
+      webSecurity: true, // Security: ALWAYS true in production
+      allowRunningInsecureContent: false, // Security: ALWAYS false
       preload: path.join(__dirname, 'preload.js'),
+      experimentalFeatures: false,
+      backgroundThrottling: false,
+      sandbox: true, // Security: Enable sandbox in production
+      nodeIntegrationInWorker: false,
+      nodeIntegrationInSubFrames: false,
+      disableBlinkFeatures: 'Auxclick'
     },
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    show: false,
+    frame: true,
+    backgroundColor: '#030712',
+    vibrancy: process.platform === 'darwin' ? 'dark' : null,
+    paintWhenInitiallyHidden: false,
+    thickFrame: false
   });
 
+  // Production: Load from build folder
   const startUrl = isDev 
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../build/index.html')}`;
-  
+    ? 'http://localhost:3000' 
+    : `file://${path.join(__dirname, 'build/index.html')}`;
+
   console.log('Loading URL:', startUrl);
+  console.log('isDev:', isDev);
+  
+  // PRODUCTION: Set strict CSP headers
+  if (!isDev) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: https: blob:",
+            "connect-src 'self' wss: https:",
+            "media-src 'self' blob:",
+            "worker-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'"
+          ].join('; ')
+        }
+      });
+    });
+  }
+  
   mainWindow.loadURL(startUrl);
 
-  // Open DevTools to see console
-  mainWindow.webContents.openDevTools();
-
+  // Pencere hazır olduğunda göster
   mainWindow.once('ready-to-show', () => {
     console.log('🖼️ Window ready to show');
     mainWindow.show();
+    mainWindow.focus();
+    
+    // Development modunda DevTools aç
+    if (isDev) {
+      mainWindow.webContents.openDevTools();
+    }
   });
+
+  // Yükleme tamamlandığında da göster (backup)
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('📄 Content loaded');
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+    
+    // 5 saniye sonra "yeni başlatma" modundan çık
+    setTimeout(() => {
+      isAppJustStarted = false;
+      console.log('App is now considered running (not just started)');
+    }, 5000);
+  });
+
+  // Pencere kapatıldığında minimize et (Discord-like behavior)
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      
+      // Show notification on first minimize
+      if (!mainWindow.hasBeenMinimized) {
+        new Notification({
+          title: 'Fluxy',
+          body: 'Uygulama sistem tepsisinde çalışmaya devam ediyor.'
+        }).show();
+        mainWindow.hasBeenMinimized = true;
+      }
+    }
+  });
+
+  // Pencere kapatıldığında
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  });
+
+  // External linkler için
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  // Media permissions (microphone, camera, screen sharing)
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'microphone', 'camera', 'audioCapture', 'videoCapture', 'desktopCapture'];
+    
+    if (allowedPermissions.includes(permission)) {
+      console.log(`✅ Granting permission: ${permission}`);
+      callback(true);
+    } else {
+      console.log(`❌ Denying permission: ${permission}`);
+      callback(false);
+    }
+  });
+
+  // Handle permission checks
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    const allowedPermissions = ['media', 'microphone', 'camera', 'audioCapture', 'videoCapture', 'desktopCapture'];
+    return allowedPermissions.includes(permission);
+  });
+
+  // Create system tray
+  createTray();
 }
 
 function createTray() {
   // Dev ve production için icon yolu
-  const iconPath = path.join(__dirname, 'public/icon.ico');
+  const iconPath = isDev 
+    ? path.join(__dirname, 'public/icon.ico')
+    : path.join(process.resourcesPath, 'icon.ico');
   
   console.log('Tray icon path:', iconPath);
   tray = new Tray(iconPath);
@@ -270,9 +387,7 @@ nativeTheme.on('updated', () => {
 });
 
 // Güvenli uygulama başlatma
-console.log('App starting... NODE_ENV:', process.env.NODE_ENV);
 app.whenReady().then(() => {
-  console.log('App ready event fired');
   try {
     createWindow();
     console.log('✅ Electron app started successfully');
@@ -395,23 +510,35 @@ if (!isDev) {
     if (mainWindow) {
       mainWindow.webContents.send('update-available', info);
       
-      // Her zaman progress ekranı göster
-      console.log('Update available, showing progress screen...');
-      mainWindow.webContents.send('show-update-progress', { 
-        version: info.version,
-        message: 'Güncelleme indiriliyor...' 
-      });
-      
-      // Manuel kontrol ise flag'i resetle
+      // Manuel kontrol ise sistem bildirimi göster (dialog yerine)
       if (isManualUpdateCheck) {
-        isManualUpdateCheck = false;
+        isManualUpdateCheck = false; // Reset flag
+        new Notification({
+          title: 'Güncelleme Mevcut',
+          body: `Yeni versiyon (${info.version}) bulundu! İndiriliyor...`
+        }).show();
+      }
+      // Uygulama yeni başladıysa progress göster
+      else if (isAppJustStarted) {
+        console.log('App just started, showing update progress...');
+        mainWindow.webContents.send('show-update-progress', { 
+          version: info.version,
+          message: 'Güncelleme indiriliyor...' 
+        });
+      }
+      // Otomatik kontrol - sessiz bildirim
+      else {
+        console.log(`Update available: ${info.version}, downloading silently...`);
+        new Notification({
+          title: 'Güncelleme Mevcut',
+          body: `Yeni versiyon (${info.version}) arka planda indiriliyor...`
+        }).show();
       }
     }
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    // Her zaman progress gönder
-    if (mainWindow) {
+    if (mainWindow && isAppJustStarted) {
       mainWindow.webContents.send('update-progress', {
         percent: progressObj.percent,
         transferred: progressObj.transferred,

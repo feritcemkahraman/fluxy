@@ -6,38 +6,22 @@ export default function UpdateProgress() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Safely check for electronAPI
-    const hasElectronAPI = typeof window !== 'undefined' && 
-                          window.electronAPI && 
-                          typeof window.electronAPI.on === 'function';
-    
-    if (!hasElectronAPI) {
-      console.log('UpdateProgress: electronAPI not available');
-      return;
-    }
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const handleShowProgress = (info) => {
+        setUpdateInfo(info);
+      };
 
-    const handleShowProgress = (info) => {
-      console.log('UpdateProgress: show-update-progress', info);
-      setUpdateInfo(info);
-    };
+      const handleProgress = (progressInfo) => {
+        setProgress(Math.round(progressInfo.percent));
+      };
 
-    const handleProgress = (progressInfo) => {
-      console.log('UpdateProgress: update-progress', progressInfo.percent);
-      setProgress(Math.round(progressInfo.percent));
-    };
-
-    try {
-      window.electronAPI.on('show-update-progress', handleShowProgress);
-      window.electronAPI.on('update-progress', handleProgress);
+      window.electronAPI.on?.('show-update-progress', handleShowProgress);
+      window.electronAPI.on?.('update-progress', handleProgress);
 
       return () => {
-        if (window.electronAPI && typeof window.electronAPI.off === 'function') {
-          window.electronAPI.off('show-update-progress', handleShowProgress);
-          window.electronAPI.off('update-progress', handleProgress);
-        }
+        window.electronAPI.off?.('show-update-progress', handleShowProgress);
+        window.electronAPI.off?.('update-progress', handleProgress);
       };
-    } catch (error) {
-      console.error('UpdateProgress: Error setting up listeners', error);
     }
   }, []);
 
@@ -48,7 +32,7 @@ export default function UpdateProgress() {
       <div className="text-center space-y-6 max-w-md px-8">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src="/fluxy.png" alt="Fluxy" className="h-16 w-16" />
+          <img src="fluxy.png" alt="Fluxy" className="h-16 w-16" />
           <h1 className="text-4xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 animate-pulse drop-shadow-[0_0_15px_rgba(94,234,212,0.5)]">
             FLUXY
           </h1>
