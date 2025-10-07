@@ -1,14 +1,18 @@
 // Simple Voice Chat Service - Stack Overflow Safe Version
 import websocketService from './websocket';
-import electronAPI from '../utils/electronAPI';
+import EventEmitter from 'events';
+import logger from '../utils/logger';
 
-class VoiceChatService {
+class VoiceChatService extends EventEmitter {
   constructor() {
+    super();
     this.isConnected = false;
     this.currentChannel = null;
     this.currentUserId = null;
     this.participants = [];
     this.localStream = null;
+    this.screenStream = null;
+    this.currentUser = null;
     this.isMuted = false;
     this.isDeafened = false;
     
@@ -58,11 +62,11 @@ class VoiceChatService {
         try {
           callback(data);
         } catch (error) {
-          console.error('Callback error:', error);
+          logger.error('Callback error:', error);
         }
       });
     } else {
-      console.warn('❌ No callbacks for event:', event);
+      logger.warn('❌ No callbacks for event:', event);
     }
   }
 
@@ -88,21 +92,21 @@ class VoiceChatService {
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('✅ Discord-like audio processing enabled');
+      logger.log('✅ Discord-like audio processing enabled');
       
       // Note: Web Audio API processing disabled - it breaks the stream
       // Browser's native processing (echoCancellation, noiseSuppression, autoGainControl) is enough
       
       return this.localStream;
     } catch (error) {
-      console.error('❌ Enhanced audio failed, falling back to basic:', error);
+      logger.error('❌ Enhanced audio failed, falling back to basic:', error);
       
       // Fallback to basic audio
       try {
         this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         return this.localStream;
       } catch (basicError) {
-        console.error('❌ Basic audio also failed:', basicError);
+        logger.error('❌ Basic audio also failed:', basicError);
         throw basicError;
       }
     }
@@ -157,7 +161,7 @@ class VoiceChatService {
       this.emit('participantsChanged', this.participants);
       return true;
     } catch (error) {
-      console.error('❌ Voice join failed:', error);
+      logger.error('❌ Voice join failed:', error);
       
       // Show error notification on desktop
       if (electronAPI.isElectron()) {
@@ -171,7 +175,7 @@ class VoiceChatService {
   // Leave voice channel
   async leaveChannel() {
     try {
-      // console.log('🚪 Leaving voice channel:', this.currentChannel);
+      // logger.log('🚪 Leaving voice channel:', this.currentChannel);
       
       // Close all peer connections
       this.peerConnections.forEach((pc, userId) => {
@@ -202,7 +206,7 @@ class VoiceChatService {
       
       return true;
     } catch (error) {
-      console.error('❌ Voice leave failed:', error);
+      logger.error('❌ Voice leave failed:', error);
       throw error;
     }
   }
@@ -223,7 +227,7 @@ class VoiceChatService {
         isMuted: this.isMuted,
         userId: this.currentUserId
       });
-      // console.log(`🔇 Mute status sent to server: ${this.isMuted}`);
+      // logger.log(`🔇 Mute status sent to server: ${this.isMuted}`);
     }
     
     this.emit('muteChanged', this.isMuted);
@@ -255,7 +259,7 @@ class VoiceChatService {
         isDeafened: this.isDeafened,
         userId: this.currentUserId
       });
-      // console.log(`🔇 Deafen status sent to server: ${this.isDeafened}`);
+      // logger.log(`🔇 Deafen status sent to server: ${this.isDeafened}`);
     }
     
     this.emit('deafenChanged', this.isDeafened);
@@ -290,7 +294,7 @@ class VoiceChatService {
   // Screen sharing functionality - ELECTRON-FIRST APPROACH
   async startScreenShare(options = {}) {
     try {
-      console.log('🖥️ Starting screen share (Electron-First)...');
+      logger.log('🖥️ Starting screen share (Electron-First)...');
       
       let constraints = null;
       
@@ -299,14 +303,14 @@ class VoiceChatService {
         
         let sourceId;
         
-        console.log('🔍 Screen share options received:', options);
+        logger.log('🔍 Screen share options received:', options);
         
         // If source is provided from picker, use it
         if (options.sourceId) {
           sourceId = options.sourceId;
-          console.log('🖥️ Using selected source ID:', sourceId, 'Name:', options.sourceName);
+          logger.log('🖥️ Using selected source ID:', sourceId, 'Name:', options.sourceName);
         } else {
-          console.log('⚠️ No sourceId provided, using fallback');
+          logger.log('⚠️ No sourceId provided, using fallback');
           // Fallback: get available sources and use first screen
           const sources = await electronAPI.getDesktopSources();
           
@@ -316,7 +320,7 @@ class VoiceChatService {
           
           const primaryScreen = sources.find(source => source.id.startsWith('screen:')) || sources[0];
           sourceId = primaryScreen.id;
-          console.log('🔄 Fallback to:', sourceId);
+          logger.log('🔄 Fallback to:', sourceId);
         }
         
         // For window sharing, audio often fails - try video first
@@ -324,12 +328,12 @@ class VoiceChatService {
         
         // Apply quality settings from options
         const quality = options.quality || { width: 1920, height: 1080, frameRate: 60 };
-        console.log('🎯 Applying quality settings:', quality);
+        logger.log('🎯 Applying quality settings:', quality);
         
         // 144Hz optimization - add minimum constraints for high refresh
         const is144Hz = quality.frameRate >= 144;
         if (is144Hz) {
-          console.log('⚡ 144Hz mode detected - applying optimizations');
+          logger.log('⚡ 144Hz mode detected - applying optimizations');
         }
         
         constraints = {
@@ -362,18 +366,18 @@ class VoiceChatService {
         
         // Log warning for window audio
         if (options.includeAudio && isWindowShare) {
-          console.warn('⚠️ Audio sharing not supported for window capture, using video only');
+          logger.warn('⚠️ Audio sharing not supported for window capture, using video only');
         }
         
-        console.log('🖥️ Electron screen source selected:', options.sourceName || 'Primary Screen');
-        console.log('🔧 Electron constraints:', JSON.stringify(constraints, null, 2));
+        logger.log('🖥️ Electron screen source selected:', options.sourceName || 'Primary Screen');
+        logger.log('🔧 Electron constraints:', JSON.stringify(constraints, null, 2));
       } else {
         // FALLBACK: Web browser (limited functionality)
-        console.warn('⚠️ Running in browser mode - limited screen sharing capabilities');
-        console.warn('💡 For best experience, use the Electron desktop app');
+        logger.warn('⚠️ Running in browser mode - limited screen sharing capabilities');
+        logger.warn('💡 For best experience, use the Electron desktop app');
         
         const quality = options.quality || { width: 1920, height: 1080, frameRate: 60 };
-        console.log('🌐 Browser fallback quality:', quality);
+        logger.log('🌐 Browser fallback quality:', quality);
         
         // Simplified constraints for browser fallback
         constraints = {
@@ -392,7 +396,7 @@ class VoiceChatService {
         
         // Browser limitations warning
         if (quality.frameRate > 60) {
-          console.warn('⚠️ Browser fallback: 144Hz not supported, using 60Hz');
+          logger.warn('⚠️ Browser fallback: 144Hz not supported, using 60Hz');
         }
       }
 
@@ -404,7 +408,7 @@ class VoiceChatService {
         } catch (audioError) {
           // If audio fails, try video only
           if (audioError.name === 'NotReadableError' && constraints.audio) {
-            console.warn('⚠️ Audio capture failed, retrying with video only:', audioError.message);
+            logger.warn('⚠️ Audio capture failed, retrying with video only:', audioError.message);
             const videoOnlyConstraints = {
               ...constraints,
               audio: false
@@ -422,7 +426,7 @@ class VoiceChatService {
       const videoTrack = this.screenStream.getVideoTracks()[0];
       const audioTrack = this.screenStream.getAudioTracks()[0];
       
-      console.log('✅ Screen capture successful:', {
+      logger.log('✅ Screen capture successful:', {
         video: videoTrack?.getSettings(),
         audio: audioTrack?.getSettings()
       });
@@ -430,7 +434,7 @@ class VoiceChatService {
       // 144Hz performance monitoring
       if (videoTrack && options.quality?.frameRate >= 144) {
         const settings = videoTrack.getSettings();
-        console.log('⚡ 144Hz Performance Check:', {
+        logger.log('⚡ 144Hz Performance Check:', {
           actualFrameRate: settings.frameRate,
           actualWidth: settings.width,
           actualHeight: settings.height,
@@ -438,8 +442,8 @@ class VoiceChatService {
         });
         
         if (settings.frameRate < 120) {
-          console.warn('⚠️ 144Hz mode aktif ama gerçek FPS düşük:', settings.frameRate);
-          console.warn('💡 Sistem performansını kontrol edin (GPU, CPU kullanımı)');
+          logger.warn('⚠️ 144Hz mode aktif ama gerçek FPS düşük:', settings.frameRate);
+          logger.warn('💡 Sistem performansını kontrol edin (GPU, CPU kullanımı)');
         }
       }
 
@@ -453,7 +457,7 @@ class VoiceChatService {
 
       // Handle stream end (user stops sharing)
       this.screenStream.getVideoTracks()[0].onended = () => {
-        console.log('🖥️ Screen share ended by user');
+        logger.log('🖥️ Screen share ended by user');
         this.stopScreenShare();
       };
 
@@ -464,8 +468,8 @@ class VoiceChatService {
 
       return this.screenStream;
     } catch (error) {
-      console.error('❌ Screen share failed:', error);
-      console.error('Error details:', {
+      logger.error('❌ Screen share failed:', error);
+      logger.error('Error details:', {
         name: error.name,
         message: error.message,
         stack: error.stack,
@@ -495,7 +499,7 @@ class VoiceChatService {
   // Stop screen sharing
   async stopScreenShare() {
     try {
-      console.log('🖥️ Stopping screen share...');
+      logger.log('🖥️ Stopping screen share...');
       
       if (this.screenStream) {
         this.screenStream.getTracks().forEach(track => track.stop());
@@ -514,10 +518,10 @@ class VoiceChatService {
         userId: this.currentUserId
       });
 
-      console.log('✅ Screen share stopped');
+      logger.log('✅ Screen share stopped');
       return true;
     } catch (error) {
-      console.error('❌ Stop screen share failed:', error);
+      logger.error('❌ Stop screen share failed:', error);
       throw error;
     }
   }
@@ -556,9 +560,9 @@ class VoiceChatService {
         mediaSource: 'screen'
       });
       
-      console.log(`🖥️ Screen quality adjusted to: ${quality}`);
+      logger.log(`🖥️ Screen quality adjusted to: ${quality}`);
     } catch (error) {
-      console.warn('⚠️ Quality adjustment failed:', error);
+      logger.warn('⚠️ Quality adjustment failed:', error);
     }
   }
 
@@ -625,9 +629,9 @@ class VoiceChatService {
       this.localStream.addTrack(processedTrack);
       originalTrack.stop();
       
-      console.log('✅ Advanced audio processing applied (noise gate + compressor + highpass)');
+      logger.log('✅ Advanced audio processing applied (noise gate + compressor + highpass)');
     } catch (error) {
-      console.warn('⚠️ Advanced audio processing failed, using basic:', error);
+      logger.warn('⚠️ Advanced audio processing failed, using basic:', error);
     }
   }
 
@@ -647,7 +651,7 @@ class VoiceChatService {
     socket.on('voice:offer', async ({ channelId, fromUserId, fromUsername, offer }) => {
       if (channelId !== this.currentChannel) return;
       
-      console.log(`📡 Received offer from ${fromUsername}`);
+      logger.log(`📡 Received offer from ${fromUsername}`);
       
       try {
         // Create peer connection if doesn't exist
@@ -659,7 +663,7 @@ class VoiceChatService {
         
         // Check signaling state before setting remote description
         if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
-          console.warn(`⚠️ Ignoring offer, peer connection in state: ${pc.signalingState}`);
+          logger.warn(`⚠️ Ignoring offer, peer connection in state: ${pc.signalingState}`);
           return;
         }
         
@@ -675,9 +679,9 @@ class VoiceChatService {
           answer: pc.localDescription
         });
         
-        console.log(`✅ Sent answer to ${fromUsername}`);
+        logger.log(`✅ Sent answer to ${fromUsername}`);
       } catch (error) {
-        console.error('Error handling offer:', error);
+        logger.error('Error handling offer:', error);
       }
     });
 
@@ -689,10 +693,10 @@ class VoiceChatService {
         const pc = this.peerConnections.get(fromUserId);
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log(`✅ Answer received from user ${fromUserId}`);
+          logger.log(`✅ Answer received from user ${fromUserId}`);
         }
       } catch (error) {
-        console.error('Error handling answer:', error);
+        logger.error('Error handling answer:', error);
       }
     });
 
@@ -706,7 +710,7 @@ class VoiceChatService {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
         }
       } catch (error) {
-        console.error('Error adding ICE candidate:', error);
+        logger.error('Error adding ICE candidate:', error);
       }
     });
   }
@@ -719,7 +723,7 @@ class VoiceChatService {
       // Add local stream tracks
       if (this.localStream) {
         this.localStream.getTracks().forEach(track => {
-          console.log(`📤 Adding local track to peer ${username}`);
+          logger.log(`📤 Adding local track to peer ${username}`);
           pc.addTrack(track, this.localStream);
         });
       }
@@ -738,7 +742,7 @@ class VoiceChatService {
       
       // Handle remote stream
       pc.ontrack = (event) => {
-        console.log(`🎵 Received remote stream from ${username}`);
+        logger.log(`🎵 Received remote stream from ${username}`);
         const remoteStream = event.streams[0];
         this.remoteStreams.set(userId, remoteStream);
         
@@ -748,7 +752,7 @@ class VoiceChatService {
       
       // Handle connection state changes
       pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${username}: ${pc.connectionState}`);
+        logger.log(`Connection state with ${username}: ${pc.connectionState}`);
         
         if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           // Attempt reconnection
@@ -761,11 +765,11 @@ class VoiceChatService {
       };
       
       this.peerConnections.set(userId, pc);
-      console.log(`✅ Peer connection created for ${username}`);
+      logger.log(`✅ Peer connection created for ${username}`);
       
       return pc;
     } catch (error) {
-      console.error(`❌ Failed to create peer connection for ${username}:`, error);
+      logger.error(`❌ Failed to create peer connection for ${username}:`, error);
       throw error;
     }
   }
@@ -775,7 +779,7 @@ class VoiceChatService {
     try {
       const pc = this.peerConnections.get(userId);
       if (!pc || !this.currentChannel) {
-        console.error('❌ Cannot send offer: missing peer connection or channel');
+        logger.error('❌ Cannot send offer: missing peer connection or channel');
         return;
       }
       
@@ -789,16 +793,16 @@ class VoiceChatService {
         offer: pc.localDescription
       });
       
-      console.log(`📡 Sent offer to user ${userId}`);
+      logger.log(`📡 Sent offer to user ${userId}`);
     } catch (error) {
-      console.error('Error sending offer:', error);
+      logger.error('Error sending offer:', error);
     }
   }
 
   // ICE restart for reconnection
   async restartIce(userId) {
     try {
-      console.log(`🔄 Attempting ICE restart for user ${userId}`);
+      logger.log(`🔄 Attempting ICE restart for user ${userId}`);
       const pc = this.peerConnections.get(userId);
       if (!pc || !this.currentChannel) return;
       
@@ -812,9 +816,9 @@ class VoiceChatService {
         offer: pc.localDescription
       });
       
-      console.log(`✅ ICE restart offer sent to user ${userId}`);
+      logger.log(`✅ ICE restart offer sent to user ${userId}`);
     } catch (error) {
-      console.error('ICE restart failed:', error);
+      logger.error('ICE restart failed:', error);
     }
   }
 
@@ -832,7 +836,7 @@ class VoiceChatService {
     
     audioElement.srcObject = stream;
     audioElement.play().catch(err => {
-      console.error('Failed to play remote audio:', err);
+      logger.error('Failed to play remote audio:', err);
     });
   }
 
@@ -867,3 +871,4 @@ class VoiceChatService {
 
 // Export singleton instance
 export default new VoiceChatService();
+

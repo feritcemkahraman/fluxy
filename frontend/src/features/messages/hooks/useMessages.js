@@ -210,8 +210,12 @@ export const useMessages = (channelId) => {
       if (messageChannelId === channelId || messageChannelId?.toString() === channelId?.toString()) {
         
         setMessages(prev => {
-          // Check if message already exists (avoid duplicates)
-          const exists = prev.some(m => (m.id || m._id) === (message.id || message._id));
+          // Check if message already exists by ID (avoid duplicates)
+          const messageId = message.id || message._id;
+          const exists = prev.some(m => {
+            const existingId = m.id || m._id;
+            return existingId === messageId || existingId?.toString() === messageId?.toString();
+          });
           if (exists) return prev;
           
           // Normalize message format
@@ -222,11 +226,24 @@ export const useMessages = (channelId) => {
             timestamp: message.createdAt || message.timestamp
           };
           
-          // Remove any optimistic message with same content
-          const filtered = prev.filter(m => 
-            !(m.isOptimistic && m.content === normalizedMessage.content && 
-              Math.abs(new Date(normalizedMessage.timestamp) - new Date(m.timestamp)) < 5000)
-          );
+          // Get current user ID to check if this is our message
+          const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+          const currentUserId = currentUser.id || currentUser._id;
+          const messageAuthorId = message.author?.id || message.author?._id;
+          
+          // Remove optimistic message if this is our own message
+          const filtered = prev.filter(m => {
+            // Remove optimistic messages that match this real message
+            if (m.isOptimistic) {
+              // Same author and similar content and close timestamp
+              const sameAuthor = messageAuthorId === currentUserId;
+              const sameContent = m.content === normalizedMessage.content;
+              const closeTime = Math.abs(new Date(normalizedMessage.timestamp) - new Date(m.timestamp)) < 10000;
+              
+              return !(sameAuthor && sameContent && closeTime);
+            }
+            return true;
+          });
           
           return [normalizedMessage, ...filtered];
         });
