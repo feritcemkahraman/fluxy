@@ -53,6 +53,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 600,
     title: 'Fluxy',
+    frame: false, // Remove native title bar
     icon: path.join(process.resourcesPath, 'icon.ico'),
     webPreferences: {
       nodeIntegration: false, // Security: ALWAYS false
