@@ -1,0 +1,13 @@
+[LOG] App starting... NODE_ENV: production
+[ERROR] App threw an error during load
+[ERROR] ReferenceError: app is not defined
+    at Object.<anonymous> (C:\Users\FCK\Downloads\yerli milli projem\frontend\index.js:21:1)
+    at Module._compile (node:internal/modules/cjs/loader:1714:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1848:10)
+    at Module.load (node:internal/modules/cjs/loader:1448:32)
+    at Module._load (node:internal/modules/cjs/loader:1270:12)
+    at c._load (node:electron/js2c/node_init:2:17993)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:244:24)
+    at cjsLoader (node:internal/modules/esm/translators:272:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:202:7)
