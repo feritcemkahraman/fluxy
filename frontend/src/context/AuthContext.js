@@ -326,7 +326,8 @@ export function AuthProvider({ children }) {
         'io client disconnect', 
         'ping timeout',
         'transport close',
-        'transport error'
+        'transport error',
+        undefined // Add undefined as normal disconnect
       ];
       
       if (normalDisconnectReasons.includes(reason)) {

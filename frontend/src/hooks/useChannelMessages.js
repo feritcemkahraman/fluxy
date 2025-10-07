@@ -54,6 +54,12 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
   const handleNewMessage = useCallback((rawMessage) => {
     if (!rawMessage) return;
     
+    console.log('🔥 SOCKET MESSAGE RECEIVED:', {
+      content: rawMessage.content?.substring(0, 50),
+      id: rawMessage._id,
+      author: rawMessage.author?.username
+    });
+    
     // Normalize with current server members
     const normalized = normalizeMessage(rawMessage, serverMembersRef.current);
     if (!normalized) return;
@@ -86,7 +92,10 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
           Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp)) < 3000
         );
         
-        if (contentDuplicate) return prev;
+        if (contentDuplicate) {
+          console.log('🚫 DUPLICATE BLOCKED (content):', normalized.content?.substring(0, 50));
+          return prev;
+        }
       }
       
       // Remove any optimistic message with same content and author
@@ -104,7 +113,13 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
       });
       
       // Add new message and sort
-      return mergeMessages(filtered, [normalized]);
+      const result = mergeMessages(filtered, [normalized]);
+      console.log('✅ MESSAGE ADDED:', {
+        content: normalized.content?.substring(0, 50),
+        totalMessages: result.length,
+        lastMessage: result[result.length - 1]?.content?.substring(0, 30)
+      });
+      return result;
     });
   }, [channelId]);
 

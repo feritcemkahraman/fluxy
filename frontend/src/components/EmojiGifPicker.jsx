@@ -7,7 +7,12 @@ import { ScrollArea } from "./ui/scroll-area";
 // Electron-safe path helper
 const getPepePath = (filename) => {
   const isElectron = window.electronAPI?.isElectron || window.isElectron;
-  return isElectron ? `./pepe/${filename}` : `/pepe/${filename}`;
+  if (isElectron) {
+    // In production Electron, resources are in process.resourcesPath
+    const isDev = process.env.NODE_ENV === 'development';
+    return isDev ? `/pepe/${filename}` : `../resources/pepe/${filename}`;
+  }
+  return `/pepe/${filename}`;
 };
 
 // Pepe Emoji Collection - From public/pepe folder

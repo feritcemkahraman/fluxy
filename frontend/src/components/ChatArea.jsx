@@ -743,8 +743,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                   <EmojiGifPicker
                     onSelect={(content, type) => {
                       if (type === 'gif') {
-                        // Send GIF directly
-                        sendChannelMessage(content, { type: 'gif' });
+                        // Send GIF directly (pass user and options)
+                        sendChannelMessage(content, user, { type: 'gif' });
                       } else {
                         // Add emoji to message
                         setMessage(prev => prev + content);

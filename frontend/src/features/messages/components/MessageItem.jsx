@@ -179,7 +179,11 @@ const MessageItem = ({
                 // Electron-safe path helper (defined once)
                 const getPepePath = (filename) => {
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
-                  return isElectron ? `./pepe/${filename}` : `/pepe/${filename}`;
+                  if (isElectron) {
+                    const isDev = process.env.NODE_ENV === 'development';
+                    return isDev ? `/pepe/${filename}` : `../resources/pepe/${filename}`;
+                  }
+                  return `/pepe/${filename}`;
                 };
                 
                 // Complete Pepe map - all 94 emojis (defined once)
