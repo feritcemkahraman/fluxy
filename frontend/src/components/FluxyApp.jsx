@@ -1091,7 +1091,7 @@ const FluxyApp = () => {
       <UpdateProgress />
       
       {/* Desktop Title Bar (Electron only) */}
-      <DesktopTitleBar title={activeServer?.name ? `Fluxy - ${activeServer.name}` : 'Fluxy'} />
+      <DesktopTitleBar title="Fluxy - Oyuncular için tasarlanmış yeni nesil sesli topluluk deneyimi" />
       
       {/* Desktop Notifications Handler (Electron only) */}
       <DesktopNotifications />

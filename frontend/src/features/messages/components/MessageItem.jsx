@@ -176,6 +176,103 @@ const MessageItem = ({
             ) : (
               // Render text with Pepe emoji support
               (() => {
+                // Electron-safe path helper (defined once)
+                const getPepePath = (filename) => {
+                  const isElectron = window.electronAPI?.isElectron || window.isElectron;
+                  return isElectron ? `./pepe/${filename}` : `/pepe/${filename}`;
+                };
+                
+                // Complete Pepe map - all 94 emojis (defined once)
+                const pepeMap = {
+                    'pepe_king': getPepePath('11998-pepe-king.png'),
+                    'pepe_rapper': getPepePath('13328-rapper.png'),
+                    'pepe_smoke': getPepePath('136857-pepesmoke.gif'),
+                    'pepe_tricycle': getPepePath('13703-pepe-tricycle.gif'),
+                    'pepe_cuddle': getPepePath('13796-cuddle.png'),
+                    'pepe_laugh': getPepePath('1502_pepelaugh.gif'),
+                    'pepe_yamero': getPepePath('15891-yamero.png'),
+                    'pepe_cheer': getPepePath('18075-pepe-cheer.gif'),
+                    'pepe_rockstar': getPepePath('18075-pepe-rockstar.gif'),
+                    'pepe_shine': getPepePath('18113-pepeshine.gif'),
+                    'pepe_closedeyes': getPepePath('20497-pepe-closedeyes.png'),
+                    'pepe_spit': getPepePath('21151-pepe-spit.gif'),
+                    'pepe_driver': getPepePath('2205_pepegadriver.gif'),
+                    'pepe_5head': getPepePath('2246_pepe_5head.gif'),
+                    'pepe_steamdeck': getPepePath('22859-steamdeck.png'),
+                    'pepe_vanish': getPepePath('24561-pepe-vanish.gif'),
+                    'pepe_bellyache': getPepePath('24714-pepe-bellyache.gif'),
+                    'pepe_mcbed': getPepePath('26866-pepemcbed.gif'),
+                    'pepe_dogehug': getPepePath('26924-dogehug.gif'),
+                    'pepe_panic': getPepePath('2749-pepe-panic.png'),
+                    'pepe_doctor': getPepePath('276883-doctor-pepe.gif'),
+                    'pepe_pray': getPepePath('31261-pray.png'),
+                    'pepe_thinking': getPepePath('32226-pepethinking.png'),
+                    'pepe_lmfao': getPepePath('32868-pepe-lmfaoooo.gif'),
+                    'pepe_blushy': getPepePath('3439-pepe-blushy.png'),
+                    'pepe_monster': getPepePath('345529-pepemonster.png'),
+                    'pepe_sadsausage': getPepePath('347770-pepe-sadsausage.png'),
+                    'pepe_jetski': getPepePath('35745-pepejetski.gif'),
+                    'pepe_thumbsup': getPepePath('3812_pepe_thumbsup.gif'),
+                    'pepe_pet': getPepePath('398460-pepepet.gif'),
+                    'pepe_gamercry': getPepePath('411644-gamer-pepe-cry.gif'),
+                    'pepe_pixel': getPepePath('41261-pixelpepe.gif'),
+                    'pepe_stare': getPepePath('41744-stare.png'),
+                    'pepe_minecraft': getPepePath('4192-pepeminecraft.png'),
+                    'pepe_plug': getPepePath('43235-pepeplug.png'),
+                    'pepe_disgusted': getPepePath('4506-pepedisgusted.png'),
+                    'pepe_jam': getPepePath('45997-pepejam.gif'),
+                    'pepe_cry': getPepePath('471114-pepecry.png'),
+                    'pepe_joker': getPepePath('48506-joker.png'),
+                    'pepe_roasted': getPepePath('50320-pepe-roastedpepe.gif'),
+                    'pepe_chef': getPepePath('50440-pepe-chef.png'),
+                    'pepe_hart': getPepePath('50724-hart.png'),
+                    'pepe_daddy': getPepePath('52925-pepedaddy.gif'),
+                    'pepe_poker': getPepePath('54890-poker.png'),
+                    'pepe_oops': getPepePath('56432-pepeoops.png'),
+                    'pepe_clown': getPepePath('56943-clown-alt.png'),
+                    'pepe_clowntrain': getPepePath('59958-pepeclownblobtrain.gif'),
+                    'pepe_point': getPepePath('5997-pepe-point.png'),
+                    'pepe_squadsus': getPepePath('60299-pepe-squad-sus.png'),
+                    'pepe_sitting': getPepePath('6110-sitting.gif'),
+                    'pepe_hyperspeed': getPepePath('61444-pepe-hyperspeed.gif'),
+                    'pepe_wdym': getPepePath('63226-pepewdym.png'),
+                    'pepe_robber': getPepePath('63618-pepe-robber.gif'),
+                    'pepe_flowerwilt': getPepePath('647501-pepeflowerwilt.png'),
+                    'pepe_prayalt': getPepePath('6605-pepe-pray.png'),
+                    'pepe_sus': getPepePath('6605-sus.png'),
+                    'pepe_howdy': getPepePath('6662_PepeHowdy.gif'),
+                    'pepe_binary': getPepePath('67734-binary.gif'),
+                    'pepe_jam2': getPepePath('67908-pepejam.gif'),
+                    'pepe_amongusstab': getPepePath('71051-pepeamongusstab.gif'),
+                    'pepe_ughping': getPepePath('71945-ughping.png'),
+                    'pepe_comeandgo': getPepePath('727145-pepecomeandxgo.gif'),
+                    'pepe_knife': getPepePath('727145-pepeknife.png'),
+                    'pepe_wizz': getPepePath('7361_PepeWiZz.gif'),
+                    'pepe_chocoface': getPepePath('76030-pepechocoface.png'),
+                    'pepe_creditcard': getPepePath('761219-pepe-credit-card.gif'),
+                    'pepe_bdayparty': getPepePath('77653-pepe-bdayparty.png'),
+                    'pepe_toasterbath': getPepePath('77885-pepetoasterbathtub.png'),
+                    'pepe_santarun': getPepePath('8056_Pepe_SantaRun.gif'),
+                    'pepe_cry.gif': getPepePath('8321_pepecry.gif'),
+                    'pepe_thumbsdown': getPepePath('8436_pepe_thumbsdown.gif'),
+                    'pepe_madpuke': getPepePath('84899-pepe-madpuke.gif'),
+                    'pepe_boba': getPepePath('89315-boba.png'),
+                    'pepe_clink': getPepePath('8932-pepeclink.png'),
+                    'pepe_susalt': getPepePath('90423-pepe-sus.png'),
+                    'pepe_bedjump': getPepePath('93659-pepebedjump.gif'),
+                    'pepe_moneyrain': getPepePath('93659-pepemoneyrain.gif'),
+                    'pepe_lol': getPepePath('94770-pepelol.png'),
+                    'pepe_gg': getPepePath('95932-pepegg.png'),
+                    'pepe_toilet': getPepePath('96012-pepe-toilet.gif'),
+                    'pepe_jam3': getPepePath('9812-pepejam2.gif'),
+                    'pepe_loving': getPepePath('98260-pepe-loving.gif'),
+                    'pepe_knifealt': getPepePath('99281-pepe-knife.png'),
+                    'pepe_sadge': getPepePath('99281-pepe-sadge.png'),
+                    'pepe_hmm': getPepePath('PepeHmm.gif'),
+                    'pepe_rain': getPepePath('PepeRain.gif'),
+                    'pepe_sip': getPepePath('PepeSip.gif'),
+                  };
+                
                 const pepePattern = /:(\w+):/g;
                 const parts = [];
                 let lastIndex = 0;
@@ -187,103 +284,6 @@ const MessageItem = ({
                   }
                   
                   const pepeId = match[1];
-                  
-                  // Electron-safe path helper
-                  const getPepePath = (filename) => {
-                    const isElectron = window.electronAPI?.isElectron || window.isElectron;
-                    return isElectron ? `./pepe/${filename}` : `/pepe/${filename}`;
-                  };
-                  
-                  // Complete Pepe map - all 94 emojis
-                  const pepeMap = {
-                    'pepe_king': getPepePath('11998-pepe-king.png'),
-                    'pepe_rapper': getPepePath('13328-rapper\.png'),
-                    'pepe_smoke': getPepePath('136857-pepesmoke\.gif'),
-                    'pepe_tricycle': getPepePath('13703-pepe-tricycle\.gif'),
-                    'pepe_cuddle': getPepePath('13796-cuddle\.png'),
-                    'pepe_laugh': getPepePath('1502_pepelaugh\.gif'),
-                    'pepe_yamero': getPepePath('15891-yamero\.png'),
-                    'pepe_cheer': getPepePath('18075-pepe-cheer\.gif'),
-                    'pepe_rockstar': getPepePath('18075-pepe-rockstar\.gif'),
-                    'pepe_shine': getPepePath('18113-pepeshine\.gif'),
-                    'pepe_closedeyes': getPepePath('20497-pepe-closedeyes\.png'),
-                    'pepe_spit': getPepePath('21151-pepe-spit\.gif'),
-                    'pepe_driver': getPepePath('2205_pepegadriver\.gif'),
-                    'pepe_5head': getPepePath('2246_pepe_5head\.gif'),
-                    'pepe_steamdeck': getPepePath('22859-steamdeck\.png'),
-                    'pepe_vanish': getPepePath('24561-pepe-vanish\.gif'),
-                    'pepe_bellyache': getPepePath('24714-pepe-bellyache\.gif'),
-                    'pepe_mcbed': getPepePath('26866-pepemcbed\.gif'),
-                    'pepe_dogehug': getPepePath('26924-dogehug\.gif'),
-                    'pepe_panic': getPepePath('2749-pepe-panic\.png'),
-                    'pepe_doctor': getPepePath('276883-doctor-pepe\.gif'),
-                    'pepe_pray': getPepePath('31261-pray\.png'),
-                    'pepe_thinking': getPepePath('32226-pepethinking\.png'),
-                    'pepe_lmfao': getPepePath('32868-pepe-lmfaoooo\.gif'),
-                    'pepe_blushy': getPepePath('3439-pepe-blushy\.png'),
-                    'pepe_monster': getPepePath('345529-pepemonster\.png'),
-                    'pepe_sadsausage': getPepePath('347770-pepe-sadsausage\.png'),
-                    'pepe_jetski': getPepePath('35745-pepejetski\.gif'),
-                    'pepe_thumbsup': getPepePath('3812_pepe_thumbsup\.gif'),
-                    'pepe_pet': getPepePath('398460-pepepet\.gif'),
-                    'pepe_gamercry': getPepePath('411644-gamer-pepe-cry\.gif'),
-                    'pepe_pixel': getPepePath('41261-pixelpepe\.gif'),
-                    'pepe_stare': getPepePath('41744-stare\.png'),
-                    'pepe_minecraft': getPepePath('4192-pepeminecraft\.png'),
-                    'pepe_plug': getPepePath('43235-pepeplug\.png'),
-                    'pepe_disgusted': getPepePath('4506-pepedisgusted\.png'),
-                    'pepe_jam': getPepePath('45997-pepejam\.gif'),
-                    'pepe_cry': getPepePath('471114-pepecry\.png'),
-                    'pepe_joker': getPepePath('48506-joker\.png'),
-                    'pepe_roasted': getPepePath('50320-pepe-roastedpepe\.gif'),
-                    'pepe_chef': getPepePath('50440-pepe-chef\.png'),
-                    'pepe_hart': getPepePath('50724-hart\.png'),
-                    'pepe_daddy': getPepePath('52925-pepedaddy\.gif'),
-                    'pepe_poker': getPepePath('54890-poker\.png'),
-                    'pepe_oops': getPepePath('56432-pepeoops\.png'),
-                    'pepe_clown': getPepePath('56943-clown-alt\.png'),
-                    'pepe_clowntrain': getPepePath('59958-pepeclownblobtrain\.gif'),
-                    'pepe_point': getPepePath('5997-pepe-point\.png'),
-                    'pepe_squadsus': getPepePath('60299-pepe-squad-sus\.png'),
-                    'pepe_sitting': getPepePath('6110-sitting\.gif'),
-                    'pepe_hyperspeed': getPepePath('61444-pepe-hyperspeed\.gif'),
-                    'pepe_wdym': getPepePath('63226-pepewdym\.png'),
-                    'pepe_robber': getPepePath('63618-pepe-robber\.gif'),
-                    'pepe_flowerwilt': getPepePath('647501-pepeflowerwilt\.png'),
-                    'pepe_prayalt': getPepePath('6605-pepe-pray\.png'),
-                    'pepe_sus': getPepePath('6605-sus\.png'),
-                    'pepe_howdy': getPepePath('6662_PepeHowdy\.gif'),
-                    'pepe_binary': getPepePath('67734-binary\.gif'),
-                    'pepe_jam2': getPepePath('67908-pepejam\.gif'),
-                    'pepe_amongusstab': getPepePath('71051-pepeamongusstab\.gif'),
-                    'pepe_ughping': getPepePath('71945-ughping\.png'),
-                    'pepe_comeandgo': getPepePath('727145-pepecomeandxgo\.gif'),
-                    'pepe_knife': getPepePath('727145-pepeknife\.png'),
-                    'pepe_wizz': getPepePath('7361_PepeWiZz\.gif'),
-                    'pepe_chocoface': getPepePath('76030-pepechocoface\.png'),
-                    'pepe_creditcard': getPepePath('761219-pepe-credit-card\.gif'),
-                    'pepe_bdayparty': getPepePath('77653-pepe-bdayparty\.png'),
-                    'pepe_toasterbath': getPepePath('77885-pepetoasterbathtub\.png'),
-                    'pepe_santarun': getPepePath('8056_Pepe_SantaRun\.gif'),
-                    'pepe_crygif': getPepePath('8321_pepecry\.gif'),
-                    'pepe_thumbsdown': getPepePath('8436_pepe_thumbsdown\.gif'),
-                    'pepe_madpuke': getPepePath('84899-pepe-madpuke\.gif'),
-                    'pepe_boba': getPepePath('89315-boba\.png'),
-                    'pepe_clink': getPepePath('8932-pepeclink\.png'),
-                    'pepe_susalt': getPepePath('90423-pepe-sus\.png'),
-                    'pepe_bedjump': getPepePath('93659-pepebedjump\.gif'),
-                    'pepe_moneyrain': getPepePath('93659-pepemoneyrain\.gif'),
-                    'pepe_lol': getPepePath('94770-pepelol\.png'),
-                    'pepe_gg': getPepePath('95932-pepegg\.png'),
-                    'pepe_toilet': getPepePath('96012-pepe-toilet\.gif'),
-                    'pepe_jam3': getPepePath('9812-pepejam2\.gif'),
-                    'pepe_loving': getPepePath('98260-pepe-loving\.gif'),
-                    'pepe_knifealt': getPepePath('99281-pepe-knife\.png'),
-                    'pepe_sadge': getPepePath('99281-pepe-sadge\.png'),
-                    'pepe_hmm': getPepePath('PepeHmm\.gif'),
-                    'pepe_rain': getPepePath('PepeRain\.gif'),
-                    'pepe_sip': getPepePath('PepeSip\.gif'),
-                  };
                   const pepeUrl = pepeMap[pepeId];
                   
                   if (pepeUrl) {
@@ -466,4 +466,8 @@ const MessageItem = ({
 };
 
 export default MessageItem;
+
+
+
+
 

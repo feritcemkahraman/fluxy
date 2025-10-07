@@ -73,6 +73,22 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
       
       if (alreadyExists) return prev;
       
+      // Check if this is a duplicate by content (for messages without optimistic)
+      // This handles the case where backend broadcasts the same message twice
+      const currentUserId = serverMembersRef.current?.find(m => m.isCurrentUser)?._id || 
+                           JSON.parse(localStorage.getItem('user') || '{}')._id;
+      const isOwnMessage = (normalized.author?.id || normalized.author?._id) === currentUserId;
+      
+      if (isOwnMessage) {
+        const contentDuplicate = prev.some(msg => 
+          msg.content === normalized.content &&
+          (msg.author?.id === currentUserId || msg.author?._id === currentUserId) &&
+          Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp)) < 3000
+        );
+        
+        if (contentDuplicate) return prev;
+      }
+      
       // Remove any optimistic message with same content and author
       const filtered = prev.filter(msg => {
         if (!msg.isOptimistic) return true;
