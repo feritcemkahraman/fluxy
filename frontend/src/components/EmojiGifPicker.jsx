@@ -10,7 +10,7 @@ const getPepePath = (filename) => {
   if (isElectron) {
     // Check if running on dev server (localhost:3000) or packaged app (file://)
     const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
+    return isDevServer ? `/pepe/${filename}` : `./pepe/${filename}`;
   }
   return `/pepe/${filename}`;
 };

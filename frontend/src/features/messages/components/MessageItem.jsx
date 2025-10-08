@@ -181,7 +181,7 @@ const MessageItem = ({
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   if (isElectron) {
                     const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-                    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
+                    return isDevServer ? `/pepe/${filename}` : `./pepe/${filename}`;
                   }
                   return `/pepe/${filename}`;
                 };
@@ -257,7 +257,7 @@ const MessageItem = ({
                     'pepe_bdayparty': getPepePath('77653-pepe-bdayparty.png'),
                     'pepe_toasterbath': getPepePath('77885-pepetoasterbathtub.png'),
                     'pepe_santarun': getPepePath('8056_Pepe_SantaRun.gif'),
-                    'pepe_cry.gif': getPepePath('8321_pepecry.gif'),
+                    'pepe_crygif': getPepePath('8321_pepecry.gif'),
                     'pepe_thumbsdown': getPepePath('8436_pepe_thumbsdown.gif'),
                     'pepe_madpuke': getPepePath('84899-pepe-madpuke.gif'),
                     'pepe_boba': getPepePath('89315-boba.png'),
@@ -277,7 +277,7 @@ const MessageItem = ({
                     'pepe_sip': getPepePath('PepeSip.gif'),
                   };
                 
-                const pepePattern = /:(\w+):/g;
+                const pepePattern = /:([a-zA-Z0-9_]+):/g;
                 const parts = [];
                 let lastIndex = 0;
                 let match;
@@ -297,9 +297,14 @@ const MessageItem = ({
                         src={pepeUrl} 
                         alt={pepeId}
                         className="inline-block w-10 h-10 mx-1 align-middle"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.insertAdjacentText('afterend', `:${pepeId}:`);
+                        }}
                       />
                     );
                   } else {
+                    // If pepe not found in map, show original text
                     parts.push(match[0]);
                   }
                   
