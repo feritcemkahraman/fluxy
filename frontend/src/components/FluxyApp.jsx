@@ -106,10 +106,10 @@ const FluxyApp = () => {
       window.electronAPI.on?.('update-check-error', handleUpdateCheckError);
 
       return () => {
-        window.electronAPI.off?.('show-update-check-modal', handleShowUpdateCheckModal);
-        window.electronAPI.off?.('update-not-available', handleUpdateNotAvailable);
-        window.electronAPI.off?.('update-download-started', handleUpdateDownloadStarted);
-        window.electronAPI.off?.('update-check-error', handleUpdateCheckError);
+        window.electronAPI.off?.('show-update-check-modal');
+        window.electronAPI.off?.('update-not-available');
+        window.electronAPI.off?.('update-download-started');
+        window.electronAPI.off?.('update-check-error');
       };
     }
   }, []);
