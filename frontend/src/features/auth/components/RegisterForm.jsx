@@ -75,7 +75,7 @@ export default function RegisterForm({ onToggleMode, onBack }) {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4 relative">
               <button
-                onClick={onToggleMode}
+                onClick={onBack || onToggleMode}
                 className="absolute left-0 p-2 text-gray-400 hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
