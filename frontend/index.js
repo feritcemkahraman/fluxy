@@ -469,6 +469,13 @@ if (!gotTheLock) {
 
 // Auto updater (production only)
 if (!isDev) {
+  // Configure update feed
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'feritcemkahraman',
+    repo: 'fluxy'
+  });
+  
   // Discord-like auto update: Silent background updates
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true; // Auto-install on quit (Discord-like)
@@ -476,7 +483,10 @@ if (!isDev) {
   // Check for updates silently on startup (no notification if no update)
   // Only show notification if update is actually available
   setTimeout(() => {
-    autoUpdater.checkForUpdates();
+    console.log('Starting update check...');
+    autoUpdater.checkForUpdates().catch(err => {
+      console.error('Update check failed:', err);
+    });
   }, 3000); // Wait 3 seconds after app start
   
   autoUpdater.on('checking-for-update', () => {
