@@ -58,8 +58,12 @@ const io = new Server(server, {
   transports: ['polling', 'websocket']
 });
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Configure helmet to allow CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginEmbedderPolicy: false
+}));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -111,12 +115,12 @@ app.use(cors({
 // Handle preflight requests explicitly
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else if (allowedOrigins.includes(origin)) {
+  
+  // Allow all origins for preflight
+  if (origin) {
     res.header('Access-Control-Allow-Origin', origin);
   } else {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:3000'); // Default fallback
+    res.header('Access-Control-Allow-Origin', '*');
   }
 
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
