@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -162,11 +162,17 @@
       "icon": "build/icon.icns"
     },
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
       "icon": "public/icon.ico",
+      "certificateFile": null,
+      "certificatePassword": null,
       "sign": null,
-      "signingHashAlgorithms": null,
-      "verifyUpdateCodeSignature": false
+      "signingHashAlgorithms": []
     },
     "linux": {
       "target": "AppImage",
