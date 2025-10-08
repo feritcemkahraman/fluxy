@@ -6,8 +6,8 @@ import { MESSAGE_ERRORS } from '../constants';
  */
 class MessageService {
   constructor() {
-    // Force correct API URL with /api prefix
-    this.baseURL = 'http://localhost:5000/api';
+    // Use environment variable or fallback to localhost
+    this.baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
   }
 
   /**
