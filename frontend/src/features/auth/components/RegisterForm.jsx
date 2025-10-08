@@ -12,10 +12,13 @@ import { AUTH_SUCCESS_MESSAGES, AUTH_ERRORS } from '../constants';
  * RegisterForm Component - Discord Style
  * Clean, reusable registration form with proper validation
  */
-export default function RegisterForm({ onToggleMode, onBack }) {
+export default function RegisterForm({ onToggleMode, onBack, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register } = useAuth();
+  
+  // Check if running in Electron
+  const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
 
   const {
     formData,
@@ -40,6 +43,14 @@ export default function RegisterForm({ onToggleMode, onBack }) {
     const result = await register(data);
     
     if (result.success) {
+      // For web (not Electron), trigger success callback instead of auto-login
+      if (!isElectron && onSuccess) {
+        toast.success(AUTH_SUCCESS_MESSAGES.REGISTER);
+        onSuccess(data.email);
+        return result;
+      }
+      
+      // For Electron, just show success toast and proceed with normal login
       toast.success(AUTH_SUCCESS_MESSAGES.REGISTER);
       return result;
     } else {

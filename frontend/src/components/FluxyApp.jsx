@@ -203,6 +203,7 @@ const FluxyApp = () => {
   // Load user's servers on component mount - only when authenticated
   useEffect(() => {
     let isMounted = true;
+    const startTime = Date.now(); // Record start time for minimum loading duration
 
     const loadServersOnce = async () => {
       // Don't load servers if user is not authenticated
@@ -248,7 +249,17 @@ const FluxyApp = () => {
         setServers([]);
       } finally {
         if (isMounted) {
-          setLoading(false);
+          // Calculate elapsed time and ensure minimum 3 seconds of loading animation
+          const elapsedTime = Date.now() - startTime;
+          const minimumLoadingTime = 3000; // 3 seconds
+          const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
+          
+          // Set loading to false after ensuring minimum duration
+          setTimeout(() => {
+            if (isMounted) {
+              setLoading(false);
+            }
+          }, remainingTime);
         }
       }
     };
