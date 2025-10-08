@@ -164,7 +164,9 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico",
-      "sign": null
+      "sign": null,
+      "signingHashAlgorithms": null,
+      "verifyUpdateCodeSignature": false
     },
     "linux": {
       "target": "AppImage",
