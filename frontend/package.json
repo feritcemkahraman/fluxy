@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -152,6 +152,10 @@
       {
         "from": "public/fluxy.png",
         "to": "fluxy.png"
+      },
+      {
+        "from": "public/pepe",
+        "to": "pepe"
       },
       {
         "from": "public/sounds",

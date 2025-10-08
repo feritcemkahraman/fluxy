@@ -181,9 +181,15 @@ const MessageItem = ({
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   if (isElectron) {
                     const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-                    const path = isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
-                    console.log('🎨 Pepe path:', { filename, isDevServer, path, protocol: window.location.protocol });
-                    return path;
+                    if (isDevServer) {
+                      return `/pepe/${filename}`;
+                    } else {
+                      // Production: Use file:// protocol with absolute path to resources
+                      const basePath = window.location.pathname.replace('/build/index.html', '');
+                      const path = `file://${basePath}/../pepe/${filename}`;
+                      console.log('🎨 Pepe path:', { filename, basePath, path });
+                      return path;
+                    }
                   }
                   return `/pepe/${filename}`;
                 };
