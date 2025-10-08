@@ -46,15 +46,20 @@ echo 4. Starting ngrok tunnel...
 echo    This will create a public URL for your backend
 echo.
 
-start "Ngrok Tunnel" cmd /k "cd /d %~dp0 && .\ngrok.exe http 5000 --log=stdout"
+REM Start ngrok in a new PowerShell window for better display
+start "Ngrok Tunnel" powershell -NoExit -Command "cd '%~dp0'; .\ngrok.exe http 5000"
 
 echo    Ngrok started in new window!
 echo.
 echo ===================================
-echo Copy the ngrok URL from the Ngrok Tunnel window
-echo and update:
-echo - frontend/.env.production
-echo - frontend/.env.local
-echo Then deploy frontend to Netlify
+echo [IMPORTANT] Copy the HTTPS URL from the Ngrok window
+echo Current URL format: https://XXXX.ngrok-free.app
+echo.
+echo Then update these files with the new URL:
+echo   1. backend/.env (NGROK_URL)
+echo   2. frontend/.env (REACT_APP_API_URL and REACT_APP_SOCKET_URL)
+echo   3. netlify.toml (both environment variables)
+echo.
+echo After updating, restart backend and redeploy to Netlify!
 echo ===================================
 pause
