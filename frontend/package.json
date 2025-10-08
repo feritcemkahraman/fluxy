@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -69,7 +69,7 @@
   "homepage": "./",
   "scripts": {
     "start": "craco start",
-    "build": "craco build && node -e \"require('fs-extra').copySync('public/pepe', 'build/pepe')\"",
+    "build": "craco build",
     "build:netlify": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
@@ -134,17 +134,11 @@
     "files": [
       "build/**/*",
       "index.js",
+      "preload.js",
       "package.json",
       "node_modules/**/*"
     ],
     "extraResources": [
-      {
-        "from": "build",
-        "to": "app",
-        "filter": [
-          "**/*"
-        ]
-      },
       {
         "from": "public/icon.ico",
         "to": "icon.ico"
@@ -163,6 +157,7 @@
       }
     ],
     "mac": {
+      "category": "public.app-category.social-networking",
       "target": "dmg",
       "icon": "build/icon.icns"
     },

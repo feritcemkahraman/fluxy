@@ -39,12 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartApp: () => ipcRenderer.send('restart-app'),
   manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
   on: (channel, callback) => {
-    const subscription = (event, ...args) => callback(...args);
-    ipcRenderer.on(channel, subscription);
-    return () => ipcRenderer.removeListener(channel, subscription);
+    ipcRenderer.on(channel, (event, ...args) => callback(...args));
   },
-  off: (channel) => {
-    ipcRenderer.removeAllListeners(channel);
+  off: (channel, callback) => {
+    ipcRenderer.removeListener(channel, callback);
   },
 
   // Check if running in Electron

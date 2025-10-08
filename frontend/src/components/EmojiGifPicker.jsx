@@ -10,14 +10,7 @@ const getPepePath = (filename) => {
   if (isElectron) {
     // Check if running on dev server (localhost:3000) or packaged app (file://)
     const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-    if (isDevServer) {
-      return `/pepe/${filename}`;
-    } else {
-      // Production: Use file:// protocol with absolute path to resources
-      // Resources are in: C:\Users\...\resources\pepe\
-      const basePath = window.location.pathname.replace('/build/index.html', '');
-      return `file://${basePath}/../pepe/${filename}`;
-    }
+    return isDevServer ? `/pepe/${filename}` : `pepe/${filename}`;
   }
   return `/pepe/${filename}`;
 };
