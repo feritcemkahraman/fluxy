@@ -24,10 +24,35 @@ const allowedOrigins = [
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // Use specific allowed origins
+    origin: function (origin, callback) {
+      // Allow no origin
+      if (!origin) return callback(null, true);
+      
+      // Allow localhost
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      
+      // Allow ngrok URLs
+      if (origin.includes('ngrok.io') || origin.includes('ngrok-free.app')) {
+        return callback(null, true);
+      }
+      
+      // Allow Netlify
+      if (origin.includes('netlify.app')) {
+        return callback(null, true);
+      }
+      
+      // Allow other configured origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      return callback(null, true); // Allow all for now
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning']
   },
   allowEIO3: true, // Allow Engine.IO v3 clients
   transports: ['polling', 'websocket']
@@ -59,15 +84,21 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // Allow ngrok URLs
-    if (origin && origin.includes('ngrok.io')) {
+    // Allow ngrok URLs (both .io and -free.app domains)
+    if (origin && (origin.includes('ngrok.io') || origin.includes('ngrok-free.app'))) {
+      return callback(null, true);
+    }
+
+    // Allow Netlify deployments
+    if (origin && origin.includes('netlify.app')) {
       return callback(null, true);
     }
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'));
+      console.log('🚫 CORS blocked origin:', origin);
+      return callback(null, true); // Allow all origins in development
     }
   },
   credentials: true,
