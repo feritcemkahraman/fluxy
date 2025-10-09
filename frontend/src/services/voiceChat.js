@@ -670,22 +670,32 @@ class VoiceChatService extends EventEmitter {
       
       // Noise gate logic (Discord-like)
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const checkNoise = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      // THROTTLED: Check every 100ms instead of every frame (CPU optimization)
+      let lastNoiseCheckTime = 0;
+      const NOISE_CHECK_INTERVAL = 100;
+      
+      const checkNoise = (timestamp) => {
+        if (!this.localStream || !this.localStream.active) return;
         
-        // Threshold: if sound is below 25, mute it (noise gate)
-        if (average < 25) {
-          noiseGate.gain.setValueAtTime(0, audioContext.currentTime);
-        } else {
-          noiseGate.gain.setValueAtTime(1, audioContext.currentTime);
+        if (timestamp - lastNoiseCheckTime >= NOISE_CHECK_INTERVAL) {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          
+          // Threshold: if sound is below 25, mute it (noise gate)
+          if (average < 25) {
+            noiseGate.gain.setValueAtTime(0, audioContext.currentTime);
+          } else {
+            noiseGate.gain.setValueAtTime(1, audioContext.currentTime);
+          }
+          
+          lastNoiseCheckTime = timestamp;
         }
         
         if (this.localStream && this.localStream.active) {
           requestAnimationFrame(checkNoise);
         }
       };
-      checkNoise();
+      requestAnimationFrame(checkNoise);
       
       // Replace original stream with processed stream
       const processedTrack = destination.stream.getAudioTracks()[0];
@@ -726,46 +736,53 @@ class VoiceChatService extends EventEmitter {
     }
   }
   
-  // Monitor voice activity (Discord-like speaking detection)
+  // Monitor voice activity (Discord-like speaking detection) - THROTTLED for CPU protection
   startVADMonitoring() {
     if (!this.vadAnalyser) return;
     
     const dataArray = new Uint8Array(this.vadAnalyser.frequencyBinCount);
+    let lastVADCheckTime = 0;
+    const VAD_CHECK_INTERVAL = 100; // 100ms instead of every frame (10x less CPU usage)
     
-    const checkVoiceActivity = () => {
+    const checkVoiceActivity = (timestamp) => {
       if (!this.localStream || !this.localStream.active) return;
       
-      this.vadAnalyser.getByteFrequencyData(dataArray);
-      
-      // Calculate average volume
-      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-      
-      // Discord threshold: 25-30 for speaking
-      const wasSpeaking = this.isSpeaking;
-      this.isSpeaking = average > this.vadThreshold && !this.isMuted;
-      
-      // Notify on speaking state change
-      if (wasSpeaking !== this.isSpeaking) {
-        this.emit('speaking-changed', {
-          userId: this.currentUserId,
-          isSpeaking: this.isSpeaking
-        });
+      // Throttle: Only check every 100ms (10 times per second is enough for VAD)
+      if (timestamp - lastVADCheckTime >= VAD_CHECK_INTERVAL) {
+        this.vadAnalyser.getByteFrequencyData(dataArray);
         
-        // Broadcast to server
-        if (websocketService.socket?.connected && this.currentChannel) {
-          websocketService.socket.emit('voice-speaking-status', {
-            channelId: this.currentChannel,
+        // Calculate average volume
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        
+        // Discord threshold: 25-30 for speaking
+        const wasSpeaking = this.isSpeaking;
+        this.isSpeaking = average > this.vadThreshold && !this.isMuted;
+        
+        // Notify on speaking state change
+        if (wasSpeaking !== this.isSpeaking) {
+          this.emit('speaking-changed', {
             userId: this.currentUserId,
             isSpeaking: this.isSpeaking
           });
+          
+          // Broadcast to server
+          if (websocketService.socket?.connected && this.currentChannel) {
+            websocketService.socket.emit('voice-speaking-status', {
+              channelId: this.currentChannel,
+              userId: this.currentUserId,
+              isSpeaking: this.isSpeaking
+            });
+          }
         }
+        
+        lastVADCheckTime = timestamp;
       }
       
       // Continue monitoring
       this.vadCheckInterval = requestAnimationFrame(checkVoiceActivity);
     };
     
-    checkVoiceActivity();
+    requestAnimationFrame(checkVoiceActivity);
   }
   
   // Stop VAD monitoring

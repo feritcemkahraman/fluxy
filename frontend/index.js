@@ -8,14 +8,17 @@ const Store = require('electron-store');
 app.commandLine.appendSwitch('--max-old-space-size', '4096');
 app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
 
-// PRODUCTION: Minimal GPU optimization (removed unsafe flags)
+// PRODUCTION: Balanced GPU optimization (CPU heat protection)
 app.commandLine.appendSwitch('--enable-gpu-rasterization');
-app.commandLine.appendSwitch('--enable-zero-copy');
-app.commandLine.appendSwitch('--enable-hardware-overlays');
 app.commandLine.appendSwitch('--enable-accelerated-video-decode');
 
-// PRODUCTION: High refresh rate display support
-app.commandLine.appendSwitch('--disable-frame-rate-limit');
+// CRITICAL FIX: Limit frame rate to prevent CPU overheating
+// Default 60 FPS is sufficient, system will handle high refresh rate monitors automatically
+app.commandLine.appendSwitch('--max-fps', '60');
+
+// CPU heat protection: Throttle when idle
+app.commandLine.appendSwitch('--enable-idle-task-scheduling');
+app.commandLine.appendSwitch('--renderer-process-limit', '3');
 
 // PRODUCTION: Enhanced process crash protection
 process.on('uncaughtException', (error) => {
