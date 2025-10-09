@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
@@ -6,6 +6,8 @@ import FluxyApp from '../../../components/FluxyApp';
 import LandingPage from '../../../components/LandingPage';
 import RegistrationSuccess from '../../../components/RegistrationSuccess';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
+import UpdateProgress from '../../../components/UpdateProgress';
+import UpdateCheckModal from '../../../components/UpdateCheckModal';
 
 import { AUTH_MODES } from '../constants';
 
@@ -27,6 +29,10 @@ export default function AuthWrapper() {
   // Registration success state (only for web)
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  
+  // Update check modal state (works for all users, even not logged in)
+  const [showUpdateCheckModal, setShowUpdateCheckModal] = useState(false);
+  const [updateCheckState, setUpdateCheckState] = useState('checking');
 
   const handleModeChange = (mode) => {
     setCurrentMode(mode);
@@ -46,6 +52,44 @@ export default function AuthWrapper() {
       await logout();
     }
   };
+
+  // Electron update check modal handler - works for ALL users (logged in or not)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const handleShowUpdateCheckModal = () => {
+        setUpdateCheckState('checking');
+        setShowUpdateCheckModal(true);
+        // Trigger manual update check
+        if (window.electronAPI.manualCheckForUpdates) {
+          window.electronAPI.manualCheckForUpdates();
+        }
+      };
+
+      const handleUpdateNotAvailable = () => {
+        setUpdateCheckState('up-to-date');
+      };
+
+      const handleUpdateDownloadStarted = () => {
+        setUpdateCheckState('downloading');
+      };
+
+      const handleUpdateCheckError = () => {
+        setUpdateCheckState('error');
+      };
+
+      window.electronAPI.on?.('show-update-check-modal', handleShowUpdateCheckModal);
+      window.electronAPI.on?.('update-not-available', handleUpdateNotAvailable);
+      window.electronAPI.on?.('update-download-started', handleUpdateDownloadStarted);
+      window.electronAPI.on?.('update-check-error', handleUpdateCheckError);
+
+      return () => {
+        window.electronAPI.off?.('show-update-check-modal', handleShowUpdateCheckModal);
+        window.electronAPI.off?.('update-not-available', handleUpdateNotAvailable);
+        window.electronAPI.off?.('update-download-started', handleUpdateDownloadStarted);
+        window.electronAPI.off?.('update-check-error', handleUpdateCheckError);
+      };
+    }
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -92,5 +136,17 @@ export default function AuthWrapper() {
     }
   };
 
-  return renderAuthView();
+  return (
+    <>
+      {/* Update components - work for all users */}
+      <UpdateProgress />
+      <UpdateCheckModal 
+        isOpen={showUpdateCheckModal} 
+        onClose={() => setShowUpdateCheckModal(false)}
+        initialState={updateCheckState}
+      />
+      
+      {renderAuthView()}
+    </>
+  );
 }

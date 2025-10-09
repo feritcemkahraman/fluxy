@@ -9,8 +9,6 @@ import DesktopTitleBar from "./DesktopTitleBar";
 import DesktopNotifications from "./DesktopNotifications";
 import UserPanel from "./UserPanel";
 import IncomingCallModal from "./IncomingCallModal";
-import UpdateProgress from "./UpdateProgress";
-import UpdateCheckModal from "./UpdateCheckModal";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import voiceChatService from "../services/voiceChat";
@@ -60,8 +58,6 @@ const FluxyApp = () => {
   const [activeServer, setActiveServer] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
   const [showMemberList, setShowMemberList] = useState(true);
-  const [showUpdateCheckModal, setShowUpdateCheckModal] = useState(false);
-  const [updateCheckState, setUpdateCheckState] = useState('checking');
   const [loading, setLoading] = useState(true);
   const [isDirectMessages, setIsDirectMessages] = useState(false);
   const [showVoiceScreen, setShowVoiceScreen] = useState(false);
@@ -76,43 +72,6 @@ const FluxyApp = () => {
     }
   }, [user, socket, isConnected]);
 
-  // Electron update check modal handler
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      const handleShowUpdateCheckModal = () => {
-        setUpdateCheckState('checking');
-        setShowUpdateCheckModal(true);
-        // Trigger manual update check
-        if (window.electronAPI.manualCheckForUpdates) {
-          window.electronAPI.manualCheckForUpdates();
-        }
-      };
-
-      const handleUpdateNotAvailable = () => {
-        setUpdateCheckState('up-to-date');
-      };
-
-      const handleUpdateDownloadStarted = () => {
-        setUpdateCheckState('downloading');
-      };
-
-      const handleUpdateCheckError = () => {
-        setUpdateCheckState('error');
-      };
-
-      window.electronAPI.on?.('show-update-check-modal', handleShowUpdateCheckModal);
-      window.electronAPI.on?.('update-not-available', handleUpdateNotAvailable);
-      window.electronAPI.on?.('update-download-started', handleUpdateDownloadStarted);
-      window.electronAPI.on?.('update-check-error', handleUpdateCheckError);
-
-      return () => {
-        window.electronAPI.off?.('show-update-check-modal', handleShowUpdateCheckModal);
-        window.electronAPI.off?.('update-not-available', handleUpdateNotAvailable);
-        window.electronAPI.off?.('update-download-started', handleUpdateDownloadStarted);
-        window.electronAPI.off?.('update-check-error', handleUpdateCheckError);
-      };
-    }
-  }, []);
 
   // Global DM notification listener - works everywhere in the app
   useEffect(() => {
@@ -1135,8 +1094,6 @@ const FluxyApp = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white overflow-hidden transition-optimized">
-      {/* Update Progress (Electron only - shown on app start if update available) */}
-      <UpdateProgress />
       
       {/* Desktop Title Bar (Electron only) */}
       <DesktopTitleBar title="Fluxy - Oyuncular için tasarlanmış yeni nesil sesli topluluk deneyimi" />
@@ -1318,12 +1275,6 @@ const FluxyApp = () => {
         />
       )}
 
-      {/* Update Check Modal */}
-      <UpdateCheckModal
-        isOpen={showUpdateCheckModal}
-        onClose={() => setShowUpdateCheckModal(false)}
-        initialState={updateCheckState}
-      />
     </div>
   );
 };
