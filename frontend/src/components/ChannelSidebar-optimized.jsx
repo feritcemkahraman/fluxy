@@ -346,20 +346,21 @@ const VoiceChannelItem = memo(({
 VoiceChannelItem.displayName = 'VoiceChannelItem';
 
 // Main component with performance optimizations
-const ChannelSidebar = ({ 
-  server, 
-  activeChannel, 
-  voiceChannelParticipants, 
-  onChannelSelect, 
-  onChannelCreated, 
-  onServerUpdate, 
-  onVoiceChannelJoin, 
-  voiceChannelParticipantsVersion, 
-  currentVoiceChannel, 
-  isVoiceConnected, 
-  isMuted, 
-  isDeafened, 
-  user 
+const ChannelSidebar = ({
+  server,
+  activeChannel,
+  voiceChannelParticipants,
+  participants,
+  onChannelSelect,
+  onChannelCreated,
+  onServerUpdate,
+  onVoiceChannelJoin,
+  voiceChannelParticipantsVersion,
+  currentVoiceChannel,
+  isVoiceConnected,
+  isMuted,
+  isDeafened,
+  user
 }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["text", "voice"]));
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);

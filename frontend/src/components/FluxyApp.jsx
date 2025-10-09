@@ -1194,6 +1194,7 @@ const FluxyApp = () => {
                 onChannelSelect={handleChannelSelect}
                 onVoiceChannelJoin={handleVoiceChannelJoin}
                 voiceChannelParticipants={voiceChannelParticipants}
+                participants={voiceChannelParticipants}
                 currentVoiceChannel={currentVoiceChannel}
                 isVoiceConnected={isVoiceConnected}
                 isMuted={isMuted}
