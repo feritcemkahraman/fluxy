@@ -66,9 +66,15 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       localStorage.removeItem('userStatus');
       
+      // For production Electron builds, use hash navigation
       // Only redirect if not already on login page
-      if (window.location.pathname !== '/') {
-        window.location.href = '/';
+      if (window.location.pathname !== '/' && window.location.hash !== '#/') {
+        // Use hash router for Electron compatibility
+        if (window.location.protocol === 'file:') {
+          window.location.hash = '#/';
+        } else {
+          window.location.href = '/';
+        }
       }
     }
     

@@ -64,7 +64,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       experimentalFeatures: false,
       backgroundThrottling: false,
-      sandbox: true, // Security: Enable sandbox in production
+      sandbox: false, // Disable sandbox for screen sharing to work
       nodeIntegrationInWorker: false,
       nodeIntegrationInSubFrames: false,
       disableBlinkFeatures: 'Auxclick'
@@ -93,11 +93,11 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'",
-            "script-src 'self'",
+            "script-src 'self' 'unsafe-eval'", // unsafe-eval needed for some features
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' http://localhost:5000 wss://localhost:5000 ws://localhost:5000 https:",
+            "connect-src 'self' http://localhost:5000 wss://localhost:5000 ws://localhost:5000 https://*.ngrok-free.app wss://*.ngrok-free.app https:",
             "media-src 'self' blob:",
             "worker-src 'self' blob:",
             "object-src 'none'",
@@ -109,6 +109,18 @@ function createWindow() {
     });
   }
   
+  // Enable screen sharing permission handler (Production)
+  if (!isDev) {
+    mainWindow.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
+      desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
+        // Grant access to all available sources
+        callback({ video: sources[0], audio: 'loopback' });
+      }).catch(() => {
+        callback({});
+      });
+    });
+  }
+
   mainWindow.loadURL(startUrl);
 
   // Pencere hazır olduğunda göster
@@ -120,6 +132,25 @@ function createWindow() {
     // Development modunda DevTools aç
     if (isDev) {
       mainWindow.webContents.openDevTools();
+    }
+  });
+
+  // PRODUCTION: Enable DevTools with keyboard shortcuts (Ctrl+Shift+I or F12)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // F12 tuşu
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+    // Ctrl+Shift+I (Windows/Linux) or Cmd+Option+I (Mac)
+    if (input.control && input.shift && input.key === 'I' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+    // Cmd+Option+I (Mac)
+    if (input.meta && input.alt && input.key === 'i' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
     }
   });
 
@@ -366,6 +397,7 @@ ipcMain.handle('get-desktop-sources', async (event, options = {}) => {
     throw error;
   }
 });
+
 
 // Theme change listener
 let themeChangeTimeout;
