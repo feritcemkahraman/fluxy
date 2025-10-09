@@ -523,16 +523,23 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    {/* Status indicator */}
-                    <div className={`absolute bottom-4 right-4 w-14 h-14 rounded-full border-4 border-gray-900 ${
-                      isMuted ? 'bg-red-500' : 'bg-green-500'
-                    } shadow-lg`}>
-                      {isMuted ? (
-                        <MicOff className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-                      ) : (
-                        <Mic className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-                      )}
-                    </div>
+                    {/* Status indicator - Only show when muted/deafened */}
+                    {(isMuted || isDeafened) && (
+                      <div className={`absolute bottom-4 right-4 w-10 h-10 rounded-full border-3 border-gray-900 ${
+                        isMuted && isDeafened ? 'bg-red-500' : isMuted ? 'bg-red-500' : 'bg-red-500'
+                      } shadow-lg flex items-center justify-center`}>
+                        {isMuted && isDeafened ? (
+                          <div className="flex space-x-1">
+                            <MicOff className="w-4 h-4 text-white" />
+                            <HeadphonesIcon className="w-4 h-4 text-white" />
+                          </div>
+                        ) : isMuted ? (
+                          <MicOff className="w-5 h-5 text-white" />
+                        ) : (
+                          <HeadphonesIcon className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* User Info */}
@@ -544,19 +551,29 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                       Sen
                     </Badge>
                     
-                    {/* Status text */}
-                    <div className="mt-6 space-y-2">
-                      <p className={`text-lg font-medium ${
-                        isMuted ? 'text-red-300' : isDeafened ? 'text-red-300' : 'text-green-300'
-                      }`}>
-                        {isMuted ? '🔇 Mikrofonun Kapalı' : isDeafened ? '🔇 Kulaklığın Kapalı' : '🎤 Mikrofonun Açık'}
-                      </p>
-                      {participants.length > 1 && (
+                    {/* Status text - Only show when muted/deafened */}
+                    {(isMuted || isDeafened) && (
+                      <div className="mt-6 space-y-2">
+                        <p className="text-lg font-medium text-red-300">
+                          {isMuted && isDeafened ? '🔇 Mikrofon ve Kulaklık Kapalı' :
+                           isMuted ? '🔇 Mikrofonun Kapalı' : '🔇 Kulaklığın Kapalı'}
+                        </p>
+                        {participants.length > 1 && (
+                          <p className="text-gray-400 text-sm">
+                            {participants.length - 1} diğer kullanıcı kanalda
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show user count when not muted/deafened */}
+                    {!isMuted && !isDeafened && participants.length > 1 && (
+                      <div className="mt-6">
                         <p className="text-gray-400 text-sm">
                           {participants.length - 1} diğer kullanıcı kanalda
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
