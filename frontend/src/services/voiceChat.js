@@ -245,6 +245,13 @@ class VoiceChatService extends EventEmitter {
       this.isMuted = true;
       this.emit('muteChanged', this.isMuted);
       
+      // Disable local audio tracks
+      if (this.localStream) {
+        this.localStream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+      }
+      
       // Also broadcast mute status
       if (websocketService.socket?.connected && this.currentChannel) {
         websocketService.socket.emit('voice-mute-status', {
@@ -254,6 +261,12 @@ class VoiceChatService extends EventEmitter {
         });
       }
     }
+    
+    // Mute/unmute all remote audio elements (Discord-like deafen)
+    const audioElements = document.querySelectorAll('audio[data-user-id]');
+    audioElements.forEach(audioElement => {
+      audioElement.volume = this.isDeafened ? 0 : 1.0;
+    });
     
     // Broadcast deafen status to server
     if (websocketService.socket?.connected && this.currentChannel) {
@@ -833,11 +846,19 @@ class VoiceChatService extends EventEmitter {
     if (!audioElement) {
       audioElement = document.createElement('audio');
       audioElement.id = `remote-audio-${userId}`;
+      audioElement.setAttribute('data-user-id', userId); // For volume control
       audioElement.autoplay = true;
+      audioElement.volume = 1.0; // Default volume
       document.body.appendChild(audioElement);
     }
     
     audioElement.srcObject = stream;
+    
+    // Apply deafen status
+    if (this.isDeafened) {
+      audioElement.volume = 0;
+    }
+    
     audioElement.play().catch(err => {
       logger.error('Failed to play remote audio:', err);
     });

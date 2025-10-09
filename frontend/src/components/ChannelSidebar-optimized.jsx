@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edit, Trash2, MoreHorizontal, Mic, MicOff, Headphones, VolumeX } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
@@ -53,57 +53,140 @@ const ChannelItem = memo(({
 
 ChannelItem.displayName = 'ChannelItem';
 
-// Optimized voice participant component with larger cards as requested
+// Optimized voice participant component with larger cards and context menu
 const VoiceParticipant = memo(({ 
   participant, 
   isCurrentUser, 
   isMuted, 
   isDeafened 
 }) => {
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [userVolume, setUserVolume] = useState(100);
+  const menuRef = useRef(null);
+  
   const displayName = participant.user?.displayName || participant.user?.username || 'Unknown';
   const initials = displayName.charAt(0).toUpperCase();
+  const userId = participant.user?._id || participant.user?.id;
+
+  // Handle right click context menu
+  const handleContextMenu = (e) => {
+    if (isCurrentUser) return; // Don't show menu for current user
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowContextMenu(false);
+      }
+    };
+
+    if (showContextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showContextMenu]);
+
+  // Handle volume change
+  const handleVolumeChange = (e) => {
+    const newVolume = parseInt(e.target.value);
+    setUserVolume(newVolume);
+    
+    // Apply volume to audio element if exists
+    const audioElement = document.querySelector(`audio[data-user-id="${userId}"]`);
+    if (audioElement) {
+      audioElement.volume = newVolume / 100;
+    }
+  };
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 text-base text-gray-300 hover:text-white transition-colors group min-h-[48px]">
-      <div className="flex items-center space-x-3 flex-1 min-w-0">
-        {/* Larger avatar as requested - increased from w-6 h-6 to w-8 h-8 */}
-        <div className={`relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 transition-all ${
-          isCurrentUser 
-            ? 'ring-green-400/60 group-hover:ring-green-400/80' 
-            : 'ring-white/20 group-hover:ring-white/40'
-        }`}>
-          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white text-sm font-semibold">
-              {initials}
-            </span>
+    <>
+      <div 
+        className="flex items-center justify-between px-3 py-3 text-base text-gray-300 hover:text-white hover:bg-gray-800/50 transition-colors group min-h-[56px] rounded-lg cursor-pointer"
+        onContextMenu={handleContextMenu}
+      >
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
+          {/* Larger avatar - increased from w-8 h-8 to w-10 h-10 */}
+          <div className={`relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-2 transition-all ${
+            isCurrentUser 
+              ? 'ring-green-400/60 group-hover:ring-green-400/80' 
+              : 'ring-white/20 group-hover:ring-white/40'
+          }`}>
+            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <span className="text-white text-base font-semibold">
+                {initials}
+              </span>
+            </div>
+          </div>
+          
+          {/* Larger text and better spacing */}
+          <span className="truncate font-medium flex-1 text-base">{displayName}</span>
+          
+          {isCurrentUser && (
+            <span className="text-green-400 text-sm flex-shrink-0 font-medium">(Sen)</span>
+          )}
+        </div>
+        
+        {/* Larger mute/deafen icons with better spacing to prevent overlap */}
+        <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+          {/* Muted Icon - increased size */}
+          <div className={`w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center transition-opacity ${
+            isMuted ? 'opacity-100' : 'opacity-0'
+          }`}>
+            <MicOff className="w-4 h-4 text-red-400" />
+          </div>
+          
+          {/* Deafened Icon - increased size */}
+          <div className={`w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center transition-opacity ${
+            isDeafened ? 'opacity-100' : 'opacity-0'
+          }`}>
+            <VolumeX className="w-4 h-4 text-red-400" />
           </div>
         </div>
-        
-        {/* Larger text and better spacing */}
-        <span className="truncate font-medium flex-1 text-base">{displayName}</span>
-        
-        {isCurrentUser && (
-          <span className="text-green-400 text-sm flex-shrink-0 font-medium">(Sen)</span>
-        )}
       </div>
-      
-      {/* Larger mute/deafen icons with better spacing to prevent overlap */}
-      <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-        {/* Muted Icon - increased size and spacing */}
-        <div className={`w-6 h-6 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-          isMuted ? 'opacity-100' : 'opacity-0'
-        }`}>
-          <MicOff className="w-4 h-4 text-red-400" />
+
+      {/* Context Menu */}
+      {showContextMenu && !isCurrentUser && (
+        <div
+          ref={menuRef}
+          className="fixed z-[10000] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl py-2 min-w-[240px]"
+          style={{ top: `${menuPosition.y}px`, left: `${menuPosition.x}px` }}
+        >
+          <div className="px-4 py-2 border-b border-gray-700">
+            <div className="text-white font-semibold text-sm mb-1">{displayName}</div>
+            <div className="text-gray-400 text-xs">Kullanıcı Ses Ayarları</div>
+          </div>
+          
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-300 text-sm flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                Ses Seviyesi
+              </span>
+              <span className="text-cyan-400 text-sm font-semibold">{userVolume}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={userVolume}
+              onChange={handleVolumeChange}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb"
+              style={{
+                background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${userVolume}%, #374151 ${userVolume}%, #374151 100%)`
+              }}
+            />
+          </div>
         </div>
-        
-        {/* Deafened Icon - increased size and spacing */}
-        <div className={`w-6 h-6 rounded bg-red-500/20 flex items-center justify-center transition-opacity ${
-          isDeafened ? 'opacity-100' : 'opacity-0'
-        }`}>
-          <VolumeX className="w-4 h-4 text-red-400" />
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 });
 

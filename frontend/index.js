@@ -382,16 +382,15 @@ ipcMain.handle('get-desktop-sources', async (event, options = {}) => {
     });
     
     // Convert thumbnails to data URLs for frontend
-    // Filter out empty/invalid windows and include all visible sources
+    // Include ALL sources - minimal filtering for maximum compatibility
     const sourcesWithDataUrls = sources
       .filter(source => {
         // Keep all screens
         if (source.id.startsWith('screen:')) return true;
-        // For windows, filter out empty/system windows but keep all valid apps
+        // For windows, only filter out obviously invalid ones
         return source.name && 
-               source.name.trim().length > 0 && 
-               !source.name.startsWith('Task Switching') &&
-               !source.name.startsWith('Windows Default Lock Screen');
+               source.name.trim().length > 0 &&
+               source.name !== 'Task Switching';
       })
       .map(source => ({
         id: source.id,

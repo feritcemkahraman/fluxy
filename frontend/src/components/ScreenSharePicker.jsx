@@ -41,16 +41,6 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
       height: 1080,
       frameRate: 60,
       icon: Monitor
-    },
-    {
-      id: '144Hz',
-      label: '1080p 144Hz',
-      description: 'Ultra High Refresh',
-      width: 1920,
-      height: 1080,
-      frameRate: 144,
-      icon: Zap,
-      note: '60Hz ekranlar otomatik uyum sağlar'
     }
   ];
 
@@ -120,9 +110,9 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
 
   const modalContent = (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-      <div className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-4xl mx-4 max-h-[80vh] overflow-hidden">
+      <div className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
           <h2 className="text-xl font-bold text-white">Ekran Paylaş</h2>
           <Button
             variant="ghost"
@@ -134,8 +124,8 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           {!isElectronApp ? (
             // Browser fallback message
             <div className="flex items-center justify-center h-64">
@@ -258,7 +248,7 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
                   <Settings className="w-4 h-4 text-blue-400" />
                   <p className="text-white font-medium">Kalite Ayarları</p>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {qualityOptions.map((option) => {
                     const IconComponent = option.icon;
                     const isSelected = selectedQuality === option.id;
@@ -293,7 +283,7 @@ const ScreenSharePicker = ({ isOpen, onClose, onSelect }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-700">
+        <div className="flex items-center justify-between p-4 border-t border-gray-700 flex-shrink-0">
           <p className="text-gray-400 text-sm">
             {!isElectronApp 
               ? 'Electron desktop app gerekli - tarayıcıda sınırlı özellikler'
