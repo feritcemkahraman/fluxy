@@ -505,19 +505,79 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
 
         {/* Voice Participants Area */}
         <div className={`${hasScreenShares ? 'w-80' : 'flex-1'} overflow-y-auto bg-black/40 backdrop-blur-sm scroll-optimized`}>
-          {participants.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center max-w-sm">
-                <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white/20">
-                  <Mic className="w-10 h-10 text-gray-400" />
+          {/* Large User Profile Card - Discord Style (when no screen shares) */}
+          {!hasScreenShares && isInThisChannel && (
+            <div className="flex items-center justify-center h-full p-8">
+              <div className="w-full max-w-md">
+                <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-3xl border-2 border-white/20 p-12 shadow-2xl hover:border-white/30 transition-all duration-300">
+                  {/* Large Avatar */}
+                  <div className="relative mx-auto w-48 h-48 mb-8">
+                    <div className={`w-full h-full rounded-full overflow-hidden transition-all duration-300 ${
+                      isMuted 
+                        ? 'ring-8 ring-red-400/50 shadow-2xl shadow-red-400/40'
+                        : 'ring-8 ring-blue-400/50 shadow-2xl shadow-blue-400/40'
+                    }`}>
+                      <Avatar className="w-full h-full">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-6xl font-bold">
+                          {(currentUser?.username || currentUser?.displayName || 'U').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    {/* Status indicator */}
+                    <div className={`absolute bottom-4 right-4 w-14 h-14 rounded-full border-4 border-gray-900 ${
+                      isMuted ? 'bg-red-500' : 'bg-green-500'
+                    } shadow-lg`}>
+                      {isMuted ? (
+                        <MicOff className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                      ) : (
+                        <Mic className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* User Info */}
+                  <div className="text-center">
+                    <h2 className="text-3xl font-bold text-white mb-3">
+                      {currentUser?.displayName || currentUser?.username}
+                    </h2>
+                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-sm px-4 py-1.5 mb-4">
+                      Sen
+                    </Badge>
+                    
+                    {/* Status text */}
+                    <div className="mt-6 space-y-2">
+                      <p className={`text-lg font-medium ${
+                        isMuted ? 'text-red-300' : isDeafened ? 'text-red-300' : 'text-green-300'
+                      }`}>
+                        {isMuted ? '🔇 Mikrofonun Kapalı' : isDeafened ? '🔇 Kulaklığın Kapalı' : '🎤 Mikrofonun Açık'}
+                      </p>
+                      {participants.length > 1 && (
+                        <p className="text-gray-400 text-sm">
+                          {participants.length - 1} diğer kullanıcı kanalda
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-white font-semibold text-lg mb-2">Ses kanalına bağlısınız</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Diğer kullanıcılar katılmayı bekliyor...
-                </p>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* Participants Grid - Show when there are others or has screen shares */}
+          {(hasScreenShares || !isInThisChannel || participants.length > 1) && (
+            participants.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center max-w-sm">
+                  <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white/20">
+                    <Mic className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-white font-semibold text-lg mb-2">Ses kanalına bağlısınız</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Diğer kullanıcılar katılmayı bekliyor...
+                  </p>
+                </div>
+              </div>
+            ) : (
             <div className="p-4">
               {/* Voice Participants Header - Enhanced */}
               {hasScreenShares && (
@@ -639,6 +699,7 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
                 ))}
               </div>
             </div>
+            )
           )}
         </div>
       </div>

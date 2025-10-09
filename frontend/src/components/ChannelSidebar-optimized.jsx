@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ServerSettingsModal from "./ServerSettingsModal";
 import CreateChannelModal from "./CreateChannelModal";
+import { UserProfileModal } from "./UserProfileModal";
 import { channelAPI } from '../services/api';
 import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
@@ -58,7 +59,8 @@ const VoiceParticipant = memo(({
   participant, 
   isCurrentUser, 
   isMuted, 
-  isDeafened 
+  isDeafened,
+  onUserClick 
 }) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -68,6 +70,14 @@ const VoiceParticipant = memo(({
   const displayName = participant.user?.displayName || participant.user?.username || 'Unknown';
   const initials = displayName.charAt(0).toUpperCase();
   const userId = participant.user?._id || participant.user?.id;
+
+  // Handle normal click - open profile modal
+  const handleClick = (e) => {
+    if (showContextMenu) return; // Don't trigger if context menu is open
+    if (onUserClick) {
+      onUserClick(participant.user);
+    }
+  };
 
   // Handle right click context menu
   const handleContextMenu = (e) => {
@@ -110,6 +120,7 @@ const VoiceParticipant = memo(({
     <>
       <div 
         className="flex items-center justify-between px-3 py-3 text-base text-gray-300 hover:text-white hover:bg-gray-800/50 transition-colors group min-h-[56px] rounded-lg cursor-pointer"
+        onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
         <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -323,6 +334,7 @@ const VoiceChannelItem = memo(({
               isCurrentUser={participant.isCurrentUser}
               isMuted={participant.isMuted}
               isDeafened={participant.isDeafened}
+              onUserClick={handleUserClick}
             />
           ))}
         </div>
@@ -357,8 +369,16 @@ const ChannelSidebar = ({
   const [channelToDelete, setChannelToDelete] = useState(null);
   const [editingChannel, setEditingChannel] = useState(null);
   const [editChannelName, setEditChannelName] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const { playVoiceJoin } = useAudio();
+
+  // Handle user profile modal
+  const handleUserClick = useCallback((user) => {
+    setSelectedUser(user);
+    setIsProfileOpen(true);
+  }, []);
 
   // Memoize channel lists to prevent unnecessary recalculations
   const textChannels = useMemo(() => 
@@ -607,6 +627,17 @@ const ChannelSidebar = ({
         onClose={() => setShowCreateChannelModal(false)}
         serverId={server?._id || server?.id}
         onChannelCreated={handleChannelCreated}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+        user={selectedUser}
+        currentUser={user}
+        server={server}
+        showMessageButton={true}
+        showFriendButton={true}
       />
 
       {/* Delete Channel Confirmation Dialog */}
