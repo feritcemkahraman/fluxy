@@ -375,22 +375,33 @@ ipcMain.on('set-theme', (event, theme) => {
 ipcMain.handle('get-desktop-sources', async (event, options = {}) => {
   try {
     const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 300, height: 200 },
+      types: options.types || ['screen', 'window'],
+      thumbnailSize: options.thumbnailSize || { width: 300, height: 200 },
       fetchWindowIcons: true,
       ...options
     });
     
     // Convert thumbnails to data URLs for frontend
-    const sourcesWithDataUrls = sources.map(source => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail ? source.thumbnail.toDataURL() : null,
-      display_id: source.display_id,
-      appIcon: source.appIcon ? source.appIcon.toDataURL() : null
-    }));
+    // Filter out empty/invalid windows and include all visible sources
+    const sourcesWithDataUrls = sources
+      .filter(source => {
+        // Keep all screens
+        if (source.id.startsWith('screen:')) return true;
+        // For windows, filter out empty/system windows but keep all valid apps
+        return source.name && 
+               source.name.trim().length > 0 && 
+               !source.name.startsWith('Task Switching') &&
+               !source.name.startsWith('Windows Default Lock Screen');
+      })
+      .map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail ? source.thumbnail.toDataURL() : null,
+        display_id: source.display_id,
+        appIcon: source.appIcon ? source.appIcon.toDataURL() : null
+      }));
     
-    console.log(`🖥️ Found ${sourcesWithDataUrls.length} desktop sources`);
+    console.log(`🖥️ Found ${sourcesWithDataUrls.length} desktop sources (${sources.length} total)`);
     return sourcesWithDataUrls;
   } catch (error) {
     console.error('❌ Failed to get desktop sources:', error);

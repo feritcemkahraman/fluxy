@@ -3,6 +3,9 @@ import websocketService from './websocket';
 import EventEmitter from 'events';
 import logger from '../utils/logger';
 
+// Global Electron API access
+const electronAPI = window.electronAPI || {};
+
 class VoiceChatService extends EventEmitter {
   constructor() {
     super();
@@ -164,8 +167,8 @@ class VoiceChatService extends EventEmitter {
       logger.error('❌ Voice join failed:', error);
       
       // Show error notification on desktop
-      if (electronAPI.isElectron()) {
-        electronAPI.showNotification('Fluxy - Hata', `Ses kanalına katılamadı: ${error.message}`);
+      if (electronAPI.isElectron?.()) {
+        electronAPI.showNotification?.('Fluxy - Hata', `Ses kanalına katılamadı: ${error.message}`);
       }
       
       throw error;
@@ -299,7 +302,7 @@ class VoiceChatService extends EventEmitter {
       let constraints = null;
       
       // PRIMARY: Electron native implementation
-      if (electronAPI.isElectron()) {
+      if (electronAPI.isElectron?.()) {
         
         let sourceId;
         
@@ -401,7 +404,7 @@ class VoiceChatService extends EventEmitter {
       }
 
       // Get screen stream with enhanced quality
-      if (electronAPI.isElectron()) {
+      if (electronAPI.isElectron?.()) {
         // For Electron, use getUserMedia with desktop source
         try {
           this.screenStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -488,8 +491,8 @@ class VoiceChatService extends EventEmitter {
         errorMessage = 'Tarayıcı ekran paylaşımını desteklemiyor';
       }
 
-      if (electronAPI.isElectron()) {
-        electronAPI.showNotification('Fluxy - Ekran Paylaşımı', errorMessage);
+      if (electronAPI.isElectron?.()) {
+        electronAPI.showNotification?.('Fluxy - Ekran Paylaşımı', errorMessage);
       }
       
       throw new Error(errorMessage);
@@ -865,7 +868,7 @@ class VoiceChatService extends EventEmitter {
 
   // Desktop-specific: Check if running in Electron
   isElectronApp() {
-    return electronAPI.isElectron();
+    return electronAPI.isElectron?.() || false;
   }
 }
 

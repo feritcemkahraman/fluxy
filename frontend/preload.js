@@ -46,7 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Check if running in Electron
-  isElectron: true
+  isElectron: () => true
 });
 
 // Set global flags for Electron detection

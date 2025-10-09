@@ -500,7 +500,7 @@ class VoiceCallService {
       let screenStream;
       
       // Check if Electron
-      const isElectron = window.electronAPI?.isElectron;
+      const isElectron = window.electronAPI?.isElectron?.();
       
       if (isElectron) {
         // Electron native implementation
