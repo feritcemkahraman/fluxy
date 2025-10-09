@@ -10,7 +10,7 @@ const testJoinServer = async () => {
     console.log('Server ID:', serverId);
     
     const response = await axios.post(
-      `https://fcec79b89f1b.ngrok-free.app/api/servers/${serverId}/join`,
+      `https://e54208101c71.ngrok-free.app/api/servers/${serverId}/join`,
       {},
       {
         headers: {
