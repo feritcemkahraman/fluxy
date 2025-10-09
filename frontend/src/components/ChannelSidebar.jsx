@@ -306,7 +306,9 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                 const channelId = channel._id || channel.id;
 
                 return (
-                  <div key={channelId} className="space-y-1 relative group">
+                  <div key={channelId} className="space-y-1">
+                    {/* Voice Channel Button with Menu */}
+                    <div className="relative group">
                       <Button
                         variant="ghost"
                         onClick={() => handleVoiceChannelSelect(channel)}
@@ -343,12 +345,12 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                         </div>
                       </Button>
 
-                      {/* Dropdown menu for voice channels */}
+                      {/* Dropdown menu for voice channels - only on channel button */}
                       {!(editingChannel && (editingChannel._id || editingChannel.id) === channelId) && (
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none group-hover:pointer-events-auto">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-gray-300 hover:bg-gray-700/30 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+                              <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-gray-300 hover:bg-gray-700/30 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 pointer-events-auto">
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -371,6 +373,9 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
                           </DropdownMenu>
                         </div>
                       )}
+                    </div>
+
+                    {/* Voice Participants List - separate from channel button group */}
                     <VoiceParticipantList 
                       channelId={channelId}
                       showMuteIcons={true}
