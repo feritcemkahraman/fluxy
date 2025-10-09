@@ -34,6 +34,15 @@ export default function AuthWrapper() {
   const [showUpdateCheckModal, setShowUpdateCheckModal] = useState(false);
   const [updateCheckState, setUpdateCheckState] = useState('checking');
 
+  // Reset update modal state when auth state changes
+  useEffect(() => {
+    // Close modal when logging out
+    if (!isAuthenticated && !isLoading) {
+      setShowUpdateCheckModal(false);
+      setUpdateCheckState('checking');
+    }
+  }, [isAuthenticated, isLoading]);
+
   const handleModeChange = (mode) => {
     setCurrentMode(mode);
     setRegistrationSuccess(false);
