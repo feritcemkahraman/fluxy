@@ -9,8 +9,8 @@
   GENERATE_SOURCEMAP = "false"
   CI = "false"
   DISABLE_ESLINT_PLUGIN = "true"
-  REACT_APP_API_URL = "https://e54208101c71.ngrok-free.app"
-  REACT_APP_SOCKET_URL = "https://e54208101c71.ngrok-free.app"
+  REACT_APP_API_URL = "https://2618e48ceb3b.ngrok-free.app"
+  REACT_APP_SOCKET_URL = "https://2618e48ceb3b.ngrok-free.app"
 
 # Build optimizations - disable some processing to reduce memory usage
 [build.processing]
