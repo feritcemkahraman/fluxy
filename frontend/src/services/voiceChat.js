@@ -23,12 +23,49 @@ class VoiceChatService extends EventEmitter {
     this.peerConnections = new Map(); // userId -> RTCPeerConnection
     this.remoteStreams = new Map(); // userId -> MediaStream
     this.webrtcListenersSetup = false; // Prevent duplicate listeners
+    
+    // Discord-level RTC Configuration with FREE TURN servers
     this.rtcConfig = {
       iceServers: [
+        // STUN servers (for NAT traversal)
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        
+        // FREE TURN servers (for firewall bypass)
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ],
+      // Discord-level ICE parameters
+      iceTransportPolicy: 'all', // Use both STUN and TURN
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require'
     };
+    
+    // Voice Activity Detection (Discord-like)
+    this.vadEnabled = true;
+    this.vadThreshold = 25; // Speaking threshold
+    this.isSpeaking = false;
+    this.vadAnalyser = null;
+    this.vadCheckInterval = null;
+    
+    // Network quality monitoring
+    this.networkStats = new Map(); // userId -> stats
+    this.statsCheckInterval = null;
     
     // Simple callback system instead of EventEmitter
     this.callbacks = {
@@ -73,32 +110,42 @@ class VoiceChatService extends EventEmitter {
     }
   }
 
-  // Enhanced getUserMedia for Electron
+  // Enhanced getUserMedia for Electron - Discord-level quality
   async getUserMedia() {
     try {
-      // Discord Standard Mode - Natural voice quality with basic noise reduction
+      // Discord Standard Mode - Maximum voice quality
       const constraints = {
         audio: {
           // Core WebRTC processing (natural, not robotic)
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
           
           // Discord-quality audio (48kHz Opus codec)
-          sampleRate: 48000,
-          sampleSize: 16,
-          channelCount: 1,
+          sampleRate: { ideal: 48000, min: 48000 }, // Force 48kHz
+          sampleSize: { ideal: 16 },
+          channelCount: { ideal: 1 }, // Mono for voice
           
           // Low latency for real-time communication
-          latency: 0.01
+          latency: { ideal: 0.01, max: 0.02 },
+          
+          // Chrome-specific optimizations (Discord uses these)
+          googEchoCancellation: { ideal: true },
+          googNoiseSuppression: { ideal: true },
+          googAutoGainControl: { ideal: true },
+          googHighpassFilter: { ideal: true },
+          googTypingNoiseDetection: { ideal: true },
+          googAudioMirroring: { ideal: false }
         }
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      logger.log('✅ Discord-like audio processing enabled');
+      logger.log('✅ Discord-level audio processing enabled');
       
-      // Note: Web Audio API processing disabled - it breaks the stream
-      // Browser's native processing (echoCancellation, noiseSuppression, autoGainControl) is enough
+      // Setup Voice Activity Detection (VAD)
+      if (this.vadEnabled) {
+        this.setupVAD();
+      }
       
       return this.localStream;
     } catch (error) {
@@ -178,7 +225,10 @@ class VoiceChatService extends EventEmitter {
   // Leave voice channel
   async leaveChannel() {
     try {
-      // logger.log('🚪 Leaving voice channel:', this.currentChannel);
+      // logger.log('🚺 Leaving voice channel:', this.currentChannel);
+      
+      // Stop VAD monitoring
+      this.stopVADMonitoring();
       
       // Close all peer connections
       this.peerConnections.forEach((pc, userId) => {
@@ -651,6 +701,185 @@ class VoiceChatService extends EventEmitter {
     }
   }
 
+  // ==================== VOICE ACTIVITY DETECTION (Discord-like) ====================
+  
+  // Setup Voice Activity Detection
+  setupVAD() {
+    if (!this.localStream) return;
+    
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(this.localStream);
+      
+      this.vadAnalyser = audioContext.createAnalyser();
+      this.vadAnalyser.fftSize = 2048;
+      this.vadAnalyser.smoothingTimeConstant = 0.3;
+      
+      source.connect(this.vadAnalyser);
+      
+      // Start VAD monitoring
+      this.startVADMonitoring();
+      
+      logger.log('✅ Voice Activity Detection (VAD) enabled - Discord mode');
+    } catch (error) {
+      logger.warn('⚠️ VAD setup failed:', error);
+    }
+  }
+  
+  // Monitor voice activity (Discord-like speaking detection)
+  startVADMonitoring() {
+    if (!this.vadAnalyser) return;
+    
+    const dataArray = new Uint8Array(this.vadAnalyser.frequencyBinCount);
+    
+    const checkVoiceActivity = () => {
+      if (!this.localStream || !this.localStream.active) return;
+      
+      this.vadAnalyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      
+      // Discord threshold: 25-30 for speaking
+      const wasSpeaking = this.isSpeaking;
+      this.isSpeaking = average > this.vadThreshold && !this.isMuted;
+      
+      // Notify on speaking state change
+      if (wasSpeaking !== this.isSpeaking) {
+        this.emit('speaking-changed', {
+          userId: this.currentUserId,
+          isSpeaking: this.isSpeaking
+        });
+        
+        // Broadcast to server
+        if (websocketService.socket?.connected && this.currentChannel) {
+          websocketService.socket.emit('voice-speaking-status', {
+            channelId: this.currentChannel,
+            userId: this.currentUserId,
+            isSpeaking: this.isSpeaking
+          });
+        }
+      }
+      
+      // Continue monitoring
+      this.vadCheckInterval = requestAnimationFrame(checkVoiceActivity);
+    };
+    
+    checkVoiceActivity();
+  }
+  
+  // Stop VAD monitoring
+  stopVADMonitoring() {
+    if (this.vadCheckInterval) {
+      cancelAnimationFrame(this.vadCheckInterval);
+      this.vadCheckInterval = null;
+    }
+    this.isSpeaking = false;
+  }
+  
+  // ==================== OPUS CODEC OPTIMIZATION (Discord-level) ====================
+  
+  // Optimize Opus codec in SDP (Discord uses this)
+  optimizeOpusSDP(sdp) {
+    if (!sdp) return sdp;
+    
+    // Discord Opus settings:
+    // - maxaveragebitrate: 64000 (64kbps - high quality voice)
+    // - useinbandfec: 1 (Forward Error Correction - packet loss recovery)
+    // - usedtx: 0 (Disable DTX for better quality)
+    // - stereo: 0 (Mono for voice, 1 for music)
+    
+    // Find Opus payload type (usually 111)
+    const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/);
+    if (!opusMatch) return sdp;
+    
+    const payloadType = opusMatch[1];
+    
+    // Check if fmtp line already exists
+    const fmtpRegex = new RegExp(`a=fmtp:${payloadType} .*\\r\\n`);
+    
+    if (fmtpRegex.test(sdp)) {
+      // Update existing fmtp line
+      sdp = sdp.replace(
+        fmtpRegex,
+        `a=fmtp:${payloadType} maxaveragebitrate=64000;stereo=0;useinbandfec=1;usedtx=0\r\n`
+      );
+    } else {
+      // Add new fmtp line after rtpmap
+      sdp = sdp.replace(
+        new RegExp(`(a=rtpmap:${payloadType} opus\\/48000\\/2\\r\\n)`),
+        `$1a=fmtp:${payloadType} maxaveragebitrate=64000;stereo=0;useinbandfec=1;usedtx=0\r\n`
+      );
+    }
+    
+    logger.log('✅ Opus codec optimized (Discord-level: 64kbps, FEC enabled)');
+    return sdp;
+  }
+  
+  // ==================== NETWORK QUALITY MONITORING (Discord-like) ====================
+  
+  // Start monitoring network stats for a peer
+  startNetworkMonitoring(userId, peerConnection) {
+    if (!peerConnection) return;
+    
+    const checkStats = async () => {
+      if (!peerConnection || peerConnection.connectionState === 'closed') {
+        this.stopNetworkMonitoring(userId);
+        return;
+      }
+      
+      try {
+        const stats = await peerConnection.getStats();
+        let audioStats = null;
+        
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+            audioStats = {
+              packetsLost: report.packetsLost || 0,
+              packetsReceived: report.packetsReceived || 0,
+              jitter: report.jitter || 0,
+              bytesReceived: report.bytesReceived || 0,
+              timestamp: report.timestamp
+            };
+          }
+        });
+        
+        if (audioStats) {
+          const prevStats = this.networkStats.get(userId);
+          
+          if (prevStats) {
+            const timeDiff = (audioStats.timestamp - prevStats.timestamp) / 1000;
+            const packetLoss = ((audioStats.packetsLost - prevStats.packetsLost) / 
+              (audioStats.packetsReceived - prevStats.packetsReceived)) * 100 || 0;
+            
+            // Discord quality thresholds:
+            // Excellent: < 1% loss, < 30ms jitter
+            // Good: 1-3% loss, 30-60ms jitter
+            // Poor: > 3% loss, > 60ms jitter
+            
+            if (packetLoss > 5 || audioStats.jitter > 0.1) {
+              logger.warn(`⚠️ Poor connection to ${userId}: ${packetLoss.toFixed(1)}% loss, ${(audioStats.jitter * 1000).toFixed(0)}ms jitter`);
+            }
+          }
+          
+          this.networkStats.set(userId, audioStats);
+        }
+      } catch (error) {
+        // Ignore stats errors
+      }
+      
+      // Check every 2 seconds (Discord does this)
+      setTimeout(() => checkStats(), 2000);
+    };
+    
+    checkStats();
+  }
+  
+  // Stop monitoring network stats
+  stopNetworkMonitoring(userId) {
+    this.networkStats.delete(userId);
+  }
+  
   // ==================== WEBRTC MESH NETWORK (Discord-like Group Calls) ====================
   
   // Setup WebRTC signaling listeners
@@ -744,6 +973,26 @@ class VoiceChatService extends EventEmitter {
         });
       }
       
+      // DISCORD OPTIMIZATION: Apply Opus codec settings on negotiation
+      pc.addEventListener('negotiationneeded', async () => {
+        if (pc.signalingState !== 'stable') return;
+        
+        try {
+          await pc.setLocalDescription();
+          
+          // Optimize Opus codec in SDP
+          const optimizedSdp = this.optimizeOpusSDP(pc.localDescription.sdp);
+          const optimizedOffer = new RTCSessionDescription({
+            type: pc.localDescription.type,
+            sdp: optimizedSdp
+          });
+          
+          await pc.setLocalDescription(optimizedOffer);
+        } catch (err) {
+          logger.error('Negotiation failed:', err);
+        }
+      });
+      
       // Handle ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -783,6 +1032,9 @@ class VoiceChatService extends EventEmitter {
       this.peerConnections.set(userId, pc);
       logger.log(`✅ Peer connection created for ${username}`);
       
+      // Start network quality monitoring
+      this.startNetworkMonitoring(userId, pc);
+      
       return pc;
     } catch (error) {
       logger.error(`❌ Failed to create peer connection for ${username}:`, error);
@@ -800,7 +1052,15 @@ class VoiceChatService extends EventEmitter {
       }
       
       const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      
+      // Optimize Opus codec in SDP before setting
+      const optimizedSdp = this.optimizeOpusSDP(offer.sdp);
+      const optimizedOffer = new RTCSessionDescription({
+        type: 'offer',
+        sdp: optimizedSdp
+      });
+      
+      await pc.setLocalDescription(optimizedOffer);
       
       const socket = websocketService.getSocket();
       socket.emit('voice:offer', {
@@ -866,6 +1126,9 @@ class VoiceChatService extends EventEmitter {
 
   // Close peer connection
   closePeerConnection(userId) {
+    // Stop network monitoring
+    this.stopNetworkMonitoring(userId);
+    
     const pc = this.peerConnections.get(userId);
     if (pc) {
       pc.close();

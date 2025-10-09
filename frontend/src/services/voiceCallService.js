@@ -17,12 +17,36 @@ class VoiceCallService {
     this.ignoreOffer = false; // Perfect negotiation flag
     this.optimizedScreenShare = null; // Optimized screen share instance
     
-    // WebRTC configuration
+    // Discord-level RTC Configuration with FREE TURN servers
     this.rtcConfiguration = {
       iceServers: [
+        // STUN servers (for NAT traversal)
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        
+        // FREE TURN servers (for firewall bypass)
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ],
+      // Discord-level ICE parameters
+      iceTransportPolicy: 'all',
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require'
     };
   }
 
@@ -237,14 +261,29 @@ class VoiceCallService {
     this.emit('callClosed');
   }
 
-  // Get local media stream
+  // Get local media stream - Discord-level quality
   async getLocalStream(includeVideo = false) {
     try {
       const constraints = {
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
+          // Core WebRTC processing
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
+          
+          // Discord-quality audio (48kHz Opus codec)
+          sampleRate: { ideal: 48000, min: 48000 },
+          sampleSize: { ideal: 16 },
+          channelCount: { ideal: 1 },
+          latency: { ideal: 0.01, max: 0.02 },
+          
+          // Chrome-specific optimizations (Discord uses these)
+          googEchoCancellation: { ideal: true },
+          googNoiseSuppression: { ideal: true },
+          googAutoGainControl: { ideal: true },
+          googHighpassFilter: { ideal: true },
+          googTypingNoiseDetection: { ideal: true },
+          googAudioMirroring: { ideal: false }
         },
         video: includeVideo ? {
           width: { ideal: 1280 },
@@ -253,7 +292,7 @@ class VoiceCallService {
       };
       
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('🎤 Local stream acquired');
+      console.log('🎤 Local stream acquired (Discord-level quality)');
       
       this.emit('localStream', this.localStream);
       
@@ -262,6 +301,32 @@ class VoiceCallService {
       console.error('Failed to get local stream:', error);
       throw error;
     }
+  }
+
+  // Optimize Opus codec in SDP (Discord-level)
+  optimizeOpusSDP(sdp) {
+    if (!sdp) return sdp;
+    
+    const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/);
+    if (!opusMatch) return sdp;
+    
+    const payloadType = opusMatch[1];
+    const fmtpRegex = new RegExp(`a=fmtp:${payloadType} .*\\r\\n`);
+    
+    if (fmtpRegex.test(sdp)) {
+      sdp = sdp.replace(
+        fmtpRegex,
+        `a=fmtp:${payloadType} maxaveragebitrate=64000;stereo=0;useinbandfec=1;usedtx=0\r\n`
+      );
+    } else {
+      sdp = sdp.replace(
+        new RegExp(`(a=rtpmap:${payloadType} opus\\/48000\\/2\\r\\n)`),
+        `$1a=fmtp:${payloadType} maxaveragebitrate=64000;stereo=0;useinbandfec=1;usedtx=0\r\n`
+      );
+    }
+    
+    console.log('✅ Opus codec optimized (Discord-level: 64kbps, FEC enabled)');
+    return sdp;
   }
 
   // Create WebRTC peer connection
@@ -274,6 +339,25 @@ class VoiceCallService {
         this.peerConnection.addTrack(track, this.localStream);
       });
     }
+    
+    // DISCORD OPTIMIZATION: Apply Opus codec settings on negotiation
+    this.peerConnection.addEventListener('negotiationneeded', async () => {
+      if (this.peerConnection.signalingState !== 'stable') return;
+      
+      try {
+        await this.peerConnection.setLocalDescription();
+        
+        const optimizedSdp = this.optimizeOpusSDP(this.peerConnection.localDescription.sdp);
+        const optimizedOffer = new RTCSessionDescription({
+          type: this.peerConnection.localDescription.type,
+          sdp: optimizedSdp
+        });
+        
+        await this.peerConnection.setLocalDescription(optimizedOffer);
+      } catch (err) {
+        console.error('Negotiation failed:', err);
+      }
+    });
     
     // Handle ICE candidates
     this.peerConnection.onicecandidate = (event) => {
