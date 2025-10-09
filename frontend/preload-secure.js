@@ -141,7 +141,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }),
 
   // Secure clipboard operations
-  writeClipboard: rateLimitedCall('clipboard', (text) => {
+  writeClipboard: rateLimitedCall('clipboard', async (text) => {
     if (typeof text !== 'string') {
       throw new Error('Text must be a string');
     }
@@ -151,12 +151,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
     
     trackPerformance('writeClipboard');
-    ipcRenderer.send('write-clipboard', text);
+    return await createSecureIPCCall('write-clipboard')(text);
   }),
 
-  readClipboard: rateLimitedCall('clipboard', () => {
+  readClipboard: rateLimitedCall('clipboard', async () => {
     trackPerformance('readClipboard');
-    return createSecureIPCCall('read-clipboard')();
+    return await createSecureIPCCall('read-clipboard')();
   }),
 
   // Theme operations

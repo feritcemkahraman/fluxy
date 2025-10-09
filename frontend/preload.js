@@ -16,9 +16,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFile: (options) => ipcRenderer.invoke('select-file', options),
   selectDirectory: (options) => ipcRenderer.invoke('select-directory', options),
 
-  // Clipboard
-  writeClipboard: (text) => ipcRenderer.invoke('write-clipboard', text),
-  readClipboard: () => ipcRenderer.invoke('read-clipboard'),
+  // Clipboard - async methods
+  writeClipboard: async (text) => {
+    try {
+      return await ipcRenderer.invoke('write-clipboard', text);
+    } catch (error) {
+      console.error('Preload writeClipboard error:', error);
+      return false;
+    }
+  },
+  readClipboard: async () => {
+    try {
+      return await ipcRenderer.invoke('read-clipboard');
+    } catch (error) {
+      console.error('Preload readClipboard error:', error);
+      return '';
+    }
+  },
 
   // Theme
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),

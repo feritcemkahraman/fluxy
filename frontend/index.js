@@ -359,12 +359,30 @@ ipcMain.handle('select-directory', async (event, options) => {
   return result.filePaths[0] || null;
 });
 
-ipcMain.on('write-clipboard', (event, text) => {
-  clipboard.writeText(text);
+// Clipboard handlers - use handle for async/await support
+ipcMain.handle('write-clipboard', async (event, text) => {
+  try {
+    if (typeof text !== 'string') {
+      throw new Error('Text must be a string');
+    }
+    if (text.length > 100000) {
+      throw new Error('Text too long (max 100KB)');
+    }
+    clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.error('Clipboard write error:', error);
+    return false;
+  }
 });
 
-ipcMain.handle('read-clipboard', () => {
-  return clipboard.readText();
+ipcMain.handle('read-clipboard', async () => {
+  try {
+    return clipboard.readText();
+  } catch (error) {
+    console.error('Clipboard read error:', error);
+    return '';
+  }
 });
 
 ipcMain.on('set-theme', (event, theme) => {

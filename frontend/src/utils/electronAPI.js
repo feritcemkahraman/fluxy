@@ -66,22 +66,47 @@ class ElectronAPI {
     return [];
   }
 
-  // Clipboard
+  // Clipboard - expose as object for compatibility
+  get clipboard() {
+    return {
+      writeText: async (text) => {
+        if (this.api && this.api.writeClipboard) {
+          await this.api.writeClipboard(text);
+          return true;
+        } else if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } else {
+          // Fallback
+          const tempInput = document.createElement('input');
+          tempInput.value = text;
+          tempInput.style.position = 'absolute';
+          tempInput.style.left = '-9999px';
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          const success = document.execCommand('copy');
+          document.body.removeChild(tempInput);
+          return success;
+        }
+      },
+      readText: async () => {
+        if (this.api && this.api.readClipboard) {
+          return await this.api.readClipboard();
+        } else if (navigator.clipboard && window.isSecureContext) {
+          return await navigator.clipboard.readText();
+        }
+        return '';
+      }
+    };
+  }
+
+  // Legacy methods for backward compatibility
   writeClipboard(text) {
-    if (this.api) {
-      this.api.writeClipboard(text);
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-    }
+    return this.clipboard.writeText(text);
   }
 
   async readClipboard() {
-    if (this.api) {
-      return await this.api.readClipboard();
-    } else if (navigator.clipboard) {
-      return await navigator.clipboard.readText();
-    }
-    return '';
+    return await this.clipboard.readText();
   }
 
   // Theme

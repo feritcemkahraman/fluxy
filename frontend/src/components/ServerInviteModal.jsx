@@ -46,28 +46,48 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
         setCopied(true);
         toast.success('Davet kodu kopyalandı!');
         setTimeout(() => setCopied(false), 2000);
-      } else {
-        // Fallback to browser clipboard API
+        return;
+      }
+      
+      // Check if clipboard API is available and secure context
+      if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(inviteCode);
         setCopied(true);
         toast.success('Davet kodu kopyalandı!');
         setTimeout(() => setCopied(false), 2000);
+        return;
       }
+      
+      // Fallback for non-secure contexts or unsupported browsers
+      throw new Error('Clipboard API not available');
+      
     } catch (error) {
       console.error('Copy failed:', error);
-      toast.error('Kopyalama başarısız oldu');
       
-      // Fallback: Create a temporary input element
-      const tempInput = document.createElement('input');
-      tempInput.value = inviteCode;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      document.execCommand('copy');
-      document.body.removeChild(tempInput);
-      
-      setCopied(true);
-      toast.success('Davet kodu kopyalandı!');
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        // Fallback: Create a temporary input element
+        const tempInput = document.createElement('input');
+        tempInput.value = inviteCode;
+        tempInput.style.position = 'absolute';
+        tempInput.style.left = '-9999px';
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999); // For mobile devices
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        if (successful) {
+          setCopied(true);
+          toast.success('Davet kodu kopyalandı!');
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+        toast.error('Kopyalama başarısız oldu. Kodu manuel olarak seçip kopyalayın.');
+      }
     }
   };
 
