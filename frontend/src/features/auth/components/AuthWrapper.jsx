@@ -93,17 +93,48 @@ export default function AuthWrapper() {
 
   // Loading state
   if (isLoading) {
-    return <LoadingSpinner message="Yükleniyor..." />;
+    return (
+      <>
+        <UpdateProgress />
+        <UpdateCheckModal 
+          isOpen={showUpdateCheckModal} 
+          onClose={() => setShowUpdateCheckModal(false)}
+          initialState={updateCheckState}
+        />
+        <LoadingSpinner message="Yükleniyor..." />
+      </>
+    );
   }
   
   // Show registration success page (only for web)
   if (registrationSuccess && !isElectron) {
-    return <RegistrationSuccess email={registeredEmail} />;
+    return (
+      <>
+        <UpdateProgress />
+        <UpdateCheckModal 
+          isOpen={showUpdateCheckModal} 
+          onClose={() => setShowUpdateCheckModal(false)}
+          initialState={updateCheckState}
+        />
+        <RegistrationSuccess email={registeredEmail} />
+      </>
+    );
   }
 
   // Authenticated - show main app
   if (isAuthenticated) {
-    return <FluxyApp />;
+    return (
+      <>
+        {/* Update components - work for all users */}
+        <UpdateProgress />
+        <UpdateCheckModal 
+          isOpen={showUpdateCheckModal} 
+          onClose={() => setShowUpdateCheckModal(false)}
+          initialState={updateCheckState}
+        />
+        <FluxyApp />
+      </>
+    );
   }
 
   // Not authenticated - show auth flow
