@@ -133,22 +133,12 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
     voiceChatService.on('connected', handleVoiceConnected);
     voiceChatService.on('disconnected', handleVoiceDisconnected);
 
-    const handleSpeakingChanged = ({ userId, isSpeaking }) => {
-      setParticipants(prev => {
-        const updated = prev.map(participant => {
-          const isMatch = participant.user._id === userId || participant.user.id === userId;
-          return isMatch ? { ...participant, isSpeaking } : participant;
-        });
-        return updated;
-      });
-    };
-
-    voiceChatService.on('speaking-changed', handleSpeakingChanged);
+    // Note: speaking-changed is now handled by useVoiceParticipants hook
+    // No manual management needed here
 
     return () => {
       voiceChatService.off('connected', handleVoiceConnected);
       voiceChatService.off('disconnected', handleVoiceDisconnected);
-      voiceChatService.off('speaking-changed', handleSpeakingChanged);
     };
   }, [channel, currentUser]);
 

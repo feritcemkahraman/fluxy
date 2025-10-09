@@ -24,7 +24,7 @@ api.interceptors.request.use(
     // If not in localStorage, try Electron storage
     if (!token && window.electronAPI) {
       try {
-        token = await window.electronAPI.storage.get('token');
+        token = await window.electronAPI.storeGet('token');
       } catch (error) {
         console.warn('Failed to get token from Electron storage:', error);
       }

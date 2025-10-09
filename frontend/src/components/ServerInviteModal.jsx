@@ -40,11 +40,34 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(inviteCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Check if Electron API is available (desktop app)
+      if (window.electronAPI?.clipboard) {
+        await window.electronAPI.clipboard.writeText(inviteCode);
+        setCopied(true);
+        toast.success('Davet kodu kopyalandı!');
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback to browser clipboard API
+        await navigator.clipboard.writeText(inviteCode);
+        setCopied(true);
+        toast.success('Davet kodu kopyalandı!');
+        setTimeout(() => setCopied(false), 2000);
+      }
     } catch (error) {
       console.error('Copy failed:', error);
+      toast.error('Kopyalama başarısız oldu');
+      
+      // Fallback: Create a temporary input element
+      const tempInput = document.createElement('input');
+      tempInput.value = inviteCode;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      
+      setCopied(true);
+      toast.success('Davet kodu kopyalandı!');
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
