@@ -85,6 +85,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'update-download-started',
       'update-check-error',
       'show-update-progress',
+      'show-update-check-modal',
       'theme-changed',
       'deep-link'
     ];
@@ -101,6 +102,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'update-download-started',
       'update-check-error',
       'show-update-progress',
+      'show-update-check-modal',
       'theme-changed',
       'deep-link'
     ];
