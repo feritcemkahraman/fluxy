@@ -2,7 +2,33 @@ import axios from 'axios';
 import { handleAPIError, retryRequest } from '../utils/errorHandling';
 import { devLog } from '../utils/devLogger';
 
-const API_BASE_URL = (process.env.REACT_APP_API_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000')) + '/api';
+// Runtime API URL güncelleme fonksiyonu
+export const updateApiBaseUrl = (newUrl) => {
+  try {
+    // Axios instance'ı güncelle
+    api.defaults.baseURL = newUrl + '/api';
+
+    // Global değişkeni güncelle
+    API_BASE_URL = newUrl + '/api';
+
+    // localStorage'a kaydet
+    localStorage.setItem('api_base_url', newUrl);
+
+    console.log('✅ API Base URL updated to:', newUrl);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to update API Base URL:', error);
+    return false;
+  }
+};
+
+// Başlangıçta localStorage'dan URL'i al
+const savedApiUrl = localStorage.getItem('api_base_url');
+if (savedApiUrl) {
+  API_BASE_URL = savedApiUrl + '/api';
+}
+
+const API_BASE_URL = (savedApiUrl || process.env.REACT_APP_API_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000')) + '/api';
 
 // Create axios instance with enhanced configuration
 const api = axios.create({

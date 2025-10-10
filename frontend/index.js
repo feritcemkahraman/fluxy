@@ -1,8 +1,60 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, Tray, desktopCapturer } = require('electron');
+const fs = require('fs');
 const path = require('path');
-const isDev = require('electron-is-dev');
-const { autoUpdater } = require('electron-updater');
-const Store = require('electron-store');
+const os = require('os');
+
+// Runtime cache temizleme fonksiyonu
+async function clearRuntimeCache() {
+  try {
+    console.log('🧹 Clearing runtime cache...');
+
+    // 1. Electron session cache'ini temizle
+    if (mainWindow) {
+      const { session } = mainWindow.webContents;
+      await session.clearCache();
+      await session.clearStorageData({
+        storages: ['cookies', 'filesystem', 'indexeddb', 'localstorage', 'shadercache', 'websql', 'serviceworkers', 'cachestorage']
+      });
+    }
+
+    // 2. Electron temp klasörünü temizle
+    const tempDir = path.join(os.tmpdir(), 'electron-cache');
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    // 3. Uygulama data klasöründeki eski cache'leri temizle
+    const appDataDir = path.join(os.homedir(), 'AppData', 'Roaming', 'fluxy');
+    const cacheSubdirs = ['Cache', 'Code Cache', 'GPUCache'];
+
+    for (const subdir of cacheSubdirs) {
+      const cachePath = path.join(appDataDir, subdir);
+      if (fs.existsSync(cachePath)) {
+        fs.rmSync(cachePath, { recursive: true, force: true });
+      }
+    }
+
+    console.log('✅ Runtime cache cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to clear runtime cache:', error);
+    return false;
+  }
+}
+
+// Service Worker temizleme fonksiyonu
+async function clearServiceWorkers() {
+  try {
+    if (mainWindow) {
+      const registrations = await mainWindow.webContents.session.getServiceWorkers({});
+      for (const registration of registrations) {
+        await registration.unregister();
+      }
+    }
+    console.log('✅ Service Workers cleared');
+  } catch (error) {
+    console.warn('⚠️ Service Worker cleanup warning:', error);
+  }
+}
 
 // PRODUCTION: Optimized memory settings
 app.commandLine.appendSwitch('--max-old-space-size', '4096');
@@ -100,7 +152,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' https://*.serveo.net wss://*.serveo.net https:",
+            "connect-src 'self' http://localhost:5000 https://localhost:5000 wss://localhost:5000 https://*.serveo.net wss://*.serveo.net https:",
             "media-src 'self' blob:",
             "worker-src 'self' blob:",
             "object-src 'none'",
@@ -342,8 +394,24 @@ ipcMain.handle('electron-store-get-data', async (event) => {
   return store.store;
 });
 
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion();
+ipcMain.handle('clear-runtime-cache', async () => {
+  try {
+    const result = await clearRuntimeCache();
+    return { success: result };
+  } catch (error) {
+    console.error('IPC clear-runtime-cache error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clear-service-workers', async () => {
+  try {
+    await clearServiceWorkers();
+    return { success: true };
+  } catch (error) {
+    console.error('IPC clear-service-workers error:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle('select-file', async (event, options) => {
@@ -442,8 +510,12 @@ nativeTheme.on('updated', () => {
 });
 
 // Güvenli uygulama başlatma
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
+    // Runtime cache temizleme
+    await clearRuntimeCache();
+    await clearServiceWorkers();
+
     createWindow();
     console.log('✅ Electron app started successfully');
   } catch (error) {

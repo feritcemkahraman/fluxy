@@ -49,18 +49,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Screen capture for Discord-style screen sharing
   getDesktopSources: (options) => ipcRenderer.invoke('get-desktop-sources', options),
 
-  // Auto-update
-  restartApp: () => ipcRenderer.send('restart-app'),
-  manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
-  on: (channel, callback) => {
-    ipcRenderer.on(channel, (event, ...args) => callback(...args));
-  },
-  off: (channel, callback) => {
-    ipcRenderer.removeListener(channel, callback);
+  // Cache management
+  clearRuntimeCache: () => ipcRenderer.invoke('clear-runtime-cache'),
+  clearServiceWorkers: () => ipcRenderer.invoke('clear-service-workers'),
+
+  // Runtime URL management
+  updateApiConfig: async (config) => {
+    try {
+      // Update localStorage
+      Object.keys(config).forEach(key => {
+        localStorage.setItem(`api_${key}`, config[key]);
+      });
+
+      // Clear runtime cache to force reload
+      await ipcRenderer.invoke('clear-runtime-cache');
+
+      return { success: true };
+    } catch (error) {
+      console.error('Preload updateApiConfig error:', error);
+      return { success: false, error: error.message };
+    }
   },
 
-  // Check if running in Electron
-  isElectron: () => true
+  // Force app restart
+  forceRestart: () => ipcRenderer.send('restart-app'),
 });
 
 // Set global flags for Electron detection
