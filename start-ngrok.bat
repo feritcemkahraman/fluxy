@@ -1,11 +1,11 @@
 @echo off
 echo ===================================
-echo    FLUXY NGROK BACKEND SETUP
+echo    FLUXY SERVEO BACKEND SETUP
 echo ===================================
 echo.
 
 echo 1. Starting backend server...
-start "Backend Server" cmd /k "cd /d %~dp0backend && npm run dev"
+start "Backend Server" cmd /k "cd /d %~dp0backend && npm start"
 
 echo.
 echo 2. Waiting for backend to start...
@@ -21,45 +21,23 @@ if errorlevel 1 (
 
 echo    Backend is running on port 5000!
 echo.
-echo 3. Checking ngrok installation...
-echo    Testing ngrok command...
-ngrok version
-if errorlevel 1 (
-    echo    HATA: ngrok bulunamadı veya çalışmıyor!
-    echo    Lütfen ngrok'u indirin: https://ngrok.com/download
-    echo    Ve PATH'e ekleyin veya bu klasöre koyun.
-    pause
-    exit /b 1
-)
-
-echo.
-echo    Testing ngrok auth token...
-ngrok config check
-if errorlevel 1 (
-    echo    UYARI: Ngrok auth token sorunu olabilir
-    echo    Eğer hata alırsanız: ngrok config add-authtoken YOUR_TOKEN
-)
-
-echo    ngrok hazır!
-echo.
-echo 4. Starting ngrok tunnel...
+echo 3. Starting Serveo tunnel...
 echo    This will create a public URL for your backend
 echo.
 
-REM Start ngrok in a new PowerShell window for better display
-start "Ngrok Tunnel" powershell -NoExit -Command "cd '%~dp0'; .\ngrok.exe http 5000"
+REM Start Serveo in a new PowerShell window
+start "Serveo Tunnel" powershell -NoExit -Command "cd '%~dp0'; ssh -R 1170e9012b0d93da0ab2f4f15418a5be:80:localhost:5000 serveo.net"
 
-echo    Ngrok started in new window!
+echo    Serveo started in new window!
 echo.
 echo ===================================
-echo [IMPORTANT] Copy the HTTPS URL from the Ngrok window
-echo Current URL format: https://XXXX.ngrok-free.app
+echo [IMPORTANT] Serveo URL:
+echo Current URL: https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net
 echo.
-echo Then update these files with the new URL:
-echo   1. backend/.env (NGROK_URL)
-echo   2. frontend/.env (REACT_APP_API_URL and REACT_APP_SOCKET_URL)
-echo   3. netlify.toml (both environment variables)
+echo This URL is already configured in:
+echo   1. backend/.env (BACKEND_URL)
+echo   2. netlify.toml (REACT_APP_API_URL, REACT_APP_SOCKET_URL)
 echo.
-echo After updating, restart backend and redeploy to Netlify!
+echo Backend and frontend should work together now!
 echo ===================================
 pause

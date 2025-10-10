@@ -70,6 +70,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// Trust proxy for rate limiting (Serveo/ngrok için)
+app.set('trust proxy', 1);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

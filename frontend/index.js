@@ -100,7 +100,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' http://localhost:5000 wss://localhost:5000 ws://localhost:5000 https://*.ngrok-free.app wss://*.ngrok-free.app https:",
+            "connect-src 'self' http://localhost:5000 wss://localhost:5000 ws://localhost:5000 https://*.serveo.net wss://*.serveo.net https:",
             "media-src 'self' blob:",
             "worker-src 'self' blob:",
             "object-src 'none'",
