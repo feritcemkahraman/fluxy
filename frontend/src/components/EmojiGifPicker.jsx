@@ -7,11 +7,14 @@ import { ScrollArea } from "./ui/scroll-area";
 // Electron-safe path helper
 const getPepePath = (filename) => {
   const isElectron = window.electronAPI?.isElectron || window.isElectron;
+  
   if (isElectron) {
-    // Check if running on dev server (localhost:3000) or packaged app (file://)
-    const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-    return isDevServer ? `/pepe/${filename}` : `./pepe/${filename}`;
+    // In Electron, always use relative path from build folder
+    // Build creates: build/pepe/
+    return `pepe/${filename}`;
   }
+  
+  // Web version (Netlify, localhost dev server)
   return `/pepe/${filename}`;
 };
 

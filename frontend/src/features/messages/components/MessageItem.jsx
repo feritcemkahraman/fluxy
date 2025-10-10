@@ -198,10 +198,14 @@ const MessageItem = ({
                 // Electron-safe path helper (defined once)
                 const getPepePath = (filename) => {
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
+                  
                   if (isElectron) {
-                    const isDevServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
-                    return isDevServer ? `/pepe/${filename}` : `./pepe/${filename}`;
+                    // In Electron, always use relative path from build folder
+                    // Build creates: build/pepe/
+                    return `pepe/${filename}`;
                   }
+                  
+                  // Web version (Netlify, localhost dev server)
                   return `/pepe/${filename}`;
                 };
                 
