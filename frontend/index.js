@@ -516,10 +516,6 @@ nativeTheme.on('updated', () => {
 // Güvenli uygulama başlatma
 app.whenReady().then(async () => {
   try {
-    // Runtime cache temizleme
-    await clearRuntimeCache();
-    await clearServiceWorkers();
-
     createWindow();
     console.log('✅ Electron app started successfully');
   } catch (error) {
@@ -654,8 +650,18 @@ if (!isDev) {
     }
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.on('update-downloaded', async (info) => {
     console.log('Update downloaded:', info.version);
+    
+    // Güncelleme sonrası cache temizle
+    try {
+      await clearRuntimeCache();
+      await clearServiceWorkers();
+      console.log('✅ Cache cleared after update download');
+    } catch (error) {
+      console.warn('⚠️ Cache cleanup warning:', error);
+    }
+    
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded');
     }
