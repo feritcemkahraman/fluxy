@@ -73,6 +73,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Force app restart
   forceRestart: () => ipcRenderer.send('restart-app'),
+  restartApp: () => ipcRenderer.send('restart-app'),
+
+  // Auto-update events
+  on: (channel, callback) => {
+    const validChannels = [
+      'update-available',
+      'update-not-available',
+      'update-progress',
+      'update-downloaded',
+      'update-download-started',
+      'update-check-error',
+      'show-update-progress',
+      'theme-changed',
+      'deep-link'
+    ];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, (event, ...args) => callback(...args));
+    }
+  },
+  off: (channel, callback) => {
+    const validChannels = [
+      'update-available',
+      'update-not-available',
+      'update-progress',
+      'update-downloaded',
+      'update-download-started',
+      'update-check-error',
+      'show-update-progress',
+      'theme-changed',
+      'deep-link'
+    ];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.removeListener(channel, callback);
+    }
+  },
+
+  // Manual update check
+  manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
+  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
 });
 
 // Set global flags for Electron detection
