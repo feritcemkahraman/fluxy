@@ -1,5 +1,9 @@
-const fs = require('fs');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification, Menu, Tray, desktopCapturer } = require('electron');
 const path = require('path');
+const isDev = require('electron-is-dev');
+const { autoUpdater } = require('electron-updater');
+const Store = require('electron-store');
+const fs = require('fs');
 const os = require('os');
 
 // Runtime cache temizleme fonksiyonu
@@ -56,6 +60,12 @@ async function clearServiceWorkers() {
   }
 }
 
+const store = new Store();
+let mainWindow;
+let tray = null;
+let isAppJustStarted = true; // Uygulama yeni mi başladı?
+let isManualUpdateCheck = false; // Manuel güncelleme kontrolü mü?
+
 // PRODUCTION: Optimized memory settings
 app.commandLine.appendSwitch('--max-old-space-size', '4096');
 app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
@@ -93,12 +103,6 @@ if (process.platform === 'win32') {
     }
   });
 }
-
-const store = new Store();
-let mainWindow;
-let tray = null;
-let isAppJustStarted = true; // Uygulama yeni mi başladı?
-let isManualUpdateCheck = false; // Manuel güncelleme kontrolü mü?
 
 function createWindow() {
   // Ana pencere oluştur - Production güvenli ayarlar
