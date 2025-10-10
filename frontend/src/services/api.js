@@ -2,7 +2,7 @@ import axios from 'axios';
 import { handleAPIError, retryRequest } from '../utils/errorHandling';
 import { devLog } from '../utils/devLogger';
 
-const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000')) + '/api';
 
 // Create axios instance with enhanced configuration
 const api = axios.create({
