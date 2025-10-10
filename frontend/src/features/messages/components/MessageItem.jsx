@@ -200,9 +200,9 @@ const MessageItem = ({
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   
                   if (isElectron) {
-                    // In Electron, always use relative path from build folder
-                    // Build creates: build/pepe/
-                    return `pepe/${filename}`;
+                    // In Electron, use relative path from the HTML file location
+                    // Build creates: build/index.html and build/pepe/
+                    return `./pepe/${filename}`;
                   }
                   
                   // Web version (Netlify, localhost dev server)
