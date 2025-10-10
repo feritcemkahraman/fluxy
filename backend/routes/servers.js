@@ -86,7 +86,8 @@ router.post('/', auth, [
     // Populate server data for response
     const populatedServer = await Server.findById(server._id)
       .populate('members.user', 'username avatar discriminator status')
-      .populate('channels');
+      .populate('channels')
+      .lean();
 
     // Emit server creation event to the user
     const io = req.app.get('io');
@@ -366,7 +367,7 @@ router.post('/:id/join', auth, [
     }
 
     // Check if user is already a member
-    const populatedServer = await Server.findById(server._id).populate('members.user', '_id');
+    const populatedServer = await Server.findById(server._id).populate('members.user', '_id').lean();
     const isMember = populatedServer.members.some(member => 
       member.user._id.toString() === req.user._id.toString()
     );
@@ -832,7 +833,7 @@ router.post('/:id/kick/:userId', auth, requirePermission(PERMISSIONS.KICK_MEMBER
     });
 
     // Get kicked user details for broadcast
-    const kickedUser = await User.findById(userId).select('username displayName avatar');
+    const kickedUser = await User.findById(userId).select('username displayName avatar').lean();
 
     // Broadcast member kick to all server members
     req.io.to(`server_${server._id}`).emit('memberKicked', {
@@ -943,7 +944,7 @@ router.post('/:id/ban/:userId', auth, requirePermission(PERMISSIONS.BAN_MEMBERS)
     await server.save();
 
     // Get banned user details for broadcast
-    const bannedUser = await User.findById(userId).select('username displayName avatar');
+    const bannedUser = await User.findById(userId).select('username displayName avatar').lean();
 
     // Broadcast member ban to all server members
     req.io.to(`server_${server._id}`).emit('memberBanned', {

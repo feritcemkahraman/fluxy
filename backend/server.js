@@ -38,6 +38,11 @@ const io = new Server(server, {
         return callback(null, true);
       }
       
+      // Allow Serveo tunnels
+      if (origin.includes('serveo.net')) {
+        return callback(null, true);
+      }
+      
       // Allow Netlify
       if (origin.includes('netlify.app')) {
         return callback(null, true);
@@ -93,6 +98,11 @@ app.use(cors({
       return callback(null, true);
     }
 
+    // Allow Serveo tunnels
+    if (origin && origin.includes('serveo.net')) {
+      return callback(null, true);
+    }
+
     // Allow Netlify deployments
     if (origin && origin.includes('netlify.app')) {
       return callback(null, true);
@@ -138,8 +148,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
+// MongoDB connection with optimized connection pooling
+mongoose.connect(process.env.MONGODB_URI, {
+  maxPoolSize: 50,        // Default: 5 (10x increase for production)
+  minPoolSize: 10,        // Maintain minimum connections
+  socketTimeoutMS: 45000, // Socket timeout
+  serverSelectionTimeoutMS: 5000,
+  family: 4               // Use IPv4, skip trying IPv6
+})
 
 // Routes
 app.get('/', (req, res) => {

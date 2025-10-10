@@ -493,7 +493,8 @@ const MessageItem = ({
   );
 };
 
-export default MessageItem;
+// OPTIMIZATION: Memoize to prevent unnecessary re-renders (Discord-level performance)
+export default React.memo(MessageItem);
 
 
 

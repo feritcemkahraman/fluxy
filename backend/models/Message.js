@@ -87,9 +87,17 @@ const messageSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
-messageSchema.index({ channel: 1, createdAt: -1 });
-messageSchema.index({ server: 1, createdAt: -1 });
+// OPTIMIZED INDEXES (Discord-level performance)
+// Compound index for pagination queries (most common)
+messageSchema.index({ channel: 1, isDeleted: 1, createdAt: -1 });
+
+// For user's messages in server
+messageSchema.index({ server: 1, author: 1, createdAt: -1 });
+
+// For mentions
+messageSchema.index({ mentions: 1, createdAt: -1 });
+
+// Legacy indexes (keep for compatibility)
 messageSchema.index({ author: 1, createdAt: -1 });
 
 // Update reaction count when reactions change

@@ -111,7 +111,7 @@ router.get('/:serverId', auth, async (req, res) => {
     const { serverId } = req.params;
 
     // Check if user is member of server
-    const server = await Server.findById(serverId);
+    const server = await Server.findById(serverId).lean();
     if (!server) {
       return res.status(404).json({ message: 'Server not found' });
     }
@@ -180,7 +180,7 @@ router.put('/:id', auth, [
     }
 
     // Check permissions
-    const server = await Server.findById(channel.server);
+    const server = await Server.findById(channel.server).lean();
     const userMember = server.members.find(member => 
       member.user.toString() === req.user._id.toString()
     );
@@ -219,24 +219,24 @@ router.put('/:id', auth, [
 // @access  Private
 router.post('/:id/join', auth, async (req, res) => {
   try {
-    const channel = await Channel.findById(req.params.id);
+    const channel = await Channel.findById(req.params.id).lean();
     
     if (!channel) {
       return res.status(404).json({ message: 'Channel not found' });
     }
 
     if (channel.type !== 'voice') {
-      return res.status(400).json({ message: 'Can only join voice channels' });
+      return res.status(400).json({ message: 'Only voice channels can be joined' });
     }
 
     // Check if user is member of server
-    const server = await Server.findById(channel.server);
+    const server = await Server.findById(channel.server).lean();
     const isMember = server.members.some(member => 
       member.user.toString() === req.user._id.toString()
     );
 
     if (!isMember) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied. You must be a member of this server.' });
     }
 
     // Check user limit

@@ -64,6 +64,11 @@ const serverSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// OPTIMIZED INDEXES (Discord-level performance)
+serverSchema.index({ 'members.user': 1 }); // Critical for permission checks
+serverSchema.index({ ownerId: 1 }); // For owner queries
+serverSchema.index({ createdAt: -1 }); // For server listing
+
 // Update member count when members array changes
 serverSchema.pre('save', function(next) {
   this.memberCount = this.members.length;
