@@ -6,7 +6,7 @@ import { AUTH_ERRORS } from '../constants';
  */
 class AuthService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_API_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net/api' : 'http://localhost:5000/api');
+    this.baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
   }
 
   /**

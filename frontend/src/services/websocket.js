@@ -28,7 +28,7 @@ class WebSocketService {
       
       // Başlangıçta localStorage'dan URL'i al
       const savedSocketUrl = localStorage.getItem('socket_url');
-      const socketUrl = savedSocketUrl || process.env.REACT_APP_SOCKET_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000');
+      const socketUrl = savedSocketUrl || process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
       console.log('Socket URL:', socketUrl);
 
       this.socket = io(socketUrl, {

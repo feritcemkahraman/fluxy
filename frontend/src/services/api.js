@@ -22,22 +22,24 @@ export const updateApiBaseUrl = (newUrl) => {
   }
 };
 
-// Başlangıçta localStorage'dan URL'i al veya default kullan
-const savedApiUrl = localStorage.getItem('api_base_url');
-let API_BASE_URL;
-
-if (savedApiUrl) {
-  API_BASE_URL = savedApiUrl + '/api';
-} else {
-  // Default API URL - Electron için production URL, web için localhost
-  const defaultUrl = process.env.REACT_APP_API_URL || 
-    (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000');
-  API_BASE_URL = defaultUrl + '/api';
-}
+// Function to get API base URL at runtime
+const getApiBaseUrl = () => {
+  // Try localStorage first
+  const savedApiUrl = localStorage.getItem('api_base_url');
+  if (savedApiUrl) {
+    return savedApiUrl + '/api';
+  }
+  
+  // Use environment variable or default
+  // For production builds, REACT_APP_API_URL should be set
+  const defaultUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  
+  return defaultUrl + '/api';
+};
 
 // Create axios instance with enhanced configuration
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 30000, // 30 second timeout
   headers: {
     'Content-Type': 'application/json',
