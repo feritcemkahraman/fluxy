@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -149,7 +149,10 @@
       },
       {
         "from": "public/sounds",
-        "to": "sounds"
+        "to": "sounds",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
@@ -161,7 +164,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.ico",

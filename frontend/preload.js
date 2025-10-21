@@ -111,19 +111,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  // Sound files access
+  getSoundPath: (filename) => {
+    const path = require('path');
+    const fs = require('fs');
+
+    // Try multiple possible paths
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'sounds', filename),
+      path.join(__dirname, 'build', 'sounds', filename),
+      path.join(__dirname, 'public', 'sounds', filename)
+    ];
+
+    for (const soundPath of possiblePaths) {
+      if (fs.existsSync(soundPath)) {
+        // Convert to file:// URL for Electron
+        return `file://${soundPath.replace(/\\/g, '/')}`;
+      }
+    }
+
+    console.warn(`Sound file not found: ${filename}`);
+    return null;
+  },
+
   // Manual update check
   manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
 });
-
-// Set global flags for Electron detection
-window.isElectron = true;
-window.__ELECTRON_ENV__ = {
-  isElectron: true,
-  platform: process.platform,
-  version: process.versions.electron,
-  nodeVersion: process.versions.node
-};
 
 // Override user agent to help with detection
 Object.defineProperty(navigator, 'userAgent', {

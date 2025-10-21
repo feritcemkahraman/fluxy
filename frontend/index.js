@@ -152,16 +152,17 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval'", // unsafe-eval needed for some features
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Allow inline scripts for React
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' http://localhost:5000 https://localhost:5000 wss://localhost:5000 https://*.serveo.net wss://*.serveo.net https:",
-            "media-src 'self' blob:",
+            "connect-src 'self' http://localhost:5000 https://localhost:5000 wss://localhost:5000 ws://localhost:5000 https://*.serveo.net wss://*.serveo.net ws://*.serveo.net https: wss: ws:",
+            "media-src 'self' blob: data:",
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
-            "form-action 'self'"
+            "form-action 'self'",
+            "frame-src 'self'"
           ].join('; ')
         }
       });
