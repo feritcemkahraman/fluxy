@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -80,7 +80,7 @@
     "electron-pack": "electron-builder",
     "preelectron-pack": "npm run build",
     "dist": "npm run build && electron-builder",
-    "dist:win": "cross-env REACT_APP_API_URL=https://41f12fbfa8cb1febd53361eea71e5faf.serveo.net npm run build && electron-builder --win -p always",
+    "dist:win": "cross-env REACT_APP_API_URL=https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net npm run build && electron-builder --win -p always",
     "dist:linux": "npm run build && electron-builder --linux",
     "postinstall": "node -e \"if (process.env.NETLIFY !== 'true') { require('child_process').execSync('electron-builder install-app-deps', {stdio: 'inherit'}) }\""
   },

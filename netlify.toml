@@ -9,8 +9,8 @@
   GENERATE_SOURCEMAP = "false"
   CI = "false"
   DISABLE_ESLINT_PLUGIN = "true"
-  REACT_APP_API_URL = "https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net"
-  REACT_APP_SOCKET_URL = "https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net"
+  REACT_APP_API_URL = "https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net"
+  REACT_APP_SOCKET_URL = "https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net"
   REACT_APP_FRONTEND_URL = "https://fluxycorn.netlify.app"
 
 # Build optimizations - disable some processing to reduce memory usage

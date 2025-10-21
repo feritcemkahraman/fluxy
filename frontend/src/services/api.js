@@ -27,13 +27,18 @@ const getApiBaseUrl = () => {
   // Try localStorage first
   const savedApiUrl = localStorage.getItem('api_base_url');
   if (savedApiUrl) {
-    return savedApiUrl + '/api';
+    // Clear old serveo URLs that are causing 502 errors
+    if (savedApiUrl.includes('serveo.net') && !savedApiUrl.includes('62b2ae99ee07bd10eda553fe3d770b09')) {
+      console.log('🧹 Clearing old serveo URL from localStorage');
+      localStorage.removeItem('api_base_url');
+    } else {
+      return savedApiUrl + '/api';
+    }
   }
-  
-  // Use environment variable or default
-  // For production builds, REACT_APP_API_URL should be set
-  const defaultUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
+  // For production, use the current Serveo URL
+  const defaultUrl = process.env.REACT_APP_API_URL || 'https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net';
+
   return defaultUrl + '/api';
 };
 

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "cd frontend && npm run start",
     "build": "cd frontend && npm run build",
+    "update-version": "node update-version.js",
+    "prebuild": "npm run update-version",
     "install-all": "cd frontend && npm install && cd ../netlify/functions && npm install",
     "start": "cd frontend && npm run start"
   },
