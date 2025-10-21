@@ -40,7 +40,11 @@ class NotificationSoundService {
 
     try {
       // Create new audio instance each time to allow multiple plays
-      const audio = new Audio('/sounds/mesajses.mp3');
+      const isElectron = window.electronAPI?.isElectron || window.isElectron;
+      const soundPath = isElectron 
+        ? new URL('sounds/mesajses.mp3', window.location.href).href
+        : '/sounds/mesajses.mp3';
+      const audio = new Audio(soundPath);
       audio.volume = this.volume;
       
       // Play the sound
@@ -64,7 +68,11 @@ class NotificationSoundService {
       this.stopCallSound();
 
       // Create new audio instance for call
-      this.callAudio = new Audio('/sounds/aramasesi.mp3');
+      const isElectron = window.electronAPI?.isElectron || window.isElectron;
+      const soundPath = isElectron 
+        ? new URL('sounds/aramasesi.mp3', window.location.href).href
+        : '/sounds/aramasesi.mp3';
+      this.callAudio = new Audio(soundPath);
       this.callAudio.volume = this.volume;
       this.callAudio.loop = true; // Loop the call sound
       
