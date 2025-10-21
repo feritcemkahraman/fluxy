@@ -22,13 +22,18 @@ export const updateApiBaseUrl = (newUrl) => {
   }
 };
 
-// Başlangıçta localStorage'dan URL'i al
+// Başlangıçta localStorage'dan URL'i al veya default kullan
 const savedApiUrl = localStorage.getItem('api_base_url');
+let API_BASE_URL;
+
 if (savedApiUrl) {
   API_BASE_URL = savedApiUrl + '/api';
+} else {
+  // Default API URL - Electron için production URL, web için localhost
+  const defaultUrl = process.env.REACT_APP_API_URL || 
+    (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000');
+  API_BASE_URL = defaultUrl + '/api';
 }
-
-const API_BASE_URL = (savedApiUrl || process.env.REACT_APP_API_URL || (window.electronAPI ? 'https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net' : 'http://localhost:5000')) + '/api';
 
 // Create axios instance with enhanced configuration
 const api = axios.create({

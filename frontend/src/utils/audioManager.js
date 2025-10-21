@@ -40,13 +40,24 @@ class AudioManager {
 
   // Load sound effects using HTML Audio API instead of Web Audio API
   async loadSounds() {
-    // Electron-compatible paths
+    // Electron-compatible paths using URL API
     const isElectron = window.electronAPI?.isElectron || window.isElectron;
-    const basePath = isElectron ? './sounds/' : '/sounds/';
+    
+    const getSoundPath = (filename) => {
+      if (isElectron) {
+        try {
+          return new URL(`sounds/${filename}`, window.location.href).href;
+        } catch (e) {
+          console.error('Failed to resolve sound path:', e);
+          return `sounds/${filename}`;
+        }
+      }
+      return `/sounds/${filename}`;
+    };
     
     const soundFiles = {
-      'voice-join': basePath + 'giris.wav',
-      'voice-leave': basePath + 'cikis.wav'
+      'voice-join': getSoundPath('giris.wav'),
+      'voice-leave': getSoundPath('cikis.wav')
     };
 
     for (const [name, url] of Object.entries(soundFiles)) {
