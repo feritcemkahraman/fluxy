@@ -28,7 +28,23 @@ class WebSocketService {
       
       // Başlangıçta localStorage'dan URL'i al
       const savedSocketUrl = localStorage.getItem('socket_url');
-      const socketUrl = savedSocketUrl || process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      let socketUrl = savedSocketUrl;
+
+      // If no saved URL, determine based on environment
+      if (!socketUrl) {
+        // Check if running in Electron production build
+        const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
+
+        if (isElectron && process.env.NODE_ENV === 'production') {
+          // Production Electron build - use serveo
+          socketUrl = 'https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net';
+          console.log('🔌 Using Serveo WebSocket URL for production Electron build');
+        } else {
+          // Development or web builds
+          socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        }
+      }
+
       console.log('Socket URL:', socketUrl);
 
       this.socket = io(socketUrl, {
