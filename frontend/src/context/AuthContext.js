@@ -256,14 +256,14 @@ export function AuthProvider({ children }) {
     await electronStorage.removeItem('token');
     await electronStorage.removeItem('user');
     await electronStorage.removeItem('userStatus');
-    
+
     dispatch({ type: 'LOGOUT' });
-    
+
     // Disconnect socket only if not already disconnected
     if (!skipSocketDisconnect) {
       socketService.disconnect();
     }
-    
+
     // Optionally try to notify server, but don't block logout
     try {
       await authAPI.logout();

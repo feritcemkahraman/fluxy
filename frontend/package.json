@@ -136,7 +136,8 @@
       "index.js",
       "preload.js",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "sounds/**/*"
     ],
     "extraResources": [
       {
@@ -149,10 +150,8 @@
       },
       {
         "from": "public/sounds",
-        "to": "sounds",
-        "filter": [
-          "**/*"
-        ]
+        "to": "app.asar.unpacked/sounds",
+        "filter": ["**/*"]
       }
     ],
     "mac": {

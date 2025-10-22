@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Try multiple possible paths
     const possiblePaths = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'sounds', filename),
       path.join(process.resourcesPath, 'sounds', filename),
       path.join(__dirname, 'build', 'sounds', filename),
       path.join(__dirname, 'public', 'sounds', filename)
