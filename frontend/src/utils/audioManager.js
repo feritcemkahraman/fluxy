@@ -45,12 +45,10 @@ class AudioManager {
     
     const getSoundPath = (filename) => {
       if (isElectron) {
-        try {
-          return new URL(`sounds/${filename}`, window.location.href).href;
-        } catch (e) {
-          console.error('Failed to resolve sound path:', e);
-          return `sounds/${filename}`;
-        }
+        // In Electron, use relative path from build directory
+        // Build files are in: resources/app.asar/build
+        // Sound files are in: resources/app.asar/build/sounds
+        return `./sounds/${filename}`;
       }
       return `/sounds/${filename}`;
     };

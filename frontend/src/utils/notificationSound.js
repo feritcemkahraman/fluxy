@@ -42,7 +42,7 @@ class NotificationSoundService {
       // Create new audio instance each time to allow multiple plays
       const isElectron = window.electronAPI?.isElectron || window.isElectron;
       const soundPath = isElectron 
-        ? new URL('sounds/mesajses.mp3', window.location.href).href
+        ? './sounds/mesajses.mp3'
         : '/sounds/mesajses.mp3';
       const audio = new Audio(soundPath);
       audio.volume = this.volume;
@@ -70,7 +70,7 @@ class NotificationSoundService {
       // Create new audio instance for call
       const isElectron = window.electronAPI?.isElectron || window.isElectron;
       const soundPath = isElectron 
-        ? new URL('sounds/aramasesi.mp3', window.location.href).href
+        ? './sounds/aramasesi.mp3'
         : '/sounds/aramasesi.mp3';
       this.callAudio = new Audio(soundPath);
       this.callAudio.volume = this.volume;

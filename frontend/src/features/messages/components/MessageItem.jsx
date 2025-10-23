@@ -200,14 +200,8 @@ const MessageItem = ({
                   const isElectron = window.electronAPI?.isElectron || window.isElectron;
                   
                   if (isElectron) {
-                    // In Electron, use URL API to properly resolve relative path
-                    // This ensures path is relative to HTML location, not CWD
-                    try {
-                      return new URL(`pepe/${filename}`, window.location.href).href;
-                    } catch (e) {
-                      console.error('Failed to resolve pepe path:', e);
-                      return `pepe/${filename}`;
-                    }
+                    // In Electron, use relative path from build directory
+                    return `./pepe/${filename}`;
                   }
                   
                   // Web version (Netlify, localhost dev server)
