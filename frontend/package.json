@@ -69,8 +69,8 @@
   "homepage": "./",
   "scripts": {
     "start": "craco start",
-    "build": "REACT_APP_API_URL=${REACT_APP_API_URL:-https://api.fluxy.com.tr} REACT_APP_SOCKET_URL=${REACT_APP_SOCKET_URL:-https://api.fluxy.com.tr} craco build",
-    "build:production": "GENERATE_SOURCEMAP=false craco build",
+    "build": "craco build",
+    "build:production": "cross-env GENERATE_SOURCEMAP=false craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
     "electron": "electron .",
