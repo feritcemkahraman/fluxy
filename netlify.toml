@@ -2,7 +2,6 @@
   base = "frontend"
   publish = "build"
   command = "npm install && npm run build"
-  functions = "../netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
