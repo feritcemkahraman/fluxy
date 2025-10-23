@@ -58,8 +58,6 @@ const api = axios.create({
   timeout: 30000, // 30 second timeout
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning
-    'serveo-skip-browser-warning': 'true', // Skip serveo browser warning
   },
   withCredentials: true,
 });

@@ -57,7 +57,7 @@ const io = new Server(server, {
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning', 'serveo-skip-browser-warning', 'cf-ray', 'cf-connecting-ip']
   },
   allowEIO3: true, // Allow Engine.IO v3 clients
   transports: ['polling', 'websocket']
@@ -120,7 +120,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'ngrok-skip-browser-warning', 'serveo-skip-browser-warning', 'cf-ray', 'cf-connecting-ip'],
   preflightContinue: false,
   optionsSuccessStatus: 200
 }));
@@ -137,7 +137,7 @@ app.options('*', (req, res) => {
   }
 
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, ngrok-skip-browser-warning');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, ngrok-skip-browser-warning, serveo-skip-browser-warning, cf-ray, cf-connecting-ip');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.sendStatus(200);
 });
