@@ -17,7 +17,8 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://localhost:5000',
   'http://127.0.0.1:5000',
-  'https://fluxycorn.netlify.app', // Netlify frontend (güncellenecek)
+  'https://fluxy.com.tr', // Production frontend (Cloudflare Pages)
+  'https://api.fluxy.com.tr', // Production backend
   process.env.FRONTEND_URL,
   process.env.NGROK_URL // Ngrok URL'i için
 ].filter(Boolean);
@@ -101,12 +102,17 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // Allow Serveo tunnels
+    // Allow Serveo tunnels (development only)
     if (origin && origin.includes('serveo.net')) {
       return callback(null, true);
     }
 
-    // Allow Netlify deployments
+    // Allow Cloudflare Pages deployments
+    if (origin && (origin.includes('pages.dev') || origin.includes('fluxy.com.tr'))) {
+      return callback(null, true);
+    }
+
+    // Allow Netlify deployments (legacy - will be removed)
     if (origin && origin.includes('netlify.app')) {
       return callback(null, true);
     }

@@ -10,7 +10,7 @@ const testJoinServer = async () => {
     console.log('Server ID:', serverId);
 
     const response = await axios.post(
-      `http://87.121.103.236:5000/api/servers/${serverId}/join`,
+      `https://api.fluxy.com.tr/api/servers/${serverId}/join`,
       {},
       {
         headers: {

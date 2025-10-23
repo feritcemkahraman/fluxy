@@ -13,9 +13,9 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/fluxy?retryWrite
 # You can generate one with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 JWT_SECRET=YOUR_SECURE_JWT_SECRET_HERE
 
-# Frontend URL (Netlify domain)
-FRONTEND_URL=https://fluxycorn.netlify.app
-CORS_ORIGIN=https://fluxycorn.netlify.app
+# Frontend URL (Cloudflare Pages domain)
+FRONTEND_URL=https://fluxy.com.tr
+CORS_ORIGIN=https://fluxy.com.tr
 
 # File Upload Configuration
 UPLOAD_DIR=./uploads
@@ -37,10 +37,10 @@ LOG_FILE=./logs/fluxy.log
 # SMTP_PORT=587
 # SMTP_USER=your-email@gmail.com
 # SMTP_PASS=your-app-password
-# EMAIL_FROM=noreply@fluxy.com
+# EMAIL_FROM=noreply@fluxy.com.tr
 
 # Optional: Redis (for session storage, caching)
 # REDIS_URL=redis://localhost:6379
 
-# Server Domain (VDS IP or domain)
-SERVER_DOMAIN=http://87.121.103.236:5000
+# Server Domain (Cloudflare Tunnel)
+SERVER_DOMAIN=https://api.fluxy.com.tr

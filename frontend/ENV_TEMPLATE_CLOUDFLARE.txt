@@ -1,0 +1,17 @@
+# Cloudflare Pages Environment Variables Template
+# Add these in Cloudflare Pages dashboard
+
+NODE_VERSION=20
+NODE_OPTIONS=--max-old-space-size=4096
+GENERATE_SOURCEMAP=false
+CI=false
+DISABLE_ESLINT_PLUGIN=true
+
+# Domain: fluxy.com.tr
+REACT_APP_API_URL=https://api.fluxy.com.tr
+REACT_APP_SOCKET_URL=https://api.fluxy.com.tr
+REACT_APP_FRONTEND_URL=https://fluxy.com.tr
+
+# Optional: Feature flags
+REACT_APP_ENABLE_VOICE_CHAT=true
+REACT_APP_ENABLE_SCREEN_SHARE=true
