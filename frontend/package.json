@@ -70,7 +70,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "build:netlify": "craco build",
+    "build:production": "GENERATE_SOURCEMAP=false craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
     "electron": "electron .",
@@ -82,7 +82,7 @@
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win -p always",
     "dist:linux": "npm run build && electron-builder --linux",
-    "postinstall": "node -e \"if (process.env.NETLIFY !== 'true') { require('child_process').execSync('electron-builder install-app-deps', {stdio: 'inherit'}) }\""
+    "postinstall": "electron-builder install-app-deps"
   },
   "browserslist": {
     "production": [
