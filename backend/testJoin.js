@@ -10,7 +10,7 @@ const testJoinServer = async () => {
     console.log('Server ID:', serverId);
 
     const response = await axios.post(
-      `https://1170e9012b0d93da0ab2f4f15418a5be.serveo.net/api/servers/${serverId}/join`,
+      `http://87.121.103.236:5000/api/servers/${serverId}/join`,
       {},
       {
         headers: {
