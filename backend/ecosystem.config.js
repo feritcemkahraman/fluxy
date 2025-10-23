@@ -49,11 +49,11 @@ module.exports = {
   deploy: {
     production: {
       user: 'root',
-      host: 'YOUR_VDS_IP',
+      host: '87.121.103.236',
       ref: 'origin/main',
-      repo: 'https://github.com/YOUR_USERNAME/fluxy.git',
+      repo: 'https://github.com/feritcemkahraman/fluxy.git',
       path: '/var/www/fluxy-backend',
-      'post-deploy': 'cd backend && npm install && pm2 reload ecosystem.config.js --env production'
+      'post-deploy': 'npm install --production && pm2 reload ecosystem.config.js --env production'
     }
   }
 };

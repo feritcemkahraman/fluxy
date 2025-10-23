@@ -32,16 +32,17 @@ class WebSocketService {
 
       // If no saved URL, determine based on environment
       if (!socketUrl) {
-        // Check if running in Electron production build
+        // Check if running in Electron
         const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
 
-        if (isElectron && process.env.NODE_ENV === 'production') {
-          // Production Electron build - use serveo
-          socketUrl = 'https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net';
-          console.log('🔌 Using Serveo WebSocket URL for production Electron build');
+        if (isElectron) {
+          // Electron builds use localhost (user runs backend locally)
+          socketUrl = 'http://localhost:5000';
+          console.log('🔌 Using localhost WebSocket URL for Electron build');
         } else {
-          // Development or web builds
+          // Web builds use environment variable
           socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+          console.log('🌐 Using WebSocket URL:', socketUrl);
         }
       }
 

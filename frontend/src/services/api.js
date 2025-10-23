@@ -27,26 +27,27 @@ const getApiBaseUrl = () => {
   // Try localStorage first
   const savedApiUrl = localStorage.getItem('api_base_url');
   if (savedApiUrl) {
-    // Clear old serveo URLs that are causing 502 errors
-    if (savedApiUrl.includes('serveo.net') && !savedApiUrl.includes('62b2ae99ee07bd10eda553fe3d770b09')) {
-      console.log('🧹 Clearing old serveo URL from localStorage');
+    // Clear ALL serveo URLs - we're now using VDS
+    if (savedApiUrl.includes('serveo.net')) {
+      console.log('🧹 Clearing serveo URL from localStorage - switching to VDS');
       localStorage.removeItem('api_base_url');
     } else {
       return savedApiUrl + '/api';
     }
   }
 
-  // Check if running in Electron production build
+  // Check if running in Electron
   const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
 
-  if (isElectron && process.env.NODE_ENV === 'production') {
-    // Production Electron build - always use serveo
-    console.log('🔌 Using Serveo URL for production Electron build');
-    return 'https://62b2ae99ee07bd10eda553fe3d770b09.serveo.net/api';
+  if (isElectron) {
+    // Electron builds use localhost (user runs backend locally)
+    console.log('🔌 Using localhost for Electron build');
+    return 'http://localhost:5000/api';
   }
 
-  // For development or web builds, use environment variable or localhost
+  // For web builds, use environment variable or localhost
   const defaultUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  console.log('🌐 Using API URL:', defaultUrl);
 
   return defaultUrl + '/api';
 };
