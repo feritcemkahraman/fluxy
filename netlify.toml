@@ -2,6 +2,7 @@
   base = "frontend"
   publish = "build"
   command = "npm install && npm run build"
+  functions = "../netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -9,8 +10,8 @@
   GENERATE_SOURCEMAP = "false"
   CI = "false"
   DISABLE_ESLINT_PLUGIN = "true"
-  REACT_APP_API_URL = "http://87.121.103.236:5000"
-  REACT_APP_SOCKET_URL = "http://87.121.103.236:5000"
+  REACT_APP_API_URL = "https://affiliation-attachments-you-housing.trycloudflare.com"
+  REACT_APP_SOCKET_URL = "https://affiliation-attachments-you-housing.trycloudflare.com"
   REACT_APP_FRONTEND_URL = "https://fluxycorn.netlify.app"
 
 # Build optimizations - disable some processing to reduce memory usage
