@@ -41,7 +41,16 @@ class WebSocketService {
           devLog.log('🔌 Using localhost WebSocket URL for Electron build');
         } else {
           // Web builds use environment variable
-          socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+          socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL;
+          
+          if (!socketUrl) {
+            console.error('❌ REACT_APP_SOCKET_URL not set! Check Cloudflare environment variables.');
+            // Production fallback - should never happen if env vars are set correctly
+            socketUrl = window.location.hostname.includes('localhost')
+              ? 'http://localhost:5000'
+              : 'https://api.fluxy.com.tr';
+          }
+          
           devLog.log('🌐 Using WebSocket URL:', socketUrl);
         }
       }

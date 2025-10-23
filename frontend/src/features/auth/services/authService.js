@@ -6,7 +6,12 @@ import { AUTH_ERRORS } from '../constants';
  */
 class AuthService {
   constructor() {
-    this.baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api';
+    // Use environment variable or production fallback
+    const apiUrl = process.env.REACT_APP_API_URL || 
+      (window.location.hostname.includes('localhost') 
+        ? 'http://localhost:5000' 
+        : 'https://api.fluxy.com.tr');
+    this.baseURL = apiUrl + '/api';
   }
 
   /**

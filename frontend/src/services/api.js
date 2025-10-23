@@ -45,11 +45,19 @@ const getApiBaseUrl = () => {
     return 'http://localhost:5000/api';
   }
 
-  // For web builds, use environment variable or localhost
-  const defaultUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  devLog.log('🌐 Using API URL:', defaultUrl);
-
-  return defaultUrl + '/api';
+  // For web builds, use environment variable
+  const apiUrl = process.env.REACT_APP_API_URL;
+  
+  if (!apiUrl) {
+    console.error('❌ REACT_APP_API_URL not set! Check Cloudflare environment variables.');
+    // Production fallback - should never happen if env vars are set correctly
+    return window.location.hostname.includes('localhost') 
+      ? 'http://localhost:5000/api'
+      : 'https://api.fluxy.com.tr/api';
+  }
+  
+  devLog.log('🌐 Using API URL:', apiUrl);
+  return apiUrl + '/api';
 };
 
 // Create axios instance with enhanced configuration
