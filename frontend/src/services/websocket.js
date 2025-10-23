@@ -24,7 +24,7 @@ class WebSocketService {
     }
 
     try {
-      console.log('Connecting to WebSocket...');
+      devLog.log('Connecting to WebSocket...');
       
       // Başlangıçta localStorage'dan URL'i al
       const savedSocketUrl = localStorage.getItem('socket_url');
@@ -38,15 +38,15 @@ class WebSocketService {
         if (isElectron) {
           // Electron builds use localhost (user runs backend locally)
           socketUrl = 'http://localhost:5000';
-          console.log('🔌 Using localhost WebSocket URL for Electron build');
+          devLog.log('🔌 Using localhost WebSocket URL for Electron build');
         } else {
           // Web builds use environment variable
           socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
-          console.log('🌐 Using WebSocket URL:', socketUrl);
+          devLog.log('🌐 Using WebSocket URL:', socketUrl);
         }
       }
 
-      console.log('Socket URL:', socketUrl);
+      devLog.log('Socket URL:', socketUrl);
 
       this.socket = io(socketUrl, {
         auth: { token },
@@ -88,7 +88,7 @@ class WebSocketService {
 
       // Listen for authentication error
       this.socket.on('auth_error', (error) => {
-        console.error('Socket authentication failed:', error);
+        devLog.error('Socket authentication failed:', error);
         monitoringService.trackSocketConnection('auth_error', { error });
         this.isAuthenticated = false;
         this.emitLocal('auth_error', error);
@@ -106,22 +106,22 @@ class WebSocketService {
 
       this.socket.on('connect_error', (error) => {
         this.reconnectAttempts++;
-        console.warn(`Socket connection error (attempt ${this.reconnectAttempts}):`, error.message);
+        devLog.warn(`Socket connection error (attempt ${this.reconnectAttempts}):`, error.message);
         monitoringService.trackSocketConnection('error', { error: error.message, attempt: this.reconnectAttempts });
         this.emitLocal('connection_error', error);
         
         // Don't show error toast immediately, let it retry
         if (this.reconnectAttempts >= 3) {
-          console.error('Multiple connection attempts failed. Backend may be down.');
-          console.error('Stopping reconnection attempts to prevent spam');
+          devLog.error('Multiple connection attempts failed. Backend may be down.');
+          devLog.error('Stopping reconnection attempts to prevent spam');
           this.socket.disconnect();
           return;
         }
         
         // Check if it's a server unavailable error
         if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
-          console.warn('Backend server might not be running on:', socketUrl);
-          console.warn('Please make sure your backend server is started and accessible');
+          devLog.warn('Backend server might not be running on:', socketUrl);
+          devLog.warn('Please make sure your backend server is started and accessible');
         }
       });
 
@@ -267,7 +267,7 @@ class WebSocketService {
       });
 
     } catch (error) {
-      console.error('Error connecting to Socket.IO:', error);
+      devLog.error('Error connecting to Socket.IO:', error);
       this.handleReconnect();
     }
   }
@@ -294,7 +294,7 @@ class WebSocketService {
         this.socket.removeAllListeners();
         this.socket.disconnect();
       } catch (error) {
-        console.warn('Error during socket disconnect:', error);
+        devLog.warn('Error during socket disconnect:', error);
       } finally {
         this.socket = null;
       }
@@ -308,7 +308,7 @@ class WebSocketService {
   // Send message to channel
   sendMessage(channelId, content, messageType = 'text') {
     if (!this.isAuthenticated || !this.socket) {
-      console.error('Socket not authenticated or connected');
+      devLog.error('Socket not authenticated or connected');
       return;
     }
 
@@ -322,7 +322,7 @@ class WebSocketService {
   // Join a channel
   joinChannel(channelId) {
     if (!this.isAuthenticated || !this.socket) {
-      console.error('Socket not authenticated or connected');
+      devLog.error('Socket not authenticated or connected');
       return;
     }
 
@@ -385,7 +385,7 @@ class WebSocketService {
     try {
       await this.waitForAuthentication();
     } catch (error) {
-      console.error('Failed to authenticate before joining voice channel:', error.message);
+      devLog.error('Failed to authenticate before joining voice channel:', error.message);
       throw new Error('Socket not authenticated or connected');
     }
 
@@ -402,7 +402,7 @@ class WebSocketService {
   // Update user status
   updateStatus(status) {
     if (!this.isAuthenticated || !this.socket) {
-      console.error('Socket not authenticated or connected');
+      devLog.error('Socket not authenticated or connected');
       return;
     }
 
@@ -505,7 +505,7 @@ class WebSocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit(event, data);
     } else {
-      console.warn('Socket not connected, cannot emit:', event);
+      devLog.warn('Socket not connected, cannot emit:', event);
     }
   }
 
@@ -516,7 +516,7 @@ class WebSocketService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
+          devLog.error(`Error in event listener for ${event}:`, error);
         }
       });
     }
@@ -553,10 +553,10 @@ class WebSocketService {
       // Yeni bağlantı oluştur
       this.connect();
 
-      console.log('✅ Socket URL updated to:', newUrl);
+      devLog.log('✅ Socket URL updated to:', newUrl);
       return true;
     } catch (error) {
-      console.error('❌ Failed to update Socket URL:', error);
+      devLog.error('❌ Failed to update Socket URL:', error);
       return false;
     }
   }

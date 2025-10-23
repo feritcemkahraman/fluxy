@@ -14,10 +14,10 @@ export const updateApiBaseUrl = (newUrl) => {
     // localStorage'a kaydet
     localStorage.setItem('api_base_url', newUrl);
 
-    console.log('✅ API Base URL updated to:', newUrl);
+    devLog.log('✅ API Base URL updated to:', newUrl);
     return true;
   } catch (error) {
-    console.error('❌ Failed to update API Base URL:', error);
+    devLog.error('❌ Failed to update API Base URL:', error);
     return false;
   }
 };
@@ -29,7 +29,7 @@ const getApiBaseUrl = () => {
   if (savedApiUrl) {
     // Clear ALL serveo URLs - we're now using VDS
     if (savedApiUrl.includes('serveo.net')) {
-      console.log('🧹 Clearing serveo URL from localStorage - switching to VDS');
+      devLog.log('🧹 Clearing serveo URL from localStorage - switching to VDS');
       localStorage.removeItem('api_base_url');
     } else {
       return savedApiUrl + '/api';
@@ -41,13 +41,13 @@ const getApiBaseUrl = () => {
 
   if (isElectron) {
     // Electron builds use localhost (user runs backend locally)
-    console.log('🔌 Using localhost for Electron build');
+    devLog.log('🔌 Using localhost for Electron build');
     return 'http://localhost:5000/api';
   }
 
   // For web builds, use environment variable or localhost
   const defaultUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  console.log('🌐 Using API URL:', defaultUrl);
+  devLog.log('🌐 Using API URL:', defaultUrl);
 
   return defaultUrl + '/api';
 };
@@ -73,14 +73,14 @@ api.interceptors.request.use(
       try {
         token = await window.electronAPI.storeGet('token');
       } catch (error) {
-        console.warn('Failed to get token from Electron storage:', error);
+        devLog.warn('Failed to get token from Electron storage:', error);
       }
     }
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      console.warn('⚠️ No authentication token found for API request:', config.url);
+      devLog.warn('⚠️ No authentication token found for API request:', config.url);
     }
     
     // Add request timestamp for performance monitoring
@@ -100,7 +100,7 @@ api.interceptors.response.use(
     if (response.config.metadata) {
       const duration = Date.now() - response.config.metadata.startTime;
       if (duration > 15000) { // Log very slow requests (15s+)
-        console.warn(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
+        devLog.warn(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
       }
     }
     
@@ -163,7 +163,7 @@ export const authAPI = {
       }
       return response.data;
     } catch (error) {
-      console.error('Registration error:', error);
+      devLog.error('Registration error:', error);
       throw error;
     }
   },
@@ -176,7 +176,7 @@ export const authAPI = {
       }
       return response.data;
     } catch (error) {
-      console.error('Login error:', error);
+      devLog.error('Login error:', error);
       throw error;
     }
   },
@@ -191,13 +191,13 @@ export const authAPI = {
       // Direct API call without retry for logout
       await api.post('/auth/logout');
       if (process.env.NODE_ENV === 'development') {
-        console.log('Server logout successful');
+        devLog.log('Server logout successful');
       }
     } catch (error) {
       // Silently handle logout errors - token might be expired
       // Local logout is more important than server notification
       if (process.env.NODE_ENV === 'development' && !error.message.includes('401')) {
-        console.warn('Server logout failed, but local logout completed:', error.message);
+        devLog.warn('Server logout failed, but local logout completed:', error.message);
       }
     }
   },
@@ -302,7 +302,7 @@ export const uploadAPI = {
       
       return response.data;
     } catch (error) {
-      console.error('File upload error:', error);
+      devLog.error('File upload error:', error);
       throw error;
     }
   },
@@ -320,7 +320,7 @@ export const uploadAPI = {
       
       return response.data;
     } catch (error) {
-      console.error('Avatar upload error:', error);
+      devLog.error('Avatar upload error:', error);
       throw error;
     }
   },
@@ -338,7 +338,7 @@ export const uploadAPI = {
       
       return response.data;
     } catch (error) {
-      console.error('Server icon upload error:', error);
+      devLog.error('Server icon upload error:', error);
       throw error;
     }
   }
