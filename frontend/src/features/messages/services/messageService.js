@@ -6,12 +6,20 @@ import { MESSAGE_ERRORS } from '../constants';
  */
 class MessageService {
   constructor() {
-    // Use environment variable or production fallback
-    const apiUrl = process.env.REACT_APP_API_URL || 
-      (window.location.hostname.includes('localhost') 
-        ? 'http://localhost:5000' 
-        : 'https://api.fluxy.com.tr');
-    this.baseURL = apiUrl + '/api';
+    // Check if running in Electron
+    const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
+    
+    if (isElectron) {
+      // Electron: Always use production backend
+      this.baseURL = 'https://api.fluxy.com.tr/api';
+    } else {
+      // Web: Use environment variable or fallback
+      const apiUrl = process.env.REACT_APP_API_URL || 
+        (window.location.hostname.includes('localhost') 
+          ? 'http://localhost:5000' 
+          : 'https://api.fluxy.com.tr');
+      this.baseURL = apiUrl + '/api';
+    }
   }
 
   /**

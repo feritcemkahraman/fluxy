@@ -36,9 +36,9 @@ class WebSocketService {
         const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
 
         if (isElectron) {
-          // Electron builds use localhost (user runs backend locally)
-          socketUrl = 'http://localhost:5000';
-          devLog.log('🔌 Using localhost WebSocket URL for Electron build');
+          // Electron: Use production backend (no local server needed)
+          socketUrl = 'https://api.fluxy.com.tr';
+          devLog.log('🔌 Electron using production backend for WebSocket');
         } else {
           // Web builds use environment variable
           socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL;

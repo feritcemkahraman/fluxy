@@ -40,9 +40,9 @@ const getApiBaseUrl = () => {
   const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
 
   if (isElectron) {
-    // Electron builds use localhost (user runs backend locally)
-    devLog.log('🔌 Using localhost for Electron build');
-    return 'http://localhost:5000/api';
+    // Electron: Use production backend (no local server needed)
+    devLog.log('🔌 Electron using production backend');
+    return 'https://api.fluxy.com.tr/api';
   }
 
   // For web builds, use environment variable
