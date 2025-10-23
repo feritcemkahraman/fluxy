@@ -1,0 +1,21 @@
+# Netlify Environment Variables for Fluxy Frontend
+# Copy these to Netlify Dashboard → Site Settings → Environment Variables
+
+# Backend API URL (VDS sunucu)
+REACT_APP_API_URL=http://87.121.103.236:5000
+
+# WebSocket URL (Same as API URL)
+REACT_APP_SOCKET_URL=http://87.121.103.236:5000
+
+# Environment
+NODE_ENV=production
+
+# Optional: Feature flags
+REACT_APP_ENABLE_VOICE_CHAT=true
+REACT_APP_ENABLE_SCREEN_SHARE=true
+
+---
+
+NOT: Domain aldığınızda şu şekilde güncelleyeceğiz:
+REACT_APP_API_URL=https://api.fluxy.com
+REACT_APP_SOCKET_URL=https://api.fluxy.com
