@@ -156,7 +156,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' http://localhost:5000 https://localhost:5000 wss://localhost:5000 ws://localhost:5000 https://*.serveo.net wss://*.serveo.net ws://*.serveo.net https: wss: ws:",
+            "connect-src 'self' http://localhost:5000 https://localhost:5000 wss://localhost:5000 ws://localhost:5000 http://87.121.103.236:5000 ws://87.121.103.236:5000 https: wss: ws:",
             "media-src 'self' blob: data:",
             "worker-src 'self' blob:",
             "object-src 'none'",
