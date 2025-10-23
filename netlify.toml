@@ -9,8 +9,8 @@
   GENERATE_SOURCEMAP = "false"
   CI = "false"
   DISABLE_ESLINT_PLUGIN = "true"
-  REACT_APP_API_URL = "https://girls-specialist-shuttle-modification.trycloudflare.com"
-  REACT_APP_SOCKET_URL = "https://girls-specialist-shuttle-modification.trycloudflare.com"
+  REACT_APP_API_URL = "https://even-sandcoin-enterprise-agents.trycloudflare.com"
+  REACT_APP_SOCKET_URL = "https://even-sandcoin-enterprise-agents.trycloudflare.com"
   REACT_APP_FRONTEND_URL = "https://fluxycorn.netlify.app"
 
 # Build optimizations - disable some processing to reduce memory usage
