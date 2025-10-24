@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MoreVertical, Reply, Trash2, Edit3, UserPlus, Shield, Copy, AlertCircle, RefreshCw, Phone, PhoneOff, PhoneMissed } from 'lucide-react';
+import { MoreVertical, MoreHorizontal, Reply, Trash2, Edit3, UserPlus, Shield, Copy, AlertCircle, RefreshCw, Phone, PhoneOff, PhoneMissed } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../../../components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
