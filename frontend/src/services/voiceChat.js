@@ -112,10 +112,22 @@ class VoiceChatService extends EventEmitter {
 
   // Enhanced getUserMedia for Electron - Discord-level quality
   async getUserMedia() {
+    // Try to get saved deviceId from settings (if any)
+    let savedDeviceId = null;
+    try {
+      const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+      savedDeviceId = settings?.voice?.inputDevice;
+    } catch (e) {
+      // Ignore settings parsing errors
+    }
+
     try {
       // Discord Standard Mode - Maximum voice quality
       const constraints = {
         audio: {
+          // Use saved deviceId if available, otherwise let browser choose
+          ...(savedDeviceId && savedDeviceId !== 'default' ? { deviceId: { ideal: savedDeviceId } } : {}),
+          
           // Core WebRTC processing (natural, not robotic)
           echoCancellation: { ideal: true },
           noiseSuppression: { ideal: true },
@@ -151,13 +163,31 @@ class VoiceChatService extends EventEmitter {
     } catch (error) {
       logger.error('❌ Enhanced audio failed, falling back to basic:', error);
       
-      // Fallback to basic audio
+      // Fallback 1: Try without specific deviceId (in case device not found)
       try {
-        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const basicConstraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        };
+        
+        this.localStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+        logger.log('✅ Basic audio with processing enabled');
         return this.localStream;
-      } catch (basicError) {
-        logger.error('❌ Basic audio also failed:', basicError);
-        throw basicError;
+      } catch (fallbackError) {
+        logger.error('❌ Basic audio with processing failed, trying minimal:', fallbackError);
+        
+        // Fallback 2: Absolute minimal - just audio: true
+        try {
+          this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          logger.log('⚠️ Minimal audio mode (no processing)');
+          return this.localStream;
+        } catch (minimalError) {
+          logger.error('❌ All audio attempts failed:', minimalError);
+          throw minimalError;
+        }
       }
     }
   }

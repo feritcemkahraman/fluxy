@@ -77,25 +77,27 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
         (msg.id?.toString() === messageId?.toString())
       );
       
-      if (alreadyExists) return prev;
+      if (alreadyExists) {
+        console.log('🚫 DUPLICATE BLOCKED (ID):', normalized.content?.substring(0, 50));
+        return prev;
+      }
       
-      // Check if this is a duplicate by content (for messages without optimistic)
+      // Check if this is a duplicate by content + author + timestamp
       // This handles the case where backend broadcasts the same message twice
-      const currentUserId = serverMembersRef.current?.find(m => m.isCurrentUser)?._id || 
-                           JSON.parse(localStorage.getItem('user') || '{}')._id;
-      const isOwnMessage = (normalized.author?.id || normalized.author?._id) === currentUserId;
-      
-      if (isOwnMessage) {
-        const contentDuplicate = prev.some(msg => 
-          msg.content === normalized.content &&
-          (msg.author?.id === currentUserId || msg.author?._id === currentUserId) &&
-          Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp)) < 3000
-        );
+      const authorId = normalized.author?.id || normalized.author?._id;
+      const contentDuplicate = prev.some(msg => {
+        const msgAuthorId = msg.author?.id || msg.author?._id;
+        const isSameAuthor = msgAuthorId === authorId;
+        const isSameContent = msg.content === normalized.content;
+        const timeDiff = Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp));
+        const isRecent = timeDiff < 3000; // 3 seconds window
         
-        if (contentDuplicate) {
-          console.log('🚫 DUPLICATE BLOCKED (content):', normalized.content?.substring(0, 50));
-          return prev;
-        }
+        return isSameAuthor && isSameContent && isRecent;
+      });
+      
+      if (contentDuplicate) {
+        console.log('🚫 DUPLICATE BLOCKED (content+author+time):', normalized.content?.substring(0, 50));
+        return prev;
       }
       
       // Remove any optimistic message with same content and author

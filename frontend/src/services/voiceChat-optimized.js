@@ -151,6 +151,15 @@ class VoiceChatService {
   // ============================================================================
 
   async getUserMedia() {
+    // Try to get saved deviceId from settings (if any)
+    let savedDeviceId = null;
+    try {
+      const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+      savedDeviceId = settings?.voice?.inputDevice;
+    } catch (e) {
+      // Ignore settings parsing errors
+    }
+
     try {
       // Clean up existing stream first
       if (this.localStream) {
@@ -160,6 +169,9 @@ class VoiceChatService {
       // Enhanced audio constraints for Electron with better performance
       const constraints = {
         audio: {
+          // Use saved deviceId if available, otherwise let browser choose
+          ...(savedDeviceId && savedDeviceId !== 'default' ? { deviceId: { ideal: savedDeviceId } } : {}),
+          
           // Core settings
           echoCancellation: true,
           noiseSuppression: true,
@@ -198,7 +210,7 @@ class VoiceChatService {
     } catch (error) {
       console.error('❌ Enhanced audio failed, trying fallback:', error);
       
-      // Fallback to basic audio
+      // Fallback 1: Try without specific deviceId
       try {
         this.localStream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
@@ -209,16 +221,27 @@ class VoiceChatService {
         });
         
         this.setupStreamMonitoring();
+        console.log('✅ Basic audio with processing enabled');
         return this.localStream;
         
-      } catch (basicError) {
-        console.error('❌ Basic audio also failed:', basicError);
-        this.emit('error', { 
-          type: 'audio', 
-          message: 'Microphone access failed',
-          details: basicError.message 
-        });
-        throw basicError;
+      } catch (fallbackError) {
+        console.error('❌ Basic audio with processing failed, trying minimal:', fallbackError);
+        
+        // Fallback 2: Absolute minimal - just audio: true
+        try {
+          this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.setupStreamMonitoring();
+          console.log('⚠️ Minimal audio mode (no processing)');
+          return this.localStream;
+        } catch (minimalError) {
+          console.error('❌ All audio attempts failed:', minimalError);
+          this.emit('error', { 
+            type: 'audio', 
+            message: 'Microphone access failed',
+            details: minimalError.message 
+          });
+          throw minimalError;
+        }
       }
     }
   }

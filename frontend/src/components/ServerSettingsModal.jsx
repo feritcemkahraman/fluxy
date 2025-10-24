@@ -162,11 +162,31 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     }
   };
 
-  const copyInviteCode = () => {
-    if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink);
+  const copyInviteCode = async () => {
+    if (!inviteLink) return;
+    
+    try {
+      // Electron API check first
+      if (window.electronAPI?.clipboard) {
+        await window.electronAPI.clipboard.writeText(inviteLink);
+      } else if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(inviteLink);
+      } else {
+        // Fallback for non-secure contexts
+        const tempInput = document.createElement('input');
+        tempInput.value = inviteLink;
+        tempInput.style.position = 'absolute';
+        tempInput.style.left = '-9999px';
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+      }
+      
       setInviteCopied(true);
       setTimeout(() => setInviteCopied(false), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
     }
   };
 
