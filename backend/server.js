@@ -126,7 +126,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'ngrok-skip-browser-warning', 'serveo-skip-browser-warning', 'cf-ray', 'cf-connecting-ip'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'ngrok-skip-browser-warning', 'serveo-skip-browser-warning', 'cf-ray', 'cf-connecting-ip', 'x-admin-token'],
   preflightContinue: false,
   optionsSuccessStatus: 200
 }));
