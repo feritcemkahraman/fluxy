@@ -51,7 +51,7 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       if (server?._id || server?.id) {
         try {
           const response = await roleAPI.getRoles(server._id || server.id);
-          setRoles(response.data || []);
+          setRoles(response || []);
         } catch (error) {
           console.error('Failed to load roles:', error);
         }

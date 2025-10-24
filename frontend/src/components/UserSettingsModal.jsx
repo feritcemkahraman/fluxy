@@ -293,8 +293,8 @@ const UserSettingsModal = ({ isOpen, onClose, user, onUserUpdate }) => {
     try {
       setLoading(true);
       const response = await userSettingsAPI.getSettings();
-      if (response.data) {
-        setSettings(response.data);
+      if (response) {
+        setSettings(response);
       }
     } catch (error) {
       // Keep default settings if loading fails

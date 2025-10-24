@@ -65,11 +65,11 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
         friendsAPI.getBlockedUsers()
       ]);
 
-      // Handle response.data wrapper if exists
-      setFriends(friendsData?.data || friendsData || []);
-      setPendingRequests(pendingData?.data || pendingData || []);
-      setSentRequests(sentData?.data || sentData || []);
-      setBlockedUsers(blockedData?.data || blockedData || []);
+      // Handle response (already unwrapped by API)
+      setFriends(friendsData || []);
+      setPendingRequests(pendingData || []);
+      setSentRequests(sentData || []);
+      setBlockedUsers(blockedData || []);
     } catch (error) {
       setError('Failed to load friends data');
       console.error('Load friends data error:', error);

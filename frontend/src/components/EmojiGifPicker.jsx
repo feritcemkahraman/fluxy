@@ -3,25 +3,7 @@ import { Smile, Search, TrendingUp, Clock, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-
-// Electron-safe path helper
-const getPepePath = (filename) => {
-  const isElectron = window.electronAPI?.isElectron || window.isElectron;
-  
-  if (isElectron) {
-    // In Electron, use URL API to properly resolve relative path
-    // This ensures path is relative to HTML location, not CWD
-    try {
-      return new URL(`pepe/${filename}`, window.location.href).href;
-    } catch (e) {
-      console.error('Failed to resolve pepe path:', e);
-      return `pepe/${filename}`;
-    }
-  }
-  
-  // Web version (Netlify, localhost dev server)
-  return `/pepe/${filename}`;
-};
+import { getPepePath } from '../utils/assetHelper';
 
 // Pepe Emoji Collection - From public/pepe folder
 const PEPE_EMOJIS = [

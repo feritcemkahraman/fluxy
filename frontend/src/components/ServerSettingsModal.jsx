@@ -343,7 +343,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     try {
       setLoading(true);
       const response = await roleAPI.getRoles(serverId);
-      setRoles(response.data);
+      setRoles(response || []);
     } catch (error) {
       // console.error('Failed to load roles:', error);
     } finally {

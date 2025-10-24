@@ -70,7 +70,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       });
       // console.log('Templates response:', response);
       // console.log('Templates count:', response.templates?.length);
-      setTemplates(response.templates);
+      setTemplates(response.templates || response || []);
       setLoading(false);
     } catch (error) {
       // console.error('Template yükleme hatası:', error);
@@ -80,7 +80,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
   };  const loadCategories = async () => {
     try {
       const response = await templatesAPI.getCategories();
-      setCategories(response);
+      setCategories(response.categories || response || []);
     } catch (error) {
     }
   };
@@ -404,7 +404,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
     };
   };
 
-  const translatedTemplates = templates.map(translateTemplate);
+  const translatedTemplates = (templates || []).map(translateTemplate);
   const filteredTemplates = translatedTemplates.filter(template =>
     template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     template.description.toLowerCase().includes(searchQuery.toLowerCase())
