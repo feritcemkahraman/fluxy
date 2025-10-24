@@ -408,22 +408,11 @@ router.post('/:id/react', auth, [
 
     // Broadcast reaction update via socket (Discord-like real-time)
     const io = req.app.get('io');
-    console.log('🎭 Reaction saved, broadcasting...', {
-      messageId: message._id,
-      serverId: message.server,
-      hasIO: !!io,
-      reactions: message.reactions
-    });
-    
     if (io) {
-      console.log('📢 Emitting reactionUpdate to room:', `server_${message.server}`);
       io.to(`server_${message.server}`).emit('reactionUpdate', {
         messageId: message._id,
         reactions: message.reactions
       });
-      console.log('✅ reactionUpdate emitted');
-    } else {
-      console.error('❌ IO instance not found on req.app!');
     }
 
     res.json({
@@ -495,7 +484,7 @@ router.delete('/:id/react', auth, [
 
     await message.save();
 
-    // Broadcast reaction update via socket (Discord-like real-time)
+    // Broadcast reaction update via socket
     const io = req.app.get('io');
     if (io) {
       io.to(`server_${message.server}`).emit('reactionUpdate', {

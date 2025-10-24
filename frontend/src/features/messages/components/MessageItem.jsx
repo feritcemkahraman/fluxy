@@ -541,6 +541,9 @@ const arePropsEqual = (prevProps, nextProps) => {
   if (prevProps.message.status !== nextProps.message.status) return false;
   if (prevProps.message.isOptimistic !== nextProps.message.isOptimistic) return false;
 
+  // Reactions (Discord-like real-time)
+  if (JSON.stringify(prevProps.message.reactions) !== JSON.stringify(nextProps.message.reactions)) return false;
+
   // Display props
   if (prevProps.showAvatar !== nextProps.showAvatar) return false;
   if (prevProps.compact !== nextProps.compact) return false;

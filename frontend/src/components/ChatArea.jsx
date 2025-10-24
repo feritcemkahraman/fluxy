@@ -248,13 +248,10 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const handleReaction = useCallback(async (messageId, emoji) => {
     try {
       if (channel?._id) {
-        console.log('🎭 Adding reaction:', { messageId, emoji });
-        const response = await messageAPI.addReaction(messageId, emoji);
-        console.log('✅ Reaction API response:', response);
-        // Reaction update will come via socket
+        await messageAPI.addReaction(messageId, emoji);
       }
     } catch (error) {
-      console.error('❌ Reaction error:', error);
+      console.error('Reaction error:', error);
       toast.error('Tepki eklenemedi');
     }
   }, [channel?._id]);

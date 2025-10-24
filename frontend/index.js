@@ -66,6 +66,35 @@ let tray = null;
 let isAppJustStarted = true; // Uygulama yeni mi başladı?
 let isManualUpdateCheck = false; // Manuel güncelleme kontrolü mü?
 
+// Discord-like badge count state
+let unreadCount = 0;
+let unreadMentions = 0;
+let unreadDMs = 0;
+
+// Update badge count on taskbar/dock (Discord-like)
+function updateBadgeCount(count) {
+  unreadCount = count;
+  
+  if (process.platform === 'darwin') {
+    // macOS: Show number on dock icon
+    app.dock.setBadge(count > 0 ? count.toString() : '');
+  } else if (process.platform === 'win32') {
+    // Windows: Show number on taskbar
+    app.setBadgeCount(count);
+  } else if (process.platform === 'linux') {
+    // Linux: Unity badge
+    app.setBadgeCount(count);
+  }
+  
+  // Update tray tooltip with unread count
+  if (tray && !tray.isDestroyed()) {
+    const tooltip = count > 0 
+      ? `Fluxy - ${count} okunmamış mesaj`
+      : 'Fluxy - Sesli Sohbet Platformu';
+    tray.setToolTip(tooltip);
+  }
+}
+
 // PRODUCTION: Optimized memory settings
 app.commandLine.appendSwitch('--max-old-space-size', '4096');
 app.commandLine.appendSwitch('--js-flags', '--max-old-space-size=4096 --stack-size=2048');
@@ -192,6 +221,13 @@ function createWindow() {
     // Development modunda DevTools aç
     if (isDev) {
       mainWindow.webContents.openDevTools();
+    }
+  });
+
+  // Discord-like: Clear badge count when window is focused
+  mainWindow.on('focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window-focused');
     }
   });
 
@@ -463,6 +499,27 @@ ipcMain.handle('read-clipboard', async () => {
 
 ipcMain.on('set-theme', (event, theme) => {
   nativeTheme.themeSource = theme;
+});
+
+// Discord-like badge count handlers
+ipcMain.on('set-badge-count', (event, count) => {
+  updateBadgeCount(Math.max(0, count));
+});
+
+ipcMain.on('increment-badge-count', (event, increment = 1) => {
+  updateBadgeCount(unreadCount + increment);
+});
+
+ipcMain.on('decrement-badge-count', (event, decrement = 1) => {
+  updateBadgeCount(Math.max(0, unreadCount - decrement));
+});
+
+ipcMain.on('clear-badge-count', () => {
+  updateBadgeCount(0);
+});
+
+ipcMain.handle('get-badge-count', () => {
+  return unreadCount;
 });
 
 // Screen capture for Discord-style screen sharing

@@ -148,19 +148,9 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
   const handleReactionUpdate = useCallback((data) => {
     if (!data) return;
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🎭 REACTION UPDATE:', {
-        messageId: data.messageId,
-        reactions: data.reactions
-      });
-    }
-    
     setMessages(prev => prev.map(msg => {
       const msgId = msg._id || msg.id;
       if (msgId === data.messageId) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✅ Reaction applied to message:', msgId);
-        }
         return { ...msg, reactions: data.reactions };
       }
       return msg;
@@ -197,15 +187,10 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
       return () => socket.off('connect', handleConnect);
     }
     
-    console.log('🔌 Setting up socket listeners for channel:', channelId);
-    
     const unsubscribeNewMessage = on('newMessage', handleNewMessage);
     const unsubscribeUpdated = on('message_updated', handleMessageUpdated);
     const unsubscribeDeleted = on('message_deleted', handleMessageDeleted);
-    const unsubscribeReaction = on('reactionUpdate', (data) => {
-      console.log('📥 Socket reactionUpdate received:', data);
-      handleReactionUpdate(data);
-    });
+    const unsubscribeReaction = on('reactionUpdate', handleReactionUpdate);
     const unsubscribeTyping = on('userTyping', handleUserTyping);
     
     return () => {

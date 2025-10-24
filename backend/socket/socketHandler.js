@@ -566,7 +566,6 @@ const handleConnection = (io) => {
     socket.on('addReaction', async (data) => {
       try {
         const { messageId, emoji } = data;
-        console.log('🎭 Socket addReaction:', { messageId, emoji, userId: socket.userId });
         
         const message = await Message.findById(messageId);
         if (!message) {
@@ -597,14 +596,13 @@ const handleConnection = (io) => {
         await message.save();
 
         // Broadcast reaction update
-        console.log('📢 Broadcasting reactionUpdate to server:', message.server);
         io.to(`server_${message.server}`).emit('reactionUpdate', {
           messageId,
           reactions: message.reactions
         });
 
       } catch (error) {
-        console.error('❌ Add reaction error:', error);
+        console.error('Add reaction error:', error);
         socket.emit('error', { message: 'Failed to add reaction' });
       }
     });

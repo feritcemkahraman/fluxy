@@ -21,10 +21,14 @@ import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
 import electronAPI from "../utils/electronAPI";
 import notificationSound from "../utils/notificationSound";
+import { useBadgeCount } from "../hooks/useBadgeCount";
 
 const FluxyApp = () => {
   const { user, isAuthenticated } = useAuth();
   const { socket, isConnected, on } = useSocket();
+  
+  // Discord-like badge count (unread messages)
+  useBadgeCount();
   const { 
     isConnected: isVoiceConnected, 
     currentChannel: currentVoiceChannel,

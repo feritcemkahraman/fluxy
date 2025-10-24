@@ -87,7 +87,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'show-update-progress',
       'show-update-check-modal',
       'theme-changed',
-      'deep-link'
+      'deep-link',
+      'window-focused'
     ];
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (event, ...args) => callback(...args));
@@ -104,7 +105,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'show-update-progress',
       'show-update-check-modal',
       'theme-changed',
-      'deep-link'
+      'deep-link',
+      'window-focused'
     ];
     if (validChannels.includes(channel)) {
       ipcRenderer.removeListener(channel, callback);
@@ -138,6 +140,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Manual update check
   manualCheckForUpdates: () => ipcRenderer.send('manual-check-for-updates'),
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+
+  // Discord-like badge count (unread messages)
+  setBadgeCount: (count) => ipcRenderer.send('set-badge-count', count),
+  incrementBadgeCount: (increment) => ipcRenderer.send('increment-badge-count', increment),
+  decrementBadgeCount: (decrement) => ipcRenderer.send('decrement-badge-count', decrement),
+  clearBadgeCount: () => ipcRenderer.send('clear-badge-count'),
+  getBadgeCount: () => ipcRenderer.invoke('get-badge-count'),
 });
 
 // Override user agent to help with detection
