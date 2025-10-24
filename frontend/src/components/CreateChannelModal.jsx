@@ -47,7 +47,7 @@ const CreateChannelModal = ({ isOpen, onClose, serverId, onChannelCreated }) => 
       });
 
       toast.success('Kanal başarıyla oluşturuldu!');
-      onChannelCreated(response.data.channel);
+      onChannelCreated(response.channel);
       handleClose();
     } catch (error) {
       console.error('Failed to create channel:', error);

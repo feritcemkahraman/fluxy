@@ -38,20 +38,9 @@ class AudioManager {
     }
   }
 
-  // Load sound effects using HTML Audio API instead of Web Audio API
+  // Load sound effects using HTML Audio API
   async loadSounds() {
-    // Electron-compatible paths using URL API
-    const isElectron = window.electronAPI?.isElectron || window.isElectron;
-    
-    const getSoundPath = (filename) => {
-      if (isElectron) {
-        // In Electron, use relative path from build directory
-        // Build files are in: resources/app.asar/build
-        // Sound files are in: resources/app.asar/build/sounds
-        return `./sounds/${filename}`;
-      }
-      return `/sounds/${filename}`;
-    };
+    const { getSoundPath } = await import('./assetHelper');
     
     const soundFiles = {
       'voice-join': getSoundPath('giris.wav'),

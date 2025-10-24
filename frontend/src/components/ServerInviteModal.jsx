@@ -29,7 +29,7 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
     try {
       setLoading(true);
       const response = await serverAPI.createInvite(serverId);
-      setInviteCode(response.data.inviteCode);
+      setInviteCode(response.inviteCode);
     } catch (error) {
       console.error('Failed to load invite code:', error);
       toast.error('Davet kodu yüklenemedi');

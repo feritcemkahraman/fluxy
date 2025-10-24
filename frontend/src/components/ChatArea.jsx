@@ -426,8 +426,8 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
                                               if (!members) {
                                                 // Fallback: fetch from API
                                                 try {
-                                                  const response = await messageAPI.getServerMembers(serverId);
-                                                  members = response.data.members || response.data;
+                                                  const response = await serverAPI.getServerMembers(serverId);
+                                                  members = response.members || response;
                                                   serverMembersCache.current = members;
                                                 } catch (err) {
                                                   toast.error('Üye listesi alınamadı');

@@ -156,7 +156,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const generateInviteLink = async () => {
     try {
       const response = await serverAPI.createInvite(serverId);
-      setInviteLink(response.data.inviteCode);
+      setInviteLink(response.inviteCode);
     } catch (error) {
       console.error('Failed to generate invite:', error);
     }
@@ -266,8 +266,8 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
       
       const response = await uploadAPI.uploadFile(formData);
       
-      if (response.data && response.data.url) {
-        setServerSettings(prev => ({ ...prev, icon: response.data.url }));
+      if (response && response.url) {
+        setServerSettings(prev => ({ ...prev, icon: response.url }));
       }
     } catch (error) {
       // console.error('Upload failed:', error);
@@ -354,7 +354,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
   const loadMembers = async () => {
     try {
       const response = await serverAPI.getServerMembers(serverId);
-      setMembers(response.data.members);
+      setMembers(response.members);
     } catch (error) {
       // console.error('Failed to load members:', error);
     }
@@ -364,7 +364,7 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
     try {
       setLoading(true);
       const response = await serverAPI.updateServer(serverId, serverSettings);
-      onServerUpdate(response.data);
+      onServerUpdate(response);
       onClose();
     } catch (error) {
       // console.error('Failed to save server settings:', error);

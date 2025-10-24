@@ -141,7 +141,7 @@ const FluxyApp = () => {
           // Update activeServer with members
           const updatedServer = {
             ...activeServer,
-            members: response.data.members
+            members: response.members
           };
           
           setActiveServer(updatedServer);
@@ -173,11 +173,11 @@ const FluxyApp = () => {
         
         if (!isMounted) return;
         
-        setServers(response.data.servers || []);
+        setServers(response.servers || []);
 
         // Set first server as active if exists
-        if (response.data.servers && response.data.servers.length > 0) {
-          const firstServer = response.data.servers[0];
+        if (response.servers && response.servers.length > 0) {
+          const firstServer = response.servers[0];
           setActiveServer(firstServer);
           
           // Find first text channel instead of just first channel

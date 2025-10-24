@@ -83,11 +83,11 @@ const VoiceScreen = ({ channel, server, servers = [], voiceChannelUsers = [], on
         try {
           // Refresh server members to get latest data including new users
           const response = await serverAPI.getServerMembers(effectiveServer._id || effectiveServer.id);
-          if (response.data.members) {
+          if (response.members) {
             // Update the server prop would require parent component to handle
             // For now, we'll store the missing users locally
             const fetchedUsers = new Map();
-            response.data.members.forEach(member => {
+            response.members.forEach(member => {
               const userId = member.user?._id || member.user?.id || member._id || member.id;
               const userObj = member.user || member;
               if (missingUserIds.includes(userId)) {

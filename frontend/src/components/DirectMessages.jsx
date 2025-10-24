@@ -366,7 +366,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       const response = await serverAPI.discoverServers();
       
       // API response'unu uygun formata çevir
-      let formattedServers = response.data.servers.map(server => ({
+      let formattedServers = response.servers.map(server => ({
         id: server.id || server._id,
         name: server.name,
         description: server.description || 'Açıklama yok',

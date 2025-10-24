@@ -195,18 +195,8 @@ const MessageItem = ({
             ) : (
               // Render text with Pepe emoji support
               (() => {
-                // Electron-safe path helper (defined once)
-                const getPepePath = (filename) => {
-                  const isElectron = window.electronAPI?.isElectron || window.isElectron;
-                  
-                  if (isElectron) {
-                    // In Electron, use relative path from build directory
-                    return `./pepe/${filename}`;
-                  }
-                  
-                  // Web version (Netlify, localhost dev server)
-                  return `/pepe/${filename}`;
-                };
+                // Import asset helper
+                const { getPepePath } = require('../../../utils/assetHelper');
                 
                 // Complete Pepe map - all 94 emojis (defined once)
                 const pepeMap = {

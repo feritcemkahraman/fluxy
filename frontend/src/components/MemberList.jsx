@@ -77,12 +77,12 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
         // Fetch roles for color mapping
         try {
           const rolesResponse = await roleAPI.getRoles(server._id || server.id);
-          setRoles(rolesResponse.data || []);
+          setRoles(rolesResponse || []);
         } catch (err) {
           console.error('Failed to load roles:', err);
         }
         
-        let fetchedMembers = response.data.members || [];
+        let fetchedMembers = response.members || [];
         
         // Update current user's status with AuthContext status
         if (currentUser) {
