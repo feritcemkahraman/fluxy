@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';

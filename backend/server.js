@@ -207,6 +207,7 @@ app.use('/api/user-settings', require('./routes/userSettings'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/friends', require('./routes/friends'));
 app.use('/api/templates', require('./routes/templates'));
+app.use('/api/stats', require('./routes/stats'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

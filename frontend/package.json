@@ -1,6 +1,6 @@
 {
   "name": "fluxy-frontend",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "Fluxy - Modern Communication Platform",
   "author": "FCK",
   "private": true,
@@ -63,7 +63,8 @@
     "sonner": "^2.0.3",
     "swr": "^2.2.5",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "recharts": "^2.10.0"
   },
   "main": "index.js",
   "homepage": "./",

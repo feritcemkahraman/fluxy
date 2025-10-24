@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxy Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center">
+        <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 w-full max-w-md">
+            <h1 class="text-3xl font-bold mb-6 text-center">🔒 Admin Login</h1>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-2">Password</label>
+                <input 
+                    type="password" 
+                    id="adminPassword" 
+                    class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 text-white"
+                    placeholder="Enter admin password"
+                    onkeypress="if(event.key === 'Enter') checkPassword()"
+                />
+            </div>
+            <button 
+                onclick="checkPassword()"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+            >
+                Login
+            </button>
+            <div id="loginError" class="mt-4 text-red-400 text-sm text-center hidden">
+                Incorrect password!
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard (hidden initially) -->
+    <div id="app" class="min-h-screen p-8" style="display: none;">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold mb-2">📊 Fluxy Admin Dashboard</h1>
+            <p class="text-gray-400">Real-time platform statistics</p>
+        </div>
+
+        <!-- Live Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-gray-400">ONLINE USERS</div>
+                    <div class="flex items-center gap-2 text-green-500 text-xs">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        LIVE
+                    </div>
+                </div>
+                <div id="onlineUsers" class="text-4xl font-bold">0</div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-gray-400">VOICE USERS</div>
+                    <div class="flex items-center gap-2 text-purple-500 text-xs">
+                        <div class="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                        LIVE
+                    </div>
+                </div>
+                <div id="voiceUsers" class="text-4xl font-bold">0</div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-gray-400">ACTIVE CALLS</div>
+                    <div class="flex items-center gap-2 text-blue-500 text-xs">
+                        <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        LIVE
+                    </div>
+                </div>
+                <div id="activeCalls" class="text-4xl font-bold">0</div>
+            </div>
+        </div>
+
+        <!-- Platform Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">TOTAL USERS</div>
+                <div id="totalUsers" class="text-3xl font-bold mb-1">0</div>
+                <div id="usersToday" class="text-sm text-green-400">+0 today</div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">TOTAL SERVERS</div>
+                <div id="totalServers" class="text-3xl font-bold mb-1">0</div>
+                <div id="serversToday" class="text-sm text-blue-400">+0 today</div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">MESSAGES TODAY</div>
+                <div id="messagesToday" class="text-3xl font-bold mb-1">0</div>
+                <div id="totalMessages" class="text-sm text-gray-400">0 total</div>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">ACTIVE USERS</div>
+                <div id="activeUsers" class="text-3xl font-bold mb-1">0</div>
+                <div class="text-sm text-gray-400">Last 5 minutes</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 class="text-xl font-bold mb-4">User Growth (30 Days)</h3>
+                <canvas id="userChart" height="100"></canvas>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 class="text-xl font-bold mb-4">Server Growth (30 Days)</h3>
+                <canvas id="serverChart" height="100"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-8">
+            <h3 class="text-xl font-bold mb-4">Message Activity (30 Days)</h3>
+            <canvas id="messageChart" height="80"></canvas>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-500 text-sm">
+            <p>Last updated: <span id="lastUpdate">-</span></p>
+            <p class="mt-1">Auto-refresh every 30 seconds</p>
+        </div>
+    </div>
+
+    <script>
+        let ADMIN_TOKEN = null;
+        
+        // Check password (sends to backend for validation)
+        async function checkPassword() {
+            const token = document.getElementById('adminPassword').value;
+            
+            try {
+                // Test token with backend
+                const response = await fetch(`${API_BASE}/stats/platform`, {
+                    headers: { 'x-admin-token': token }
+                });
+                
+                if (response.ok) {
+                    // Valid token!
+                    ADMIN_TOKEN = token;
+                    sessionStorage.setItem('admin_token', token);
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('app').style.display = 'block';
+                    init();
+                } else {
+                    document.getElementById('loginError').classList.remove('hidden');
+                    document.getElementById('adminPassword').value = '';
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Connection error!';
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+        
+        // Check if already authenticated
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedToken = sessionStorage.getItem('admin_token');
+            if (savedToken) {
+                ADMIN_TOKEN = savedToken;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                init();
+            }
+        });
+
+        // API URL (production/development)
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5000/api' 
+            : 'https://api.fluxy.com.tr/api';
+        
+        const SOCKET_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5000'
+            : 'https://api.fluxy.com.tr';
+
+        let userChart, serverChart, messageChart;
+        let socket;
+
+        // Connect to Socket.IO for live stats
+        function connectSocket() {
+            socket = io(SOCKET_URL, {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ Connected to stats socket');
+                socket.emit('join-admin-dashboard', { token: ADMIN_TOKEN });
+            });
+
+            socket.on('statsUpdate', (data) => {
+                console.log('📊 Live stats update:', data);
+                document.getElementById('onlineUsers').textContent = data.onlineUsers || 0;
+                document.getElementById('voiceUsers').textContent = data.voiceChannelUsers || 0;
+                document.getElementById('activeCalls').textContent = data.activeCalls || 0;
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Disconnected from stats socket');
+            });
+        }
+
+        // Fetch platform stats
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats/platform`, {
+                    headers: { 'x-admin-token': ADMIN_TOKEN }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    
+                    // Update stats
+                    document.getElementById('totalUsers').textContent = stats.users.total.toLocaleString();
+                    document.getElementById('usersToday').textContent = `+${stats.users.today} today`;
+                    
+                    document.getElementById('totalServers').textContent = stats.servers.total.toLocaleString();
+                    document.getElementById('serversToday').textContent = `+${stats.servers.today} today`;
+                    
+                    document.getElementById('messagesToday').textContent = stats.messages.today.toLocaleString();
+                    document.getElementById('totalMessages').textContent = `${stats.messages.total.toLocaleString()} total`;
+                    
+                    document.getElementById('activeUsers').textContent = stats.users.active.toLocaleString();
+                    
+                    document.getElementById('lastUpdate').textContent = new Date(stats.timestamp).toLocaleString();
+                }
+            } catch (error) {
+                console.error('Failed to fetch stats:', error);
+            }
+        }
+
+        // Fetch growth data
+        async function fetchGrowth() {
+            try {
+                const response = await fetch(`${API_BASE}/stats/growth`, {
+                    headers: { 'x-admin-token': ADMIN_TOKEN }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateCharts(data.growth);
+                }
+            } catch (error) {
+                console.error('Failed to fetch growth:', error);
+            }
+        }
+
+        // Update charts
+        function updateCharts(growth) {
+            // User Growth Chart
+            const userLabels = growth.users.map(d => d._id);
+            const userData = growth.users.map(d => d.count);
+            
+            if (userChart) userChart.destroy();
+            userChart = new Chart(document.getElementById('userChart'), {
+                type: 'line',
+                data: {
+                    labels: userLabels,
+                    datasets: [{
+                        label: 'Users',
+                        data: userData,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#374151' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Server Growth Chart
+            const serverLabels = growth.servers.map(d => d._id);
+            const serverData = growth.servers.map(d => d.count);
+            
+            if (serverChart) serverChart.destroy();
+            serverChart = new Chart(document.getElementById('serverChart'), {
+                type: 'line',
+                data: {
+                    labels: serverLabels,
+                    datasets: [{
+                        label: 'Servers',
+                        data: serverData,
+                        borderColor: '#6366F1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#374151' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Message Activity Chart
+            const messageLabels = growth.messages.map(d => d._id);
+            const messageData = growth.messages.map(d => d.count);
+            
+            if (messageChart) messageChart.destroy();
+            messageChart = new Chart(document.getElementById('messageChart'), {
+                type: 'line',
+                data: {
+                    labels: messageLabels,
+                    datasets: [{
+                        label: 'Messages',
+                        data: messageData,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#374151' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        async function init() {
+            console.log('🚀 Initializing Fluxy Admin Dashboard');
+            console.log('📡 API URL:', API_BASE);
+            console.log('🔌 Socket URL:', SOCKET_URL);
+            
+            connectSocket();
+            await fetchStats();
+            await fetchGrowth();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(fetchStats, 30000);
+        }
+    </script>
+</body>
+</html>

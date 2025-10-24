@@ -10,6 +10,16 @@ const cacheManager = require('../utils/cache');
 // Store connected users
 const connectedUsers = new Map();
 
+// Global statistics tracking
+global.onlineUsersCount = 0;
+global.voiceChannelUsersCount = 0;
+global.activeVoiceCallsCount = 0;
+
+// Update global online users count
+const updateOnlineUsersCount = () => {
+  global.onlineUsersCount = connectedUsers.size;
+};
+
 // Helper: Parse mentions from message content (Discord-like)
 const parseMentions = async (content, serverMembers) => {
   const mentionRegex = /@(\w+)/g;
@@ -125,6 +135,16 @@ const handleConnection = (io) => {
       socketId: socket.id,
       user: socket.user,
       status: currentStatus
+    });
+    
+    // Update global stats
+    updateOnlineUsersCount();
+    
+    // Broadcast updated stats to admin dashboard
+    io.to('admin-dashboard').emit('statsUpdate', {
+      onlineUsers: global.onlineUsersCount,
+      voiceChannelUsers: global.voiceChannelUsersCount,
+      activeCalls: global.activeVoiceCallsCount
     });
 
     // Update user status to online only if they were offline
@@ -1057,10 +1077,55 @@ const handleConnection = (io) => {
 
     // ==================== END VOICE CHANNEL WEBRTC SIGNALING ====================
 
+    // ==================== ADMIN DASHBOARD ====================
+    
+    // Join admin dashboard for live stats (with token check)
+    socket.on('join-admin-dashboard', async ({ token }) => {
+      try {
+        const adminToken = process.env.ADMIN_TOKEN || 'change_this_in_production';
+        
+        if (!token || token !== adminToken) {
+          console.log('⛔ Invalid admin token attempt');
+          socket.emit('error', { message: 'Invalid admin token' });
+          return;
+        }
+        
+        socket.join('admin-dashboard');
+        console.log(`📊 Admin joined dashboard`);
+        
+        // Send initial stats
+        socket.emit('statsUpdate', {
+          onlineUsers: global.onlineUsersCount,
+          voiceChannelUsers: global.voiceChannelUsersCount,
+          activeCalls: global.activeVoiceCallsCount
+        });
+      } catch (error) {
+        console.error('Join admin dashboard error:', error);
+      }
+    });
+    
+    // Leave admin dashboard
+    socket.on('leave-admin-dashboard', () => {
+      socket.leave('admin-dashboard');
+      console.log(`📊 User ${socket.user.username} left admin dashboard`);
+    });
+
+    // ==================== END ADMIN DASHBOARD ====================
+
     // Handle disconnect
     socket.on('disconnect', async () => {
       // Remove from connected users
       connectedUsers.delete(socket.userId);
+      
+      // Update global stats
+      updateOnlineUsersCount();
+      
+      // Broadcast updated stats to admin dashboard
+      io.to('admin-dashboard').emit('statsUpdate', {
+        onlineUsers: global.onlineUsersCount,
+        voiceChannelUsers: global.voiceChannelUsersCount,
+        activeCalls: global.activeVoiceCallsCount
+      });
 
       // Clean up voice channels on disconnect
       const allChannels = VoiceChannelManager.getAllChannels();
