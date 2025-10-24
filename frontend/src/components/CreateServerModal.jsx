@@ -714,11 +714,11 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                 ) : (
                   /* Custom Server Preview */
                   <div className="space-y-6">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex flex-col items-center text-center space-y-4">
                       <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-xl flex items-center justify-center">
                         <Zap className="w-8 h-8 text-white" />
                       </div>
-                      <div className="flex-1">
+                      <div>
                         <h4 className="font-bold text-white text-xl">Kendi Sunucum</h4>
                         <p className="text-gray-400">Sıfırdan kendi sunucunuzu oluşturun</p>
                       </div>

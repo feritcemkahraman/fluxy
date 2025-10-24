@@ -164,13 +164,37 @@ class VoiceCallService {
         throw new Error('Socket not initialized. Please wait for connection.');
       }
       
-      // Get local media stream
-      await this.getLocalStream(callType === 'video');
+      // Try to get local media stream (optional for listen-only mode)
+      let hasMedia = false;
+      try {
+        await this.getLocalStream(callType === 'video');
+        hasMedia = true;
+        console.log('✅ Media stream acquired for outgoing call');
+      } catch (mediaError) {
+        console.warn('⚠️ Failed to get media, starting call in listen-only mode:', mediaError.message);
+        
+        // Create silent audio track for listen-only mode
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const destination = audioContext.createMediaStreamDestination();
+          this.localStream = destination.stream;
+          
+          console.log('✅ Silent stream created for listen-only outgoing call');
+          this.emit('info', {
+            type: 'listen-only-call',
+            message: 'Mikrofonunuz bulunamadı. Sadece dinleme modunda arama başlatıldı.'
+          });
+        } catch (fallbackError) {
+          console.error('❌ Even silent stream failed:', fallbackError);
+          throw new Error('Medya cihazları bulunamadı');
+        }
+      }
       
       this.currentCall = {
         type: 'outgoing',
         userId: targetUserId,
-        callType
+        callType,
+        listenOnly: !hasMedia
       };
       
       this.callState = 'calling';
@@ -198,8 +222,31 @@ class VoiceCallService {
         throw new Error('No incoming call to accept');
       }
       
-      // Get local media stream
-      await this.getLocalStream(this.currentCall.callType === 'video');
+      // Try to get local media stream (optional for listen-only mode)
+      let hasMedia = false;
+      try {
+        await this.getLocalStream(this.currentCall.callType === 'video');
+        hasMedia = true;
+        console.log('✅ Media stream acquired for call');
+      } catch (mediaError) {
+        console.warn('⚠️ Failed to get media, accepting in listen-only mode:', mediaError.message);
+        
+        // Create silent audio track for listen-only mode
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const destination = audioContext.createMediaStreamDestination();
+          this.localStream = destination.stream;
+          
+          console.log('✅ Silent stream created for listen-only mode');
+          this.emit('info', {
+            type: 'listen-only-call',
+            message: 'Mikrofonunuz bulunamadı. Sadece dinleme modunda aramaya katıldınız.'
+          });
+        } catch (fallbackError) {
+          console.error('❌ Even silent stream failed:', fallbackError);
+          throw new Error('Medya cihazları bulunamadı');
+        }
+      }
       
       this.callState = 'connected';
       
@@ -209,7 +256,7 @@ class VoiceCallService {
       // Notify server
       this.socket.emit('voiceCall:accept', { callerId: this.currentCall.userId });
       
-      return { success: true };
+      return { success: true, listenOnly: !hasMedia };
     } catch (error) {
       console.error('Failed to accept call:', error);
       this.endCall();
