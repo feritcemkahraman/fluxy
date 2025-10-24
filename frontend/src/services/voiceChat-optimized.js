@@ -329,14 +329,33 @@ class VoiceChatService {
       
       console.log('🎧 Getting user media...');
       
-      // Get microphone access with timeout
-      const mediaPromise = this.getUserMedia();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Media access timeout')), 10000);
-      });
-      
-      await Promise.race([mediaPromise, timeoutPromise]);
-      console.log('✅ User media acquired');
+      // Try to get microphone access (optional - allow listen-only mode)
+      let hasAudioInput = false;
+      try {
+        const mediaPromise = this.getUserMedia();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Media access timeout')), 10000);
+        });
+        
+        await Promise.race([mediaPromise, timeoutPromise]);
+        hasAudioInput = true;
+        console.log('✅ User media acquired');
+      } catch (micError) {
+        console.warn('⚠️ No microphone access - joining in listen-only mode:', micError.message);
+        // Continue without microphone (listen-only mode)
+        hasAudioInput = false;
+        this.isMuted = true; // Auto-mute since no mic available
+        
+        // Show user-friendly notification
+        this.emit('info', {
+          type: 'listen-only',
+          message: 'Mikrofonunuz bulunamadı. Sadece dinleme modunda katılıyorsunuz.'
+        });
+        
+        if (electronAPI.isElectron()) {
+          electronAPI.showNotification('Fluxy', 'Mikrofon bulunamadı. Sadece dinleme modunda katılıyorsunuz.');
+        }
+      }
       
       this.isConnected = true;
       this.currentChannel = channelId;

@@ -35,12 +35,12 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
     loadFriendsData();
   }, []);
 
-  // Real-time status updates
+  // Real-time updates
   useEffect(() => {
     if (!on) return;
 
+    // Status updates
     const handleStatusUpdate = ({ userId, status }) => {
-      // Update friend status in real-time
       setFriends(prev => prev.map(friend => 
         (friend.id === userId || friend._id === userId)
           ? { ...friend, status }
@@ -48,10 +48,71 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
       ));
     };
 
-    const unsubscribe = on('userStatusUpdate', handleStatusUpdate);
+    // Friend request accepted (you sent the request)
+    const handleFriendRequestAccepted = (data) => {
+      console.log('🎉 Friend request accepted:', data);
+      
+      // Remove from sent requests
+      setSentRequests(prev => prev.filter(req => 
+        req._id !== data.requestId && req.id !== data.requestId
+      ));
+      
+      // Add to friends list
+      if (data.friend) {
+        setFriends(prev => [...prev, data.friend]);
+      }
+      
+      // Reload to ensure consistency
+      setTimeout(() => loadFriendsData(), 500);
+    };
+
+    // Friend request declined
+    const handleFriendRequestDeclined = (data) => {
+      console.log('❌ Friend request declined:', data);
+      
+      // Remove from sent requests
+      setSentRequests(prev => prev.filter(req => 
+        req._id !== data.requestId && req.id !== data.requestId
+      ));
+    };
+
+    // New friend request received
+    const handleNewFriendRequest = (data) => {
+      console.log('📨 New friend request:', data);
+      
+      // Add to pending requests
+      if (data.request) {
+        setPendingRequests(prev => [data.request, ...prev]);
+      }
+    };
+
+    // Friend added (someone accepted your request or you accepted theirs)
+    const handleFriendAdded = (data) => {
+      console.log('✅ Friend added:', data);
+      
+      if (data.friend) {
+        setFriends(prev => {
+          // Check if already exists
+          const exists = prev.some(f => 
+            (f.id === data.friend.id || f._id === data.friend._id)
+          );
+          return exists ? prev : [...prev, data.friend];
+        });
+      }
+    };
+
+    const unsubscribeStatus = on('userStatusUpdate', handleStatusUpdate);
+    const unsubscribeAccepted = on('friendRequestAccepted', handleFriendRequestAccepted);
+    const unsubscribeDeclined = on('friendRequestDeclined', handleFriendRequestDeclined);
+    const unsubscribeNew = on('newFriendRequest', handleNewFriendRequest);
+    const unsubscribeFriendAdded = on('friendAdded', handleFriendAdded);
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeStatus) unsubscribeStatus();
+      if (unsubscribeAccepted) unsubscribeAccepted();
+      if (unsubscribeDeclined) unsubscribeDeclined();
+      if (unsubscribeNew) unsubscribeNew();
+      if (unsubscribeFriendAdded) unsubscribeFriendAdded();
     };
   }, [on]);
 

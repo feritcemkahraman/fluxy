@@ -15,6 +15,9 @@ class WebSocketService {
   }
 
   connect(token) {
+    // Reset intentional disconnect flag when reconnecting
+    this.intentionalDisconnect = false;
+    
     // Validate token before attempting connection
     if (this.socket && this.socket.connected) {
       return;
@@ -282,6 +285,12 @@ class WebSocketService {
   }
 
   handleReconnect() {
+    // Don't reconnect if it was intentional disconnect (logout)
+    if (this.intentionalDisconnect) {
+      devLog.log('Skipping reconnect - intentional disconnect');
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.emitLocal('max_reconnect_attempts_reached');
       return;
@@ -290,7 +299,8 @@ class WebSocketService {
     this.reconnectAttempts++;
     
     setTimeout(() => {
-      if (this.socket) {
+      // Check again in case disconnect happened during timeout
+      if (this.socket && !this.intentionalDisconnect) {
         this.socket.connect();
       }
     }, this.reconnectDelay * this.reconnectAttempts);
@@ -299,12 +309,21 @@ class WebSocketService {
   disconnect() {
     if (this.socket) {
       try {
-        // Remove all listeners before disconnecting
-        this.socket.removeAllListeners();
+        // Mark as intentional disconnect (prevents reconnect)
+        this.intentionalDisconnect = true;
+        
+        // Disconnect gracefully (allows socket.io to send close frame)
         this.socket.disconnect();
+        
+        // Remove all listeners AFTER disconnect completes
+        setTimeout(() => {
+          if (this.socket) {
+            this.socket.removeAllListeners();
+            this.socket = null;
+          }
+        }, 100); // Small delay to allow disconnect message to send
       } catch (error) {
         devLog.warn('Error during socket disconnect:', error);
-      } finally {
         this.socket = null;
       }
     }

@@ -1,6 +1,6 @@
 {
   "name": "fluxy-backend",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Fluxy backend API",
   "main": "server.js",
   "scripts": {

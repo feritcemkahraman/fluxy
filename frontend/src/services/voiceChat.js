@@ -203,9 +203,27 @@ class VoiceChatService extends EventEmitter {
         return true;
       }
       
-      // Get enhanced microphone access for desktop (only if not already connected)
+      // Try to get microphone access (optional - allow listen-only mode)
+      let hasAudioInput = false;
       if (!this.localStream) {
-        await this.getUserMedia();
+        try {
+          await this.getUserMedia();
+          hasAudioInput = true;
+          logger.log('✅ Microphone access granted');
+        } catch (micError) {
+          logger.warn('⚠️ No microphone access - joining in listen-only mode:', micError.message);
+          // Continue without microphone (listen-only mode)
+          hasAudioInput = false;
+          this.isMuted = true; // Auto-mute since no mic available
+          
+          // Show user-friendly notification
+          this.emit('info', {
+            type: 'listen-only',
+            message: 'Mikrofonunuz bulunamadı. Sadece dinleme modunda katılıyorsunuz.'
+          });
+        }
+      } else {
+        hasAudioInput = true;
       }
       
       this.isConnected = true;

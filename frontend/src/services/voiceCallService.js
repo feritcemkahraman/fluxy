@@ -261,11 +261,24 @@ class VoiceCallService {
     this.emit('callClosed');
   }
 
-  // Get local media stream - Discord-level quality
+  // Get local media stream - Discord-level quality with fallbacks
   async getLocalStream(includeVideo = false) {
+    // Try to get saved deviceId from settings
+    let savedDeviceId = null;
+    try {
+      const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+      savedDeviceId = settings?.voice?.inputDevice;
+    } catch (e) {
+      // Ignore settings parsing errors
+    }
+
+    // Level 1: Enhanced Discord-quality
     try {
       const constraints = {
         audio: {
+          // Use saved deviceId if available (ideal, not exact)
+          ...(savedDeviceId && savedDeviceId !== 'default' ? { deviceId: { ideal: savedDeviceId } } : {}),
+          
           // Core WebRTC processing
           echoCancellation: { ideal: true },
           noiseSuppression: { ideal: true },
@@ -287,19 +300,77 @@ class VoiceCallService {
         },
         video: includeVideo ? {
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
         } : false
       };
       
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('🎤 Local stream acquired (Discord-level quality)');
+      console.log('✅ Local stream acquired (Discord-level quality)');
       
       this.emit('localStream', this.localStream);
-      
       return this.localStream;
+      
     } catch (error) {
-      console.error('Failed to get local stream:', error);
-      throw error;
+      console.warn('⚠️ Enhanced quality failed, trying basic:', error.message);
+      
+      // Level 2: Basic quality (no specific deviceId)
+      try {
+        const basicConstraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: includeVideo ? {
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } : false
+        };
+        
+        this.localStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+        console.log('✅ Local stream acquired (basic quality)');
+        
+        this.emit('localStream', this.localStream);
+        return this.localStream;
+        
+      } catch (basicError) {
+        console.warn('⚠️ Basic quality failed, trying minimal:', basicError.message);
+        
+        // Level 3: Minimal (just audio/video: true)
+        try {
+          const minimalConstraints = {
+            audio: true,
+            video: includeVideo
+          };
+          
+          this.localStream = await navigator.mediaDevices.getUserMedia(minimalConstraints);
+          console.log('⚠️ Local stream acquired (minimal quality - no processing)');
+          
+          this.emit('localStream', this.localStream);
+          return this.localStream;
+          
+        } catch (minimalError) {
+          console.error('❌ All media attempts failed:', minimalError);
+          
+          // If video was requested but failed, try audio-only as last resort
+          if (includeVideo) {
+            console.warn('🎥 Video failed, trying audio-only...');
+            try {
+              const audioOnlyConstraints = { audio: true, video: false };
+              this.localStream = await navigator.mediaDevices.getUserMedia(audioOnlyConstraints);
+              console.log('✅ Audio-only stream acquired');
+              
+              this.emit('localStream', this.localStream);
+              return this.localStream;
+            } catch (audioOnlyError) {
+              console.error('❌ Even audio-only failed:', audioOnlyError);
+            }
+          }
+          
+          throw minimalError;
+        }
+      }
     }
   }
 

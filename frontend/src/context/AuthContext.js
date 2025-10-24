@@ -252,16 +252,14 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async (skipSocketDisconnect = false) => {
-    // First clear storage and state immediately (Electron-compatible)
-    await electronStorage.removeItem('token');
-    await electronStorage.removeItem('user');
-    await electronStorage.removeItem('userStatus');
-
-    dispatch({ type: 'LOGOUT' });
-
-    // Disconnect socket only if not already disconnected
+    // IMPORTANT: Disconnect socket BEFORE clearing token
+    // This allows socket.io to send disconnect message with valid auth
     if (!skipSocketDisconnect) {
-      socketService.disconnect();
+      try {
+        socketService.disconnect();
+      } catch (error) {
+        console.warn('Socket disconnect error (ignored):', error);
+      }
     }
 
     // Optionally try to notify server, but don't block logout
@@ -274,6 +272,13 @@ export function AuthProvider({ children }) {
       }
       // Don't throw error - logout should always succeed locally
     }
+
+    // Then clear storage and state (Electron-compatible)
+    await electronStorage.removeItem('token');
+    await electronStorage.removeItem('user');
+    await electronStorage.removeItem('userStatus');
+
+    dispatch({ type: 'LOGOUT' });
   };
 
   useEffect(() => {
