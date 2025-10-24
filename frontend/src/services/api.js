@@ -367,4 +367,66 @@ export const userSettingsAPI = {
   resetSettings: () => apiFetch('/user-settings/reset', { method: 'POST' }),
 };
 
+// Friends API
+export const friendsAPI = {
+  getFriends: async () => {
+    const data = await apiFetch('/friends');
+    return data.friends;
+  },
+  
+  getPendingRequests: async () => {
+    const data = await apiFetch('/friends/requests');
+    return data.requests;
+  },
+  
+  getSentRequests: async () => {
+    const data = await apiFetch('/friends/requests/sent');
+    return data.requests;
+  },
+  
+  getBlockedUsers: async () => {
+    const data = await apiFetch('/friends/blocked');
+    return data.blocked;
+  },
+  
+  sendFriendRequest: async (username, discriminator = null, message = '') => {
+    const requestData = { username, message };
+    if (discriminator) {
+      requestData.discriminator = discriminator;
+    }
+    return apiFetch('/friends/request', {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+    });
+  },
+  
+  acceptFriendRequest: (requestId) => apiFetch(`/friends/request/${requestId}/accept`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
+  
+  declineFriendRequest: (requestId) => apiFetch(`/friends/request/${requestId}/decline`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
+  
+  removeFriend: (friendId) => apiFetch(`/friends/${friendId}`, {
+    method: 'DELETE',
+  }),
+  
+  blockUser: (userId) => apiFetch('/friends/block', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  }),
+  
+  unblockUser: (userId) => apiFetch(`/friends/block/${userId}`, {
+    method: 'DELETE',
+  }),
+  
+  searchUsers: async (query) => {
+    const data = await apiFetch(`/friends/search?q=${encodeURIComponent(query)}`);
+    return data.users;
+  },
+};
+
 export default apiFetch;

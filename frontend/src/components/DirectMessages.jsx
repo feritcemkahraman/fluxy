@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
-import { dmAPI, serverAPI } from "../services/api";
+import { dmAPI, serverAPI, friendsAPI } from "../services/api";
 import { messageService } from "../features/messages/services/messageService";
-import friendsAPI from '../services/friendsAPI';
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";

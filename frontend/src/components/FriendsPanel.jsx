@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   Clock
 } from 'lucide-react';
-import friendsAPI from '../services/friendsAPI';
+import { friendsAPI } from '../services/api';
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useSocket } from '../hooks/useSocket';
 

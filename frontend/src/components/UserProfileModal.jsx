@@ -15,8 +15,7 @@ import {
   X,
   Users
 } from 'lucide-react';
-import { dmAPI, serverAPI } from '../services/api';
-import friendsAPI from '../services/friendsAPI';
+import { dmAPI, serverAPI, friendsAPI } from '../services/api';
 import socketService from '../services/socket';
 
 export function UserProfileModal({ user, open, onOpenChange, currentUser, server, roles = [], showMessageButton = true, showFriendButton = true, onDirectMessageNavigation }) {
