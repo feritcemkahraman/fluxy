@@ -136,13 +136,18 @@
         
         // Check password (sends to backend for validation)
         async function checkPassword() {
-            const token = document.getElementById('adminPassword').value;
+            const token = document.getElementById('adminPassword').value.trim();
+            
+            console.log('🔐 Testing token:', token);
+            console.log('📡 API URL:', `${API_BASE}/stats/platform`);
             
             try {
                 // Test token with backend
                 const response = await fetch(`${API_BASE}/stats/platform`, {
                     headers: { 'x-admin-token': token }
                 });
+                
+                console.log('📥 Response status:', response.status);
                 
                 if (response.ok) {
                     // Valid token!
