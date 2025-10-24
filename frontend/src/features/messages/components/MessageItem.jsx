@@ -4,9 +4,17 @@ import { Avatar, AvatarFallback } from '../../../components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { normalizeUser } from '../../../services/messageNormalizer';
-import { MessageReactions } from './MessageReactions';
 import { getPepePath } from '../../../utils/assetHelper';
-import { MESSAGE_REACTIONS } from '../constants';
+
+// Discord-like reaction emojis
+const MESSAGE_REACTIONS = {
+  THUMBS_UP: '👍',
+  HEART: '❤️',
+  LAUGH: '😂',
+  SURPRISED: '😮',
+  SAD: '😢',
+  ANGRY: '😠'
+};
 
 /**
  * MessageItem Component - Discord Style
