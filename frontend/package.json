@@ -1,6 +1,8 @@
 {
   "name": "fluxy-frontend",
   "version": "1.0.14",
+  "description": "Fluxy - Modern Discord-like Communication Platform",
+  "author": "Ferit Cem Kahraman",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
