@@ -518,6 +518,79 @@ ipcMain.on('clear-badge-count', () => {
   updateBadgeCount(0);
 });
 
+// ==================== AI NOISE SUPPRESSION ====================
+
+// Get GPU information for noise suppression selection
+ipcMain.handle('get-gpu-info', async () => {
+  try {
+    const { app } = require('electron');
+    const gpuInfo = app.getGPUInfo('basic');
+    
+    // Parse GPU info
+    const gpuData = await gpuInfo;
+    const renderer = gpuData?.auxAttributes?.gl_renderer || '';
+    const vendor = gpuData?.auxAttributes?.gl_vendor || '';
+    
+    return {
+      vendor,
+      renderer,
+      isNVIDIA: renderer.toLowerCase().includes('nvidia') || vendor.toLowerCase().includes('nvidia'),
+      isRTX: renderer.toLowerCase().includes('rtx') || renderer.toLowerCase().includes('geforce'),
+      raw: gpuData
+    };
+  } catch (error) {
+    console.error('GPU detection error:', error);
+    return {
+      vendor: 'unknown',
+      renderer: 'unknown',
+      isNVIDIA: false,
+      isRTX: false,
+      error: error.message
+    };
+  }
+});
+
+// Check if RTX Voice is available
+ipcMain.handle('check-rtx-voice', async () => {
+  try {
+    // Windows only
+    if (process.platform !== 'win32') {
+      return false;
+    }
+
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execPromise = util.promisify(exec);
+    
+    // Check if NVIDIA Broadcast (RTX Voice) is installed
+    // RTX Voice path: C:\Program Files\NVIDIA Corporation\NVIDIA Broadcast
+    try {
+      await execPromise('reg query "HKLM\\SOFTWARE\\NVIDIA Corporation\\NVIDIA Broadcast" /v InstallDir');
+      console.log('✅ RTX Voice detected');
+      return true;
+    } catch {
+      console.log('❌ RTX Voice not installed');
+      return false;
+    }
+  } catch (error) {
+    console.error('RTX Voice check error:', error);
+    return false;
+  }
+});
+
+// Process audio with RTX Voice (placeholder - requires RTX Voice SDK)
+ipcMain.handle('process-audio-rtx', async (event, streamData) => {
+  try {
+    // TODO: Implement RTX Voice SDK integration
+    // For now, return original stream
+    console.log('⚠️ RTX Voice processing not yet implemented, using RNNoise fallback');
+    return streamData;
+  } catch (error) {
+    console.error('RTX Voice processing error:', error);
+    return streamData; // Fallback to original
+  }
+});
+
 ipcMain.handle('get-badge-count', () => {
   return unreadCount;
 });

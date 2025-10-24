@@ -3,6 +3,7 @@
 
 import OptimizedScreenShare from './optimizedScreenShare';
 import devLog from '../utils/devLogger';
+import noiseSuppressionManager from './noiseSuppressionManager';
 
 class VoiceCallService {
   constructor() {
@@ -302,6 +303,11 @@ class VoiceCallService {
     // Clear remote stream
     this.remoteStream = null;
     
+    // Cleanup AI noise suppression
+    noiseSuppressionManager.cleanup().catch(err => {
+      console.warn('Noise suppression cleanup warning:', err);
+    });
+    
     this.currentCall = null;
     this.callState = 'idle';
     
@@ -352,8 +358,42 @@ class VoiceCallService {
         } : false
       };
       
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('✅ Local stream acquired (Discord-level quality)');
+      let rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('✅ Raw stream acquired (Discord-level quality)');
+      
+      // Apply AI Noise Suppression
+      const audioTrack = rawStream.getAudioTracks()[0];
+      if (audioTrack) {
+        try {
+          console.log('🎤 Applying AI noise suppression to call...');
+          await noiseSuppressionManager.initialize('auto');
+          const processedStream = await noiseSuppressionManager.processAudioStream(rawStream, noiseSuppressionManager.mode);
+          
+          // If processing returned a different stream, use it
+          if (processedStream && processedStream !== rawStream) {
+            // Create new stream with processed audio + original video
+            const videoTracks = rawStream.getVideoTracks();
+            const processedAudioTracks = processedStream.getAudioTracks();
+            
+            const finalStream = new MediaStream();
+            processedAudioTracks.forEach(track => finalStream.addTrack(track));
+            videoTracks.forEach(track => finalStream.addTrack(track));
+            
+            // Stop original audio track
+            audioTrack.stop();
+            
+            this.localStream = finalStream;
+            console.log('✅ AI noise suppression applied to call');
+          } else {
+            this.localStream = rawStream;
+          }
+        } catch (nsError) {
+          console.warn('⚠️ Noise suppression failed, using raw stream:', nsError);
+          this.localStream = rawStream;
+        }
+      } else {
+        this.localStream = rawStream;
+      }
       
       this.emit('localStream', this.localStream);
       return this.localStream;

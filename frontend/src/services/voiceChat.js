@@ -2,6 +2,7 @@
 import websocketService from './websocket';
 import EventEmitter from 'events';
 import logger from '../utils/logger';
+import noiseSuppressionManager from './noiseSuppressionManager';
 
 // Global Electron API access
 const electronAPI = window.electronAPI || {};
@@ -110,18 +111,23 @@ class VoiceChatService extends EventEmitter {
     }
   }
 
-  // Enhanced getUserMedia for Electron - Discord-level quality
+  // Enhanced getUserMedia for Electron - Discord+ level quality with AI
   async getUserMedia() {
     // Try to get saved deviceId from settings (if any)
     let savedDeviceId = null;
+    let noiseSuppressionMode = 'auto';
     try {
       const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
       savedDeviceId = settings?.voice?.inputDevice;
+      noiseSuppressionMode = settings?.voice?.noiseSuppression || 'auto';
     } catch (e) {
       // Ignore settings parsing errors
     }
 
     try {
+      // Initialize AI Noise Suppression Manager
+      await noiseSuppressionManager.initialize(noiseSuppressionMode);
+      
       // Discord Standard Mode - Maximum voice quality
       const constraints = {
         audio: {
@@ -151,8 +157,34 @@ class VoiceChatService extends EventEmitter {
         }
       };
 
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      logger.log('✅ Discord-level audio processing enabled');
+      let rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+      logger.log('✅ Raw audio stream acquired');
+      
+      // Apply AI Noise Suppression (RNNoise/RTX Voice)
+      try {
+        const nsMode = noiseSuppressionManager.mode;
+        if (nsMode && nsMode !== 'off' && nsMode !== 'native') {
+          logger.log(`🎤 Applying AI noise suppression: ${nsMode.toUpperCase()}`);
+          const processedStream = await noiseSuppressionManager.processAudioStream(rawStream, nsMode);
+          
+          // Use processed stream if valid
+          if (processedStream && processedStream.getAudioTracks().length > 0) {
+            // Stop original tracks
+            rawStream.getTracks().forEach(track => track.stop());
+            this.localStream = processedStream;
+            logger.log('✅ AI noise suppression active');
+          } else {
+            this.localStream = rawStream;
+            logger.log('⚠️ AI processing returned invalid stream, using raw');
+          }
+        } else {
+          this.localStream = rawStream;
+          logger.log('✅ Using native WebRTC processing');
+        }
+      } catch (nsError) {
+        logger.error('⚠️ Noise suppression error, using raw stream:', nsError);
+        this.localStream = rawStream;
+      }
       
       // Setup Voice Activity Detection (VAD)
       if (this.vadEnabled) {
@@ -305,6 +337,14 @@ class VoiceChatService extends EventEmitter {
       if (this.localStream) {
         this.localStream.getTracks().forEach(track => track.stop());
         this.localStream = null;
+      }
+      
+      // Cleanup AI noise suppression
+      try {
+        await noiseSuppressionManager.cleanup();
+        logger.log('✅ Noise suppression cleaned up');
+      } catch (cleanupError) {
+        logger.warn('⚠️ Noise suppression cleanup error:', cleanupError);
       }
       
       const leftChannel = this.currentChannel;

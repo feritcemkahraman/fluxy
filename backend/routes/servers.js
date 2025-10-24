@@ -177,28 +177,36 @@ router.get('/discover', async (req, res) => {
     .sort({ memberCount: -1 })  // Sort by member count descending
     .select('name description icon memberCount createdAt tags isPublic inviteCode members');
 
-    const discoveryServers = servers.map(server => {
-      // Count online members (members with user status 'online' or 'idle')
-      const onlineCount = server.members.filter(member => 
-        member.user && (member.user.status === 'online' || member.user.status === 'idle')
-      ).length;
+    const discoveryServers = servers
+      .filter(server => {
+        // Discord-like: Hide servers user is already a member of
+        if (currentUserId) {
+          const isMember = server.members.some(member => 
+            member.user._id.toString() === currentUserId.toString()
+          );
+          return !isMember; // Only show servers user is NOT a member of
+        }
+        return true; // Show all if not logged in
+      })
+      .map(server => {
+        // Count online members (members with user status 'online' or 'idle')
+        const onlineCount = server.members.filter(member => 
+          member.user && (member.user.status === 'online' || member.user.status === 'idle')
+        ).length;
 
-      return {
-        id: server._id,
-        name: server.name,
-        description: server.description || 'Açıklama yok',
-        icon: server.icon,
-        memberCount: server.memberCount || 0,
-        onlineCount: onlineCount,
-        owner: server.owner,
-        tags: server.tags || [],
-        inviteCode: server.inviteCode,
-        createdAt: server.createdAt,
-        isMember: currentUserId ? server.members.some(member => 
-          member.user._id.toString() === currentUserId.toString()
-        ) : false
-      };
-    });
+        return {
+          id: server._id,
+          name: server.name,
+          description: server.description || 'Açıklama yok',
+          icon: server.icon,
+          memberCount: server.memberCount || 0,
+          onlineCount: onlineCount,
+          owner: server.owner,
+          tags: server.tags || [],
+          inviteCode: server.inviteCode,
+          createdAt: server.createdAt
+        };
+      });
 
     res.json({
       servers: discoveryServers,

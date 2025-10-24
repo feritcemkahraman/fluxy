@@ -147,6 +147,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   decrementBadgeCount: (decrement) => ipcRenderer.send('decrement-badge-count', decrement),
   clearBadgeCount: () => ipcRenderer.send('clear-badge-count'),
   getBadgeCount: () => ipcRenderer.invoke('get-badge-count'),
+
+  // AI Noise Suppression - GPU Detection & RTX Voice
+  getGPUInfo: () => ipcRenderer.invoke('get-gpu-info'),
+  checkRTXVoice: () => ipcRenderer.invoke('check-rtx-voice'),
+  processAudioWithRTX: (streamData) => ipcRenderer.invoke('process-audio-rtx', streamData),
+  platform: () => process.platform,
 });
 
 // Override user agent to help with detection
