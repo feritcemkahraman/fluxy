@@ -1,19 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MoreVertical, Reply, Trash2, Edit3, UserPlus, Shield, Copy, AlertCircle, RefreshCw, Phone, PhoneOff, PhoneMissed } from 'lucide-react';
+import { Avatar, AvatarFallback } from '../../../components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { 
-  MoreHorizontal, 
-  Reply, 
-  Edit3, 
-  Trash2, 
-  Copy,
-  AlertCircle,
-  RefreshCw,
-  Phone,
-  PhoneOff,
-  PhoneMissed
-} from 'lucide-react';
-
+import { normalizeUser } from '../../../services/messageNormalizer';
+import { MessageReactions } from './MessageReactions';
+import { getPepePath } from '../../../utils/assetHelper';
 import { MESSAGE_REACTIONS } from '../constants';
 
 /**
@@ -195,10 +187,7 @@ const MessageItem = ({
             ) : (
               // Render text with Pepe emoji support
               (() => {
-                // Import asset helper
-                const { getPepePath } = require('../../../utils/assetHelper');
-                
-                // Complete Pepe map - all 94 emojis (defined once)
+                // Complete Pepe map - all 94 emojis
                 const pepeMap = {
                     'pepe_king': getPepePath('11998-pepe-king.png'),
                     'pepe_rapper': getPepePath('13328-rapper.png'),

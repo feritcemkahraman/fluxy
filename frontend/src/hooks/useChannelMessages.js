@@ -35,7 +35,7 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
       setError(null);
       
       const response = await messageAPI.getMessages(channelId, 1, 50);
-      const rawMessages = response.data.messages || [];
+      const rawMessages = response.messages || [];
       
       // Normalize all messages with current server members
       const normalized = normalizeMessages(rawMessages, serverMembersRef.current);

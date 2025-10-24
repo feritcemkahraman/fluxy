@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, profileAPI } from '../services/api';
 import socketService from '../services/socket';
 import voiceChatService from '../services/voiceChat';
 import electronStorage from '../utils/electronStorage';
@@ -365,8 +365,8 @@ export function AuthProvider({ children }) {
 
   const updateStatus = async (statusData) => {
     try {
-      const response = await authAPI.updateStatus(statusData);
-      const updatedUser = response.data.user;
+      const response = await profileAPI.updateStatus(statusData);
+      const updatedUser = response.user;
       
       // Save status to storage (Electron-compatible)
       electronStorage.setItem('userStatus', updatedUser.status);

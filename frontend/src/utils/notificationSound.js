@@ -3,6 +3,8 @@
  * Handles playing notification sounds for messages
  */
 
+import { getSoundPath } from './assetHelper';
+
 class NotificationSoundService {
   constructor() {
     this.audio = null;
@@ -40,7 +42,6 @@ class NotificationSoundService {
 
     try {
       // Create new audio instance each time to allow multiple plays
-      const { getSoundPath } = require('./assetHelper');
       const audio = new Audio(getSoundPath('mesajses.mp3'));
       audio.volume = this.volume;
       
@@ -65,7 +66,6 @@ class NotificationSoundService {
       this.stopCallSound();
 
       // Create new audio instance for call
-      const { getSoundPath } = require('./assetHelper');
       this.callAudio = new Audio(getSoundPath('aramasesi.mp3'));
       this.callAudio.volume = this.volume;
       this.callAudio.loop = true; // Loop the call sound
