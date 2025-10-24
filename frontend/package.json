@@ -1,8 +1,8 @@
 {
   "name": "fluxy-frontend",
   "version": "1.0.14",
-  "description": "Fluxy - Modern Discord-like Communication Platform",
-  "author": "Ferit Cem Kahraman",
+  "description": "Fluxy - Modern Communication Platform",
+  "author": "FCK",
   "private": true,
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -127,8 +127,15 @@
     "appId": "com.fluxy.desktop",
     "productName": "Fluxy",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "public"
     },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "**/sounds/**/*",
+      "**/pepe/**/*"
+    ],
     "extraMetadata": {
       "main": "index.js"
     },
@@ -137,8 +144,7 @@
       "index.js",
       "preload.js",
       "package.json",
-      "node_modules/**/*",
-      "sounds/**/*"
+      "node_modules/**/*"
     ],
     "extraResources": [
       {
