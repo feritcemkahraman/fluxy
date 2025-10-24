@@ -10,7 +10,7 @@ import { initPerformanceOptimizations } from './utils/performance';
 const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
 // import performanceMonitor from './utils/performanceMonitor';
 import './index.css';
-import '@radix-ui/themes/styles.css';
+// Removed @radix-ui/themes - not used (shadcn/ui components use individual packages)
 import './App.css';
 function App() {
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Loader2, Crown } from "lucide-react";
@@ -34,10 +34,10 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     }
   };
 
-  const handleMemberClick = (member) => {
+  const handleMemberClick = useCallback((member) => {
     setSelectedUser(member);
     setIsProfileOpen(true);
-  };
+  }, []);
 
   // Get member's highest role color
   const getMemberRoleColor = (member) => {
@@ -268,8 +268,8 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     return member.role === 'Admin' || member.role === 'Yönetici';
   };
 
-  // Group members by their highest role
-  const groupMembersByRole = () => {
+  // Group members by their highest role (memoized for performance)
+  const roleGroups = useMemo(() => {
     const grouped = {};
     
     members.forEach(member => {
@@ -299,11 +299,13 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     // Sort groups by role position (highest first)
     return Object.entries(grouped)
       .sort(([, a], [, b]) => (b.rolePosition || 0) - (a.rolePosition || 0));
-  };
+  }, [members, roles]);
 
-  const roleGroups = groupMembersByRole();
   const totalCount = members.length;
-  const onlineCount = members.filter(m => m.status === "online" || m.status === "idle" || m.status === "dnd").length;
+  const onlineCount = useMemo(() => 
+    members.filter(m => m.status === "online" || m.status === "idle" || m.status === "dnd").length,
+    [members]
+  );
 
   return (
     <>

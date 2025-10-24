@@ -29,6 +29,16 @@ const channelSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  category: {
+    type: String,
+    default: null,
+    trim: true,
+    maxlength: [100, 'Category name cannot exceed 100 characters']
+  },
+  position: {
+    type: Number,
+    default: 0
+  },
   isPrivate: {
     type: Boolean,
     default: false

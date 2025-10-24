@@ -10,6 +10,28 @@ const cacheManager = require('../utils/cache');
 // Store connected users
 const connectedUsers = new Map();
 
+// Helper: Parse mentions from message content (Discord-like)
+const parseMentions = async (content, serverMembers) => {
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [];
+  const matches = content.matchAll(mentionRegex);
+  
+  for (const match of matches) {
+    const username = match[1];
+    
+    // Find user in server members
+    const member = serverMembers.find(m => 
+      m.user.username?.toLowerCase() === username.toLowerCase()
+    );
+    
+    if (member) {
+      mentions.push(member.user._id);
+    }
+  }
+  
+  return [...new Set(mentions)]; // Remove duplicates
+};
+
 const socketAuth = async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
@@ -412,9 +434,9 @@ const handleConnection = (io) => {
           return;
         }
 
-        const server = await Server.findById(channel.server);
+        const server = await Server.findById(channel.server).populate('members.user', 'username displayName');
         const isMember = server.members.some(member => 
-          member.user.toString() === socket.userId
+          member.user._id.toString() === socket.userId
         );
 
         if (!isMember) {
@@ -422,13 +444,17 @@ const handleConnection = (io) => {
           return;
         }
 
+        // Parse mentions from content (Discord-like @username)
+        const mentions = await parseMentions(content, server.members);
+
         // Create message
         const message = new Message({
           content,
           author: socket.userId,
           channel: channelId,
           server: channel.server,
-          replyTo: replyTo || null
+          replyTo: replyTo || null,
+          mentions: mentions
         });
 
         await message.save();
@@ -439,10 +465,18 @@ const handleConnection = (io) => {
           $inc: { messageCount: 1 }
         });
 
-        // Populate message for broadcast
+        // Populate message for broadcast (Discord-like)
         const populatedMessage = await Message.findById(message._id)
           .populate('author', 'username displayName avatar discriminator status')
-          .populate('replyTo', 'content author');
+          .populate('mentions', 'username displayName')
+          .populate({
+            path: 'replyTo',
+            select: 'content author createdAt',
+            populate: {
+              path: 'author',
+              select: 'username displayName avatar'
+            }
+          });
         
         const broadcastData = {
           _id: populatedMessage._id,
@@ -459,12 +493,31 @@ const handleConnection = (io) => {
           channel: populatedMessage.channel,
           server: populatedMessage.server,
           replyTo: populatedMessage.replyTo,
+          mentions: populatedMessage.mentions,
           reactions: populatedMessage.reactions,
           createdAt: populatedMessage.createdAt
         };
         
         // Broadcast to all server members
         io.to(`server_${channel.server}`).emit('newMessage', broadcastData);
+        
+        // Send mention notifications (Discord-like)
+        if (mentions.length > 0) {
+          mentions.forEach(mentionedUserId => {
+            io.to(`user_${mentionedUserId}`).emit('mention', {
+              messageId: message._id,
+              channelId: channel._id,
+              serverId: channel.server,
+              channelName: channel.name,
+              author: {
+                username: populatedMessage.author.username,
+                displayName: populatedMessage.author.displayName,
+                avatar: populatedMessage.author.avatar
+              },
+              content: content.substring(0, 100) // Preview
+            });
+          });
+        }
 
       } catch (error) {
         console.error('❌ Send message error:', error);
@@ -513,6 +566,7 @@ const handleConnection = (io) => {
     socket.on('addReaction', async (data) => {
       try {
         const { messageId, emoji } = data;
+        console.log('🎭 Socket addReaction:', { messageId, emoji, userId: socket.userId });
         
         const message = await Message.findById(messageId);
         if (!message) {
@@ -543,13 +597,14 @@ const handleConnection = (io) => {
         await message.save();
 
         // Broadcast reaction update
+        console.log('📢 Broadcasting reactionUpdate to server:', message.server);
         io.to(`server_${message.server}`).emit('reactionUpdate', {
           messageId,
           reactions: message.reactions
         });
 
       } catch (error) {
-        console.error('Add reaction error:', error);
+        console.error('❌ Add reaction error:', error);
         socket.emit('error', { message: 'Failed to add reaction' });
       }
     });

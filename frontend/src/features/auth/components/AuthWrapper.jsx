@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
-import FluxyApp from '../../../components/FluxyApp';
-import LandingPage from '../../../components/LandingPage';
-import RegistrationSuccess from '../../../components/RegistrationSuccess';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
-import UpdateProgress from '../../../components/UpdateProgress';
-import UpdateCheckModal from '../../../components/UpdateCheckModal';
 
 import { AUTH_MODES } from '../constants';
+
+// Code Splitting: Lazy load heavy components
+const FluxyApp = lazy(() => import('../../../components/FluxyApp'));
+const LandingPage = lazy(() => import('../../../components/LandingPage'));
+const RegistrationSuccess = lazy(() => import('../../../components/RegistrationSuccess'));
+const UpdateProgress = lazy(() => import('../../../components/UpdateProgress'));
+const UpdateCheckModal = lazy(() => import('../../../components/UpdateCheckModal'));
 
 /**
  * AuthWrapper Component - Discord Style
@@ -103,7 +105,7 @@ export default function AuthWrapper() {
   // Loading state
   if (isLoading) {
     return (
-      <>
+      <Suspense fallback={<LoadingSpinner message="Yükleniyor..." />}>
         <UpdateProgress />
         <UpdateCheckModal 
           isOpen={showUpdateCheckModal} 
@@ -111,14 +113,14 @@ export default function AuthWrapper() {
           initialState={updateCheckState}
         />
         <LoadingSpinner message="Yükleniyor..." />
-      </>
+      </Suspense>
     );
   }
   
   // Show registration success page (only for web)
   if (registrationSuccess && !isElectron) {
     return (
-      <>
+      <Suspense fallback={<LoadingSpinner message="Yükleniyor..." />}>
         <UpdateProgress />
         <UpdateCheckModal 
           isOpen={showUpdateCheckModal} 
@@ -126,14 +128,14 @@ export default function AuthWrapper() {
           initialState={updateCheckState}
         />
         <RegistrationSuccess email={registeredEmail} />
-      </>
+      </Suspense>
     );
   }
 
   // Authenticated - show main app
   if (isAuthenticated) {
     return (
-      <>
+      <Suspense fallback={<LoadingSpinner message="Uygulama yükleniyor..." />}>
         {/* Update components - work for all users */}
         <UpdateProgress />
         <UpdateCheckModal 
@@ -142,7 +144,7 @@ export default function AuthWrapper() {
           initialState={updateCheckState}
         />
         <FluxyApp />
-      </>
+      </Suspense>
     );
   }
 
@@ -177,7 +179,7 @@ export default function AuthWrapper() {
   };
 
   return (
-    <>
+    <Suspense fallback={<LoadingSpinner message="Yükleniyor..." />}>
       {/* Update components - work for all users */}
       <UpdateProgress />
       <UpdateCheckModal 
@@ -187,6 +189,6 @@ export default function AuthWrapper() {
       />
       
       {renderAuthView()}
-    </>
+    </Suspense>
   );
 }

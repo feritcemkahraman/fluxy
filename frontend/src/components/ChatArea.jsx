@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Hash, Users, Send, Search, Smile, Image as ImageIcon } from "lucide-react";
+import { Hash, Users, Send, Search, Smile, Image as ImageIcon, Reply, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
@@ -40,10 +40,26 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberActionDialog, setMemberActionDialog] = useState({ open: false, action: '', member: null });
+  const [replyingTo, setReplyingTo] = useState(null); // Discord-like reply state
+  const [showMentionAutocomplete, setShowMentionAutocomplete] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionCursorIndex, setMentionCursorIndex] = useState(0);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const serverMembersCache = useRef(null);
+
+  // Extract server members for mention autocomplete
+  const serverMembers = useMemo(() => {
+    if (!server?.members) return [];
+    return server.members.map(member => ({
+      _id: member.user?._id || member.user?.id || member._id,
+      id: member.user?._id || member.user?.id || member._id,
+      username: member.user?.username || member.username,
+      displayName: member.user?.displayName || member.displayName || member.user?.username || member.username,
+      avatar: member.user?.avatar || member.avatar
+    }));
+  }, [server?.members]);
 
   // Load roles for the server
   useEffect(() => {
@@ -60,18 +76,87 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     loadRoles();
   }, [server]);
 
+  // Filtered messages with useMemo (performance optimization)
+  const filteredMessages = useMemo(() => {
+    if (!searchTerm.trim()) return messages;
+    
+    const search = searchTerm.toLowerCase();
+    return messages.filter(msg => 
+      msg.content?.toLowerCase().includes(search) ||
+      msg.author?.username?.toLowerCase().includes(search) ||
+      msg.author?.displayName?.toLowerCase().includes(search)
+    );
+  }, [messages, searchTerm]);
+
   const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Simple scroll after messages change
+  // Auto-scroll to bottom when new messages arrive
   useLayoutEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Helper functions for Discord-like message grouping
+  const shouldGroupMessage = useCallback((currentMsg, prevMsg) => {
+    if (!prevMsg) return false;
+    if (currentMsg.isSystemMessage || prevMsg.isSystemMessage) return false;
+
+    const currentUserId = currentMsg.author?.id || currentMsg.author?._id;
+    const prevUserId = prevMsg.author?.id || prevMsg.author?._id;
+
+    if (currentUserId !== prevUserId) return false;
+
+    // Check time difference (5 minutes)
+    try {
+      const currentTime = new Date(currentMsg.createdAt).getTime();
+      const prevTime = new Date(prevMsg.createdAt).getTime();
+      return (currentTime - prevTime) <= 300000;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const shouldShowAvatar = useCallback((currentMsg, prevMsg) => {
+    return !shouldGroupMessage(currentMsg, prevMsg);
+  }, [shouldGroupMessage]);
+
+  const shouldShowDateSeparator = useCallback((currentMsg, prevMsg) => {
+    if (!prevMsg) return true;
+
+    try {
+      const currentDate = new Date(currentMsg.createdAt);
+      const prevDate = new Date(prevMsg.createdAt);
+      return currentDate.toDateString() !== prevDate.toDateString();
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const formatDate = (timestamp) => {
+    try {
+      const date = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (date.toDateString() === today.toDateString()) {
+        return 'Bugün';
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Dün';
+      } else {
+        return date.toLocaleDateString('tr-TR', { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+      }
+    } catch {
+      return '';
+    }
+  };
 
   // Join/leave channel on mount/unmount
   useEffect(() => {
@@ -139,36 +224,42 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
     const messageToSend = message.trim();
     
-    // Stop typing indicator
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    if (socketService.socket) {
-      socketService.socket.emit('typing', {
-        channelId: channel._id,
-        isTyping: false
-      });
+    // Check for :pepe: patterns (for optimistic message display)
+    const hasPepe = /:([a-zA-Z0-9_]+):/.test(messageToSend);
+    
+    // Discord-like optimistic UI - message appears instantly
+    if (hasPepe) {
+      // TODO: If message contains :pepe: emojis, we might want to handle them specially
     }
     
     // Clear input IMMEDIATELY
     setMessage("");
 
     // Send via new hook (handles optimistic update automatically)
-    await sendChannelMessage(messageToSend, user);
-  }, [message, channel, user, sendChannelMessage]);
+    // Include reply information if replying
+    await sendChannelMessage(messageToSend, user, { 
+      replyTo: replyingTo?._id || replyingTo?.id 
+    });
+    
+    // Clear reply state after sending
+    setReplyingTo(null);
+  }, [message, channel, user, sendChannelMessage, replyingTo]);
 
-  const handleReaction = async (messageId, emoji) => {
+  const handleReaction = useCallback(async (messageId, emoji) => {
     try {
       if (channel?._id) {
-        await messageAPI.addReaction(messageId, emoji);
+        console.log('🎭 Adding reaction:', { messageId, emoji });
+        const response = await messageAPI.addReaction(messageId, emoji);
+        console.log('✅ Reaction API response:', response);
         // Reaction update will come via socket
       }
     } catch (error) {
+      console.error('❌ Reaction error:', error);
       toast.error('Tepki eklenemedi');
     }
-  };
+  }, [channel?._id]);
 
-  const handleRightClick = (event, type, data) => {
+  const handleRightClick = useCallback((event, type, data) => {
     event.preventDefault();
     setContextMenu({
       x: event.clientX,
@@ -176,12 +267,16 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       type,
       data
     });
-  };
+  }, []);
 
-  const handleFileUpload = (files) => {
+  const handleFileUpload = useCallback((files) => {
     // TODO: Implement file upload with new hook
     toast.info('Dosya yükleme özelliği yakında eklenecek');
-  };
+  }, []);
+
+  const handleReply = useCallback((messageToReply) => {
+    setReplyingTo(messageToReply);
+  }, []);
 
   const formatTime = (timestamp) => {
     try {
@@ -200,37 +295,77 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
   };
 
-  const formatDate = (timestamp) => {
-    try {
-      if (!timestamp) return 'Tarih yok';
-      // Handle both Date objects and ISO strings
-      const messageDate = timestamp instanceof Date ? timestamp : new Date(timestamp);
-      if (isNaN(messageDate.getTime())) return 'Geçersiz tarih';
-
-      const today = new Date();
-
-      if (messageDate.toDateString() === today.toDateString()) {
-        return "Bugün";
-      } else {
-        return messageDate.toLocaleDateString('tr-TR');
-      }
-    } catch (error) {
-      return 'Tarih yok';
-    }
-  };
-
   const handleInputChange = useCallback((e) => {
-    const newValue = e.target.value;
-    setMessage(newValue);
-    handleTyping(newValue);
+    const newMessage = e.target.value;
+    setMessage(newMessage);
+    
+    // Check for mention trigger (@)
+    const words = newMessage.split(' ');
+    const lastWord = words[words.length - 1];
+    
+    if (lastWord.startsWith('@') && lastWord.length > 1) {
+      const search = lastWord.substring(1);
+      setMentionSearch(search);
+      setShowMentionAutocomplete(true);
+      setMentionCursorIndex(0);
+    } else {
+      setShowMentionAutocomplete(false);
+    }
+    handleTyping(newMessage);
   }, [handleTyping]);
 
+  // Filter members for mention autocomplete
+  const filteredMentionMembers = useMemo(() => {
+    if (!showMentionAutocomplete || !mentionSearch) return [];
+    
+    const search = mentionSearch.toLowerCase();
+    return serverMembers
+      .filter(member => 
+        member.username?.toLowerCase().includes(search) ||
+        member.displayName?.toLowerCase().includes(search)
+      )
+      .slice(0, 5); // Max 5 suggestions
+  }, [showMentionAutocomplete, mentionSearch, serverMembers]);
+
+  const selectMention = useCallback((member) => {
+    const words = message.split(' ');
+    words[words.length - 1] = `@${member.username} `;
+    setMessage(words.join(' '));
+    setShowMentionAutocomplete(false);
+  }, [message]);
+
   const handleKeyDown = useCallback((e) => {
+    // Mention autocomplete navigation
+    if (showMentionAutocomplete && filteredMentionMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionCursorIndex(prev => 
+          prev < filteredMentionMembers.length - 1 ? prev + 1 : prev
+        );
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionCursorIndex(prev => prev > 0 ? prev - 1 : 0);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        selectMention(filteredMentionMembers[mentionCursorIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowMentionAutocomplete(false);
+        return;
+      }
+    }
+    
+    // Normal message send
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  }, [handleSendMessage]);
+  }, [handleSendMessage, showMentionAutocomplete, filteredMentionMembers, mentionCursorIndex, selectMention]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-black/20 backdrop-blur-sm">
@@ -273,16 +408,9 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       {/* Chat Area for Text Channels ONLY */}
       {channel?.type === "text" && (
         <div 
-          key={channel._id}
-          ref={(el) => {
-            messagesContainerRef.current = el;
-            if (el) {
-              // Immediately scroll to bottom when ref is set
-              el.scrollTop = el.scrollHeight;
-            }
-          }}
+          ref={messagesContainerRef}
           className="flex-1 overflow-y-auto p-4" 
-          style={{ maxHeight: 'calc(100vh - 200px)', scrollBehavior: 'auto' }}
+          style={{ maxHeight: 'calc(100vh - 200px)' }}
         >
           {/* Loading State */}
           {loading && messages.length === 0 && (
@@ -298,206 +426,202 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
             </div>
           )}
           
-          {/* Messages */}
-          <div className="w-full space-y-2">
-            {messages.map((msg, index) => {
-              const prevMessage = index > 0 ? messages[index - 1] : null;
+          {/* Messages - Discord-like Rendering */}
+          {!loading && messages.length > 0 && (
+            <div className="space-y-0">
+              {filteredMessages.map((msg, index) => {
+                const prevMessage = index > 0 ? filteredMessages[index - 1] : null;
+                const showAvatar = shouldShowAvatar(msg, prevMessage);
+                const isGrouped = shouldGroupMessage(msg, prevMessage);
+                const showDate = shouldShowDateSeparator(msg, prevMessage);
 
-              // Safely handle date comparisons
-              const getValidDate = (timestamp) => {
-                try {
-                  if (!timestamp) return null;
-                  // Handle both Date objects and ISO strings
-                  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-                  return isNaN(date.getTime()) ? null : date;
-                } catch {
-                  return null;
-                }
-              };
-
-              const currentDate = getValidDate(msg.createdAt);
-              const prevDate = prevMessage ? getValidDate(prevMessage.createdAt) : null;
-
-              const showDate = !prevDate || !currentDate ||
-                currentDate.toDateString() !== prevDate.toDateString();
-
-              // Use correct ID field (could be _id from MongoDB)
-              const getCurrentUserId = (author) => author?.id || author?._id;
-              const currentUserId = getCurrentUserId(msg.author);
-              const prevUserId = prevMessage ? getCurrentUserId(prevMessage.author) : null;
-
-              // System messages always show avatar and break grouping
-              const isSystemMessage = msg.type === 'system' || msg.isSystemMessage;
-              const prevIsSystemMessage = prevMessage?.type === 'system' || prevMessage?.isSystemMessage;
-
-              const showAvatar = !prevMessage ||
-                isSystemMessage ||
-                prevIsSystemMessage ||
-                prevUserId !== currentUserId ||
-                (prevDate && currentDate && (currentDate - prevDate) > 300000); // 5 minutes
-
-              // Check if this message is grouped (same user, within time limit, not system messages)
-              const isGrouped = prevMessage && 
-                !isSystemMessage &&
-                !prevIsSystemMessage &&
-                prevUserId === currentUserId && 
-                prevDate && currentDate && 
-                (currentDate - prevDate) <= 300000;
-
-              return (
-                <div key={msg._id || msg.id} className={isGrouped ? "mt-0.5" : "mt-2"}>
-                  {showDate && (
-                    <div className="flex items-center justify-center my-4">
-                      <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
-                        <span className="text-xs text-gray-400 font-medium">
-                          {formatDate(msg.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* System Message - Discord Style */}
-                  {msg.isSystemMessage ? (
-                    <div className="px-4 py-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            msg.systemMessageType === 'member_join' ? 'bg-green-500/20' :
-                            msg.systemMessageType === 'member_leave' ? 'bg-red-500/20' :
-                            msg.systemMessageType === 'server_boost' ? 'bg-purple-500/20' :
-                            'bg-blue-500/20'
-                          }`}>
-                            {msg.systemMessageType === 'member_join' && (
-                              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                              </svg>
-                            )}
-                            {msg.systemMessageType === 'member_leave' && (
-                              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
-                              </svg>
-                            )}
-                            {msg.systemMessageType === 'server_boost' && (
-                              <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                              </svg>
-                            )}
-                            {msg.systemMessageType === 'channel_created' && (
-                              <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                              </svg>
-                            )}
-                          </div>
+                return (
+                  <div key={msg._id || msg.id}>
+                    {/* Date Separator */}
+                    {showDate && (
+                      <div className="flex items-center justify-center my-4">
+                        <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+                          <span className="text-xs text-gray-400 font-medium">
+                            {formatDate(msg.createdAt)}
+                          </span>
                         </div>
-                        <div className="flex-1">
-                          <div className="text-sm">
-                            <span className={`font-medium ${
-                              msg.systemMessageType === 'member_join' ? 'text-green-400' :
-                              msg.systemMessageType === 'member_leave' ? 'text-red-400' :
-                              msg.systemMessageType === 'server_boost' ? 'text-purple-400' :
-                              'text-blue-400'
-                            }`}>
-                              {(() => {
-                                // Parse message content to make username clickable
-                                const match = msg.content.match(/\*\*(.*?)\*\*/);
-                                if (match) {
-                                  const username = match[1];
-                                  const parts = msg.content.split(/\*\*.*?\*\*/);
-                                  return (
-                                    <>
-                                      {parts[0]}
-                                      <button
-                                        onClick={async () => {
-                                          if (msg.author) {
-                                            setSelectedMember(msg.author);
-                                            setMemberActionDialog({ open: true, action: 'view', member: msg.author });
-                                          } else {
-                                            // If author is null, try to find user from server members by username
-                                            try {
-                                              const serverId = server?._id || channel?.server;
-                                              if (!serverId) {
-                                                toast.error('Server bilgisi bulunamadı');
-                                                return;
+                      </div>
+                    )}
+
+                    {/* System Message */}
+                    {msg.isSystemMessage ? (
+                      <div className="py-2 px-4">
+                        <div className={`relative overflow-hidden rounded-lg border backdrop-blur-sm transition-all hover:scale-[1.01] ${
+                          msg.systemMessageType === 'member_join' 
+                            ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/15' 
+                            : msg.systemMessageType === 'member_leave'
+                            ? 'bg-red-500/10 border-red-500/30 hover:bg-red-500/15'
+                            : 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15'
+                        }`}>
+                          {/* Decorative gradient bar on left */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                            msg.systemMessageType === 'member_join' 
+                              ? 'bg-gradient-to-b from-green-400 to-green-600' 
+                              : msg.systemMessageType === 'member_leave'
+                              ? 'bg-gradient-to-b from-red-400 to-red-600'
+                              : 'bg-gradient-to-b from-blue-400 to-blue-600'
+                          }`} />
+                          
+                          <div className="flex items-center space-x-4 py-3 px-4 pl-5">
+                            {/* Icon */}
+                            <div className="flex-shrink-0">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
+                                msg.systemMessageType === 'member_join' 
+                                  ? 'bg-gradient-to-br from-green-400 to-green-600' 
+                                  : msg.systemMessageType === 'member_leave'
+                                  ? 'bg-gradient-to-br from-red-400 to-red-600'
+                                  : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                              }`}>
+                                {msg.systemMessageType === 'member_join' ? (
+                                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                  </svg>
+                                ) : msg.systemMessageType === 'member_leave' ? (
+                                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline space-x-2">
+                                <span className={`text-sm ${
+                                  msg.systemMessageType === 'member_join' 
+                                    ? 'text-green-300' 
+                                    : msg.systemMessageType === 'member_leave'
+                                    ? 'text-red-300'
+                                    : 'text-blue-300'
+                                }`}>
+                                  {(() => {
+                                    // Parse message to make username clickable
+                                    const content = msg.content || '';
+                                    // Use displayName (görünen ad) instead of username
+                                    const displayName = msg.author?.displayName || msg.author?.username;
+                                    const hasAuthor = msg.author !== null && msg.author !== undefined;
+                                    
+                                    if ((msg.systemMessageType === 'member_join' || msg.systemMessageType === 'member_leave') && displayName) {
+                                      // Remove markdown stars from content: **username** -> username
+                                      let cleanContent = content.replace(/\*\*/g, '');
+                                      
+                                      // Split by display name to insert clickable button
+                                      const parts = cleanContent.split(displayName);
+                                      
+                                      return (
+                                        <>
+                                          {parts[0]}
+                                          <button
+                                            onClick={() => {
+                                              if (msg.author) {
+                                                setMemberActionDialog({ 
+                                                  open: true, 
+                                                  action: 'view', 
+                                                  member: msg.author 
+                                                });
                                               }
-                                              
-                                              // Use cached members or server.members
-                                              let members = serverMembersCache.current || server?.members;
-                                              
-                                              if (!members) {
-                                                // Fallback: fetch from API
-                                                try {
-                                                  const response = await serverAPI.getServerMembers(serverId);
-                                                  members = response.members || response;
-                                                  serverMembersCache.current = members;
-                                                } catch (err) {
-                                                  toast.error('Üye listesi alınamadı');
-                                                  return;
-                                                }
-                                              }
-                                              
-                                              const member = members?.find(m => 
-                                                m.username === username || m.displayName === username
-                                              );
-                                              
-                                              if (member) {
-                                                const userData = {
-                                                  _id: member.id,
-                                                  username: member.username,
-                                                  displayName: member.displayName,
-                                                  avatar: member.avatar,
-                                                  status: member.status
-                                                };
-                                                setSelectedMember(userData);
-                                                setMemberActionDialog({ open: true, action: 'view', member: userData });
-                                              } else {
-                                                toast.info('Kullanıcı bilgisi bulunamadı');
-                                              }
-                                            } catch (error) {
-                                              toast.error('Kullanıcı bilgisi alınamadı');
-                                            }
-                                          }
-                                        }}
-                                        className="font-bold text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer transition-colors"
-                                      >
-                                        {username}
-                                      </button>
-                                      {parts[1]}
-                                    </>
-                                  );
-                                }
-                                return msg.content;
-                              })()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {formatTime(msg.createdAt)}
+                                            }}
+                                            disabled={!hasAuthor}
+                                            className={`inline-flex items-center font-bold transition-all px-1.5 py-0.5 rounded ${
+                                              hasAuthor 
+                                                ? msg.systemMessageType === 'member_join'
+                                                  ? 'hover:underline cursor-pointer hover:text-green-200 hover:bg-green-500/20'
+                                                  : 'hover:underline cursor-pointer hover:text-red-200 hover:bg-red-500/20'
+                                                : 'cursor-default opacity-80'
+                                            }`}
+                                          >
+                                            {displayName}
+                                          </button>
+                                          {parts[1] || ''}
+                                        </>
+                                      );
+                                    } else {
+                                      // Other system messages or no author - display as is
+                                      // Still remove markdown stars
+                                      const cleanContent = content.replace(/\*\*/g, '');
+                                      return <span className="font-semibold">{cleanContent}</span>;
+                                    }
+                                  })()}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs text-gray-400 font-medium">
+                                  {formatTime(msg.createdAt)}
+                                </span>
+                                <span className="text-xs text-gray-500">•</span>
+                                <span className={`text-xs font-medium ${
+                                  msg.systemMessageType === 'member_join' 
+                                    ? 'text-green-400/70' 
+                                    : msg.systemMessageType === 'member_leave'
+                                    ? 'text-red-400/70'
+                                    : 'text-blue-400/70'
+                                }`}>
+                                  Sistem Mesajı
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    /* Regular Message */
-                    msg.author && (
+                    ) : (
+                      /* Regular Message */
                       <MessageItem
-                        key={msg._id || msg.id}
                         message={msg}
                         currentUser={user}
                         showAvatar={showAvatar}
                         compact={isGrouped}
+                        onReply={handleReply}
+                        onReaction={handleReaction}
                       />
-                    )
-                  )}
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
       )}
 
       {/* Message Input - Only show for text channels */}
       {channel?.type === "text" && (
         <div className="p-4 bg-black/20 backdrop-blur-sm border-t border-white/10">
+          {/* Reply Bar - Discord Style */}
+          {replyingTo && (
+            <div className="mb-3 px-4 py-2 bg-white/5 rounded-lg border-l-4 border-blue-500 flex items-center justify-between">
+              <div className="flex items-start space-x-3 flex-1">
+                <Reply className="w-4 h-4 text-blue-400 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-400 mb-0.5">
+                    Replying to <span className="text-blue-400 font-semibold">
+                      {replyingTo.author?.displayName || replyingTo.author?.username}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-300 truncate">
+                    {replyingTo.content}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setReplyingTo(null)}
+                className="w-8 h-8 text-gray-400 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+          
           {/* Typing Indicator */}
           {typingUsers.length > 0 && (
             <div className="px-4 pb-2">
@@ -513,6 +637,37 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
           )}
           
           <div className="relative">
+            {/* Mention Autocomplete Dropdown */}
+            {showMentionAutocomplete && filteredMentionMembers.length > 0 && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+                {filteredMentionMembers.map((member, index) => (
+                  <div
+                    key={member._id || member.id}
+                    onClick={() => selectMention(member)}
+                    className={`flex items-center space-x-3 px-4 py-2 cursor-pointer transition-colors ${
+                      index === mentionCursorIndex
+                        ? 'bg-blue-600 text-white'
+                        : 'hover:bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    <Avatar className="w-6 h-6">
+                      <AvatarFallback className="bg-blue-600 text-white text-xs">
+                        {member.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="text-sm font-medium">
+                        {member.displayName || member.username}
+                      </div>
+                      {member.displayName && (
+                        <div className="text-xs opacity-75">@{member.username}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="flex items-center space-x-3 bg-black/50 backdrop-blur-md border border-white/30 rounded-xl p-4">
               {/* File Upload Button */}
               <Button

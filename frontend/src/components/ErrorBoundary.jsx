@@ -41,13 +41,17 @@ class ErrorBoundary extends React.Component {
               Uygulamada beklenmedik bir hata meydana geldi. Lütfen sayfayı yenileyin.
             </p>
 
-            {process.env.NODE_ENV === 'development' && (
+            {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="text-left bg-gray-700 p-4 rounded mb-4">
                 <summary className="cursor-pointer font-semibold">Hata Detayları (Geliştirici)</summary>
                 <pre className="text-xs mt-2 overflow-auto text-red-300">
-                  {this.state.error && this.state.error.toString()}
-                  <br />
-                  {this.state.errorInfo.componentStack}
+                  {this.state.error.toString()}
+                  {this.state.errorInfo && (
+                    <>
+                      <br />
+                      {this.state.errorInfo.componentStack}
+                    </>
+                  )}
                 </pre>
               </details>
             )}

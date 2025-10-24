@@ -54,6 +54,7 @@ const FluxyApp = () => {
     remoteScreenSharing,
     startScreenShare
   } = useVoiceCall();
+  
   const [servers, setServers] = useState([]);
   const [activeServer, setActiveServer] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
@@ -162,10 +163,9 @@ const FluxyApp = () => {
   // Load user's servers on component mount - only when authenticated
   useEffect(() => {
     let isMounted = true;
-    const startTime = Date.now(); // Record start time for minimum loading duration
+    const startTime = Date.now();
 
     const loadServersOnce = async () => {
-      // Don't load servers if user is not authenticated
       if (!user || !isMounted) return;
 
       try {
@@ -180,23 +180,19 @@ const FluxyApp = () => {
           const firstServer = response.servers[0];
           setActiveServer(firstServer);
           
-          // Find first text channel instead of just first channel
+          // Find first text channel
           if (firstServer.channels && firstServer.channels.length > 0) {
             const firstTextChannel = firstServer.channels.find(channel => channel.type === 'text') || firstServer.channels[0];
             setActiveChannel(firstTextChannel);
           }
-          
-          // Server join handled automatically by Socket.IO authentication
         }
       } catch (error) {
         if (!isMounted) return;
 
         if (error.response?.status === 401) {
           toast.error('Authentication expired. Please login again.');
-          // Clear invalid token
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          // Redirect to login
           window.location.href = '/';
         } else if (error.message === 'Network Error') {
           toast.error('Cannot connect to server. Backend may not be running.');
@@ -204,16 +200,13 @@ const FluxyApp = () => {
           toast.error(`Failed to load servers: ${error.response?.data?.message || error.message}`);
         }
 
-        // No fallback - user should create or join servers
         setServers([]);
       } finally {
         if (isMounted) {
-          // Calculate elapsed time and ensure minimum 3 seconds of loading animation
           const elapsedTime = Date.now() - startTime;
-          const minimumLoadingTime = 3000; // 3 seconds
+          const minimumLoadingTime = 3000;
           const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
           
-          // Set loading to false after ensuring minimum duration
           setTimeout(() => {
             if (isMounted) {
               setLoading(false);
@@ -228,7 +221,7 @@ const FluxyApp = () => {
     return () => {
       isMounted = false;
     };
-  }, [user]); // Run when user changes (login/logout)
+  }, [user]);
 
   // Socket event listeners - more stable with useCallback
   useEffect(() => {
@@ -245,8 +238,7 @@ const FluxyApp = () => {
       }
       
       // Update user status in all servers (single update, activeServer will sync automatically)
-      setServers(prevServers => {
-        return prevServers.map(server => {
+      setServers(prevServers => prevServers.map(server => {
           if (!server.members) return server;
           
           const updatedMembers = server.members.map(member => {
@@ -266,8 +258,7 @@ const FluxyApp = () => {
             ...server,
             members: updatedMembers
           };
-        });
-      });
+        }));
     };
 
     const handleVoiceChannelUpdate = (data) => {
@@ -279,17 +270,14 @@ const FluxyApp = () => {
       // DEPRECATED: Voice channel sync is now handled by useVoiceChat hook
     };
 
-    const handleServerCreated = (data) => {
+    const handleServerCreatedEvent = (data) => {
             devLog.log('Server created event received:', data);
       if (data.server) {
-        setServers(prev => {
-          // Check if server already exists to avoid duplicates
-          const exists = prev.some(s => (s._id || s.id) === (data.server._id || data.server.id));
-          if (!exists) {
-            return [...prev, data.server];
-          }
-          return prev;
-        });
+        // Check if server already exists to avoid duplicates
+        const exists = servers.some(s => (s._id || s.id) === (data.server._id || data.server.id));
+        if (!exists) {
+          setServers(prev => [...prev, data.server]);
+        }
         
         // Auto-select the new server
         setActiveServer(data.server);
@@ -301,17 +289,14 @@ const FluxyApp = () => {
       }
     };
 
-    const handleServerJoined = (data) => {
+    const handleServerJoinedEvent = (data) => {
       devLog.log('Server joined event received:', data);
       if (data.server) {
-        setServers(prev => {
-          // Check if server already exists to avoid duplicates
-          const exists = prev.some(s => (s._id || s.id) === (data.server._id || data.server.id));
-          if (!exists) {
-            return [...prev, data.server];
-          }
-          return prev;
-        });
+        // Check if server already exists to avoid duplicates
+        const exists = servers.some(s => (s._id || s.id) === (data.server._id || data.server.id));
+        if (!exists) {
+          setServers(prev => [...prev, data.server]);
+        }
         
         // Auto-select the joined server
         setActiveServer(data.server);
@@ -323,7 +308,7 @@ const FluxyApp = () => {
       }
     };
 
-    const handleChannelCreated = (channelData) => {
+    const handleChannelCreatedEvent = (channelData) => {
       // Add new channel to the active server if it's the current server
       if (activeServer && (activeServer._id === channelData.server || activeServer.id === channelData.server)) {
         setActiveServer(prevServer => ({
@@ -363,8 +348,7 @@ const FluxyApp = () => {
       const { userId, username, displayName, avatar, bio, pronouns, banner } = profileUpdate;
       
       // Update user in servers
-      setServers(prevServers => {
-        return prevServers.map(server => {
+      setServers(prevServers => prevServers.map(server => {
           const updatedMembers = server.members?.map(member => {
             if (member.user._id === userId || member.user.id === userId) {
               return {
@@ -387,8 +371,7 @@ const FluxyApp = () => {
             ...server,
             members: updatedMembers
           };
-        });
-      });
+        }));
       
       // Update active server
       setActiveServer(prevServer => {
@@ -492,7 +475,7 @@ const FluxyApp = () => {
       });
     };
 
-    const handleServerUpdate = (updateData) => {
+    const handleServerUpdateEvent = (updateData) => {
       const { serverId, name, description, icon } = updateData;
       
       // Update servers list
@@ -811,7 +794,7 @@ const FluxyApp = () => {
     const unsubscribeUserProfile = on('userProfileUpdate', handleUserProfileUpdate);
     const unsubscribeUserActivity = on('userActivityUpdate', handleUserActivityUpdate);
     const unsubscribeRoleAssignment = on('roleAssignment', handleRoleAssignment);
-    const unsubscribeServerUpdate = on('serverUpdate', handleServerUpdate);
+    const unsubscribeServerUpdate = on('serverUpdate', handleServerUpdateEvent);
     const unsubscribeMemberKicked = on('memberKicked', handleMemberKicked);
     const unsubscribeMemberBanned = on('memberBanned', handleMemberBanned);
     const unsubscribeMemberLeft = on('memberLeft', handleMemberLeft);
@@ -820,9 +803,9 @@ const FluxyApp = () => {
     const unsubscribeInviteCreated = on('inviteCreated', handleInviteCreated);
     const unsubscribeMemberJoinedViaInvite = on('memberJoinedViaInvite', handleMemberJoinedViaInvite);
     const unsubscribeNewMemberJoined = on('newMemberJoined', handleNewMemberJoined);
-    const unsubscribeServerCreated = on('serverCreated', handleServerCreated);
-    const unsubscribeServerJoined = on('serverJoined', handleServerJoined);
-    const unsubscribeChannelCreated = on('channelCreated', handleChannelCreated);
+    const unsubscribeServerCreated = on('serverCreated', handleServerCreatedEvent);
+    const unsubscribeServerJoined = on('serverJoined', handleServerJoinedEvent);
+    const unsubscribeChannelCreated = on('channelCreated', handleChannelCreatedEvent);
     const unsubscribeChannelDeleted = on('channelDeleted', handleChannelDeleted);
 
     return () => {
@@ -855,7 +838,7 @@ const FluxyApp = () => {
         window.removeEventListener('voiceChannelLeft', handleVoiceChannelLeft);
       };
     };
-  }, []); // Empty dependency - set up listeners only once
+  }, [on]); // Socket event listeners
 
   const handleServerSelect = async (server) => {
     // Discord-like behavior: Stay in voice channel when switching servers/sections

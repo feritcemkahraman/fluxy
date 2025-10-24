@@ -68,10 +68,17 @@ router.post('/', auth, [
       $inc: { messageCount: 1 }
     });
 
-    // Populate message for response
+    // Populate message for response (Discord-like)
     const populatedMessage = await Message.findById(message._id)
       .populate('author', 'username displayName avatar discriminator')
-      .populate('replyTo', 'content author');
+      .populate({
+        path: 'replyTo',
+        select: 'content author createdAt',
+        populate: {
+          path: 'author',
+          select: 'username displayName avatar'
+        }
+      });
 
     res.status(201).json({
       message: 'Message sent successfully',
@@ -160,7 +167,7 @@ router.get('/:channelId', auth, async (req, res) => {
       },
       { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } },
       
-      // Stage 5: Join replyTo
+      // Stage 5: Join replyTo (Discord-like nested populate)
       {
         $lookup: {
           from: 'messages',
@@ -168,7 +175,26 @@ router.get('/:channelId', auth, async (req, res) => {
           foreignField: '_id',
           as: 'replyTo',
           pipeline: [
-            { $project: { content: 1, author: 1 } }
+            { $project: { content: 1, author: 1, createdAt: 1 } },
+            // Nested lookup for replyTo author
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'author',
+                foreignField: '_id',
+                as: 'author',
+                pipeline: [
+                  { 
+                    $project: { 
+                      username: 1, 
+                      displayName: 1, 
+                      avatar: 1 
+                    } 
+                  }
+                ]
+              }
+            },
+            { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } }
           ]
         }
       },
@@ -380,6 +406,26 @@ router.post('/:id/react', auth, [
 
     await message.save();
 
+    // Broadcast reaction update via socket (Discord-like real-time)
+    const io = req.app.get('io');
+    console.log('🎭 Reaction saved, broadcasting...', {
+      messageId: message._id,
+      serverId: message.server,
+      hasIO: !!io,
+      reactions: message.reactions
+    });
+    
+    if (io) {
+      console.log('📢 Emitting reactionUpdate to room:', `server_${message.server}`);
+      io.to(`server_${message.server}`).emit('reactionUpdate', {
+        messageId: message._id,
+        reactions: message.reactions
+      });
+      console.log('✅ reactionUpdate emitted');
+    } else {
+      console.error('❌ IO instance not found on req.app!');
+    }
+
     res.json({
       message: 'Reaction updated successfully',
       reactions: message.reactions
@@ -448,6 +494,15 @@ router.delete('/:id/react', auth, [
     }
 
     await message.save();
+
+    // Broadcast reaction update via socket (Discord-like real-time)
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`server_${message.server}`).emit('reactionUpdate', {
+        messageId: message._id,
+        reactions: message.reactions
+      });
+    }
 
     res.json({
       message: 'Reaction removed successfully',

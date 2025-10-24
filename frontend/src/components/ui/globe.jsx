@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import createGlobe from "cobe";
-import { useMotionValue, useSpring } from "motion/react"
+import { useMotionValue, useSpring } from "framer-motion"
 
 import { cn } from "@/lib/utils"
 

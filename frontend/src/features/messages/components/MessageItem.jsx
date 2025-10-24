@@ -193,7 +193,7 @@ const MessageItem = ({
                 className="max-w-md max-h-80 rounded-lg"
               />
             ) : (
-              // Render text with Pepe emoji support
+              // Render text with Mention highlighting + Pepe emoji support
               (() => {
                 // Complete Pepe map - all 94 emojis
                 const pepeMap = {
@@ -286,6 +286,46 @@ const MessageItem = ({
                     'pepe_sip': getPepePath('PepeSip.gif'),
                   };
                 
+                // Helper: Render text with mention highlights (Discord-like)
+                const renderTextWithMentions = (text, keyPrefix = '') => {
+                  const mentionRegex = /@(\w+)/g;
+                  const mentionParts = [];
+                  let lastIdx = 0;
+                  let mentionMatch;
+                  
+                  while ((mentionMatch = mentionRegex.exec(text)) !== null) {
+                    if (mentionMatch.index > lastIdx) {
+                      mentionParts.push(text.substring(lastIdx, mentionMatch.index));
+                    }
+                    
+                    const mentionedUsername = mentionMatch[1];
+                    const isCurrentUserMentioned = 
+                      currentUser?.username?.toLowerCase() === mentionedUsername.toLowerCase();
+                    
+                    mentionParts.push(
+                      <span
+                        key={`${keyPrefix}-mention-${mentionMatch.index}`}
+                        className={`font-semibold px-1 rounded ${
+                          isCurrentUserMentioned
+                            ? 'bg-blue-600/30 text-blue-300 hover:bg-blue-600/40'
+                            : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                        } transition-colors cursor-pointer`}
+                      >
+                        @{mentionedUsername}
+                      </span>
+                    );
+                    
+                    lastIdx = mentionMatch.index + mentionMatch[0].length;
+                  }
+                  
+                  if (lastIdx < text.length) {
+                    mentionParts.push(text.substring(lastIdx));
+                  }
+                  
+                  return mentionParts.length > 0 ? mentionParts : text;
+                };
+                
+                // Parse Pepe emojis first
                 const pepePattern = /:([a-zA-Z0-9_]+):/g;
                 const parts = [];
                 let lastIndex = 0;
@@ -293,7 +333,11 @@ const MessageItem = ({
                 
                 while ((match = pepePattern.exec(message.content)) !== null) {
                   if (match.index > lastIndex) {
-                    parts.push(message.content.substring(lastIndex, match.index));
+                    const textSegment = message.content.substring(lastIndex, match.index);
+                    // Apply mention highlighting to text segments
+                    parts.push(...(Array.isArray(renderTextWithMentions(textSegment, lastIndex)) 
+                      ? renderTextWithMentions(textSegment, lastIndex) 
+                      : [renderTextWithMentions(textSegment, lastIndex)]));
                   }
                   
                   const pepeId = match[1];
@@ -313,7 +357,6 @@ const MessageItem = ({
                       />
                     );
                   } else {
-                    // If pepe not found in map, show original text
                     parts.push(match[0]);
                   }
                   
@@ -321,7 +364,10 @@ const MessageItem = ({
                 }
                 
                 if (lastIndex < message.content.length) {
-                  parts.push(message.content.substring(lastIndex));
+                  const textSegment = message.content.substring(lastIndex);
+                  parts.push(...(Array.isArray(renderTextWithMentions(textSegment, lastIndex)) 
+                    ? renderTextWithMentions(textSegment, lastIndex) 
+                    : [renderTextWithMentions(textSegment, lastIndex)]));
                 }
                 
                 return parts.length > 0 ? parts : message.content;
@@ -463,15 +509,16 @@ const MessageItem = ({
         )}
       </div>
 
-      {/* Reaction Picker */}
-      {showReactions && (
-        <div className="absolute top-0 right-16 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-lg z-10">
-          <div className="flex space-x-1">
+      {/* Reaction Picker (Discord-like) */}
+      {showReactions && onReaction && (
+        <div className="absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex space-x-2">
             {Object.values(MESSAGE_REACTIONS).map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => handleReaction(emoji)}
-                className="p-2 hover:bg-gray-700 rounded transition-colors text-lg"
+                className="p-2 hover:bg-gray-700 hover:scale-110 rounded transition-all text-2xl"
+                title={`React with ${emoji}`}
               >
                 {emoji}
               </button>
@@ -483,10 +530,27 @@ const MessageItem = ({
   );
 };
 
-// OPTIMIZATION: Memoize to prevent unnecessary re-renders (Discord-level performance)
-export default React.memo(MessageItem);
+// OPTIMIZATION: Memoize with custom comparator for maximum performance
+const arePropsEqual = (prevProps, nextProps) => {
+  // Message identity check (most important)
+  if (prevProps.message._id !== nextProps.message._id) return false;
+  if (prevProps.message.id !== nextProps.message.id) return false;
 
+  // Content changes
+  if (prevProps.message.content !== nextProps.message.content) return false;
+  if (prevProps.message.status !== nextProps.message.status) return false;
+  if (prevProps.message.isOptimistic !== nextProps.message.isOptimistic) return false;
 
+  // Display props
+  if (prevProps.showAvatar !== nextProps.showAvatar) return false;
+  if (prevProps.compact !== nextProps.compact) return false;
 
+  // Current user (for ownership check)
+  if (prevProps.currentUser?.id !== nextProps.currentUser?.id) return false;
 
+  // Handlers are stable with useCallback, no need to check
 
+  return true; // Props are equal, skip re-render
+};
+
+export default React.memo(MessageItem, arePropsEqual);

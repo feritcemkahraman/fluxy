@@ -54,11 +54,15 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
   const handleNewMessage = useCallback((rawMessage) => {
     if (!rawMessage) return;
     
-    console.log('🔥 SOCKET MESSAGE RECEIVED:', {
-      content: rawMessage.content?.substring(0, 50),
-      id: rawMessage._id,
-      author: rawMessage.author?.username
-    });
+    // Debug logging (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔥 SOCKET MESSAGE RECEIVED:', {
+        content: rawMessage.content?.substring(0, 50),
+        id: rawMessage._id,
+        author: rawMessage.author?.username,
+        timestamp: rawMessage.timestamp || rawMessage.createdAt
+      });
+    }
     
     // Normalize with current server members
     const normalized = normalizeMessage(rawMessage, serverMembersRef.current);
@@ -69,38 +73,25 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
     if (messageChannelId !== channelId) return;
     
     setMessages(prev => {
-      // First check if message already exists by ID
+      // First check if message already exists by ID (non-optimistic messages only)
       const messageId = normalized._id || normalized.id;
       const alreadyExists = prev.some(msg => 
-        (msg._id === messageId) || (msg.id === messageId) ||
-        (msg._id?.toString() === messageId?.toString()) || 
-        (msg.id?.toString() === messageId?.toString())
+        !msg.isOptimistic && (
+          (msg._id === messageId) || (msg.id === messageId) ||
+          (msg._id?.toString() === messageId?.toString()) || 
+          (msg.id?.toString() === messageId?.toString())
+        )
       );
       
       if (alreadyExists) {
-        console.log('🚫 DUPLICATE BLOCKED (ID):', normalized.content?.substring(0, 50));
-        return prev;
-      }
-      
-      // Check if this is a duplicate by content + author + timestamp
-      // This handles the case where backend broadcasts the same message twice
-      const authorId = normalized.author?.id || normalized.author?._id;
-      const contentDuplicate = prev.some(msg => {
-        const msgAuthorId = msg.author?.id || msg.author?._id;
-        const isSameAuthor = msgAuthorId === authorId;
-        const isSameContent = msg.content === normalized.content;
-        const timeDiff = Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp));
-        const isRecent = timeDiff < 3000; // 3 seconds window
-        
-        return isSameAuthor && isSameContent && isRecent;
-      });
-      
-      if (contentDuplicate) {
-        console.log('🚫 DUPLICATE BLOCKED (content+author+time):', normalized.content?.substring(0, 50));
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🚫 DUPLICATE BLOCKED (ID):', normalized.content?.substring(0, 30));
+        }
         return prev;
       }
       
       // Remove any optimistic message with same content and author
+      // This replaces optimistic with real message
       const filtered = prev.filter(msg => {
         if (!msg.isOptimistic) return true;
         
@@ -108,19 +99,27 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
         const isSameContent = msg.content === normalized.content;
         const isSameAuthor = msg.author?.id === normalized.author?.id || 
                             msg.author?._id === normalized.author?._id;
-        const timeDiff = Math.abs(new Date(normalized.timestamp) - new Date(msg.timestamp));
-        const isRecent = timeDiff < 10000; // 10 seconds window
         
-        return !(isSameContent && isSameAuthor && isRecent);
+        if (isSameContent && isSameAuthor) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔄 REPLACING OPTIMISTIC:', msg.content?.substring(0, 30));
+          }
+          return false; // Remove optimistic
+        }
+        
+        return true; // Keep other messages
       });
       
       // Add new message and sort
       const result = mergeMessages(filtered, [normalized]);
-      console.log('✅ MESSAGE ADDED:', {
-        content: normalized.content?.substring(0, 50),
-        totalMessages: result.length,
-        lastMessage: result[result.length - 1]?.content?.substring(0, 30)
-      });
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ MESSAGE ADDED:', {
+          content: normalized.content?.substring(0, 30),
+          total: result.length
+        });
+      }
+      
       return result;
     });
   }, [channelId]);
@@ -132,16 +131,40 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
     const normalized = normalizeMessage(rawMessage, serverMembersRef.current);
     if (!normalized) return;
     
-    setMessages(prev => prev.map(msg => 
+    setMessages(prev => prev.map(msg =>
       (msg._id === normalized._id || msg.id === normalized.id) ? normalized : msg
     ));
   }, []);
 
   // Handle message deletion
-  const handleMessageDeleted = useCallback((messageId) => {
-    setMessages(prev => prev.filter(msg => 
-      msg._id !== messageId && msg.id !== messageId
-    ));
+  const handleMessageDeleted = useCallback((data) => {
+    setMessages(prev => prev.filter(msg => {
+      const msgId = msg._id || msg.id;
+      return msgId !== data.messageId;
+    }));
+  }, []);
+
+  // Handle reaction update (Discord-like)
+  const handleReactionUpdate = useCallback((data) => {
+    if (!data) return;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎭 REACTION UPDATE:', {
+        messageId: data.messageId,
+        reactions: data.reactions
+      });
+    }
+    
+    setMessages(prev => prev.map(msg => {
+      const msgId = msg._id || msg.id;
+      if (msgId === data.messageId) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Reaction applied to message:', msgId);
+        }
+        return { ...msg, reactions: data.reactions };
+      }
+      return msg;
+    }));
   }, []);
 
   // Handle typing indicators
@@ -174,18 +197,25 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
       return () => socket.off('connect', handleConnect);
     }
     
+    console.log('🔌 Setting up socket listeners for channel:', channelId);
+    
     const unsubscribeNewMessage = on('newMessage', handleNewMessage);
     const unsubscribeUpdated = on('message_updated', handleMessageUpdated);
     const unsubscribeDeleted = on('message_deleted', handleMessageDeleted);
+    const unsubscribeReaction = on('reactionUpdate', (data) => {
+      console.log('📥 Socket reactionUpdate received:', data);
+      handleReactionUpdate(data);
+    });
     const unsubscribeTyping = on('userTyping', handleUserTyping);
     
     return () => {
       unsubscribeNewMessage();
       unsubscribeUpdated();
       unsubscribeDeleted();
+      unsubscribeReaction();
       unsubscribeTyping();
     };
-  }, [socket, isConnected, on, handleNewMessage, handleMessageUpdated, handleMessageDeleted, handleUserTyping]);
+  }, [socket, isConnected, on, handleNewMessage, handleMessageUpdated, handleMessageDeleted, handleReactionUpdate, handleUserTyping]);
 
   // Load messages when channel changes
   useEffect(() => {
@@ -226,7 +256,8 @@ export const useChannelMessages = (channelId, serverId, serverMembers = []) => {
         socket.emit('sendMessage', {
           channelId,
           content: content.trim(),
-          type: serverId
+          type: serverId,
+          replyTo: options.replyTo // Discord-like reply support
         });
       }
     } catch (err) {
