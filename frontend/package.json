@@ -63,8 +63,7 @@
     "sonner": "^2.0.3",
     "swr": "^2.2.5",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7",
-    "@sapphi-red/web-noise-suppressor": "^1.0.3"
+    "tailwindcss-animate": "^1.0.7"
   },
   "main": "index.js",
   "homepage": "./",
