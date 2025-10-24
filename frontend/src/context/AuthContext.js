@@ -351,20 +351,40 @@ export function AuthProvider({ children }) {
       logout();
     };
 
-    const handleConnectionError = (error) => {
+    const handleConnectionError = (errorData) => {
       dispatch({ type: 'SET_LOADING', payload: false });
+      
+      // Log detailed error info
+      if (errorData?.attempt && errorData?.maxAttempts) {
+        console.warn(`🔄 Reconnection attempt ${errorData.attempt}/${errorData.maxAttempts}`);
+      }
+    };
+
+    const handleMaxReconnectFailed = (data) => {
+      console.error('❌ Max reconnect attempts failed:', data);
+      dispatch({ type: 'SET_ERROR', payload: data.message || 'Sunucuya bağlanılamadı' });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    };
+
+    const handleConnectionWarning = (data) => {
+      console.warn('⚠️ Connection warning:', data.message);
+      // Don't set error state, just log - reconnect will happen automatically
     };
 
     socketService.on('connected', handleConnected);
     socketService.on('disconnected', handleDisconnected);
     socketService.on('authError', handleAuthError);
     socketService.on('connectionError', handleConnectionError);
+    socketService.on('max_reconnect_failed', handleMaxReconnectFailed);
+    socketService.on('connection_warning', handleConnectionWarning);
 
     return () => {
       socketService.off('connected', handleConnected);
       socketService.off('disconnected', handleDisconnected);
       socketService.off('authError', handleAuthError);
       socketService.off('connectionError', handleConnectionError);
+      socketService.off('max_reconnect_failed', handleMaxReconnectFailed);
+      socketService.off('connection_warning', handleConnectionWarning);
     };
   }, []);
 

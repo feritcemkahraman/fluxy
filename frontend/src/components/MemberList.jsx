@@ -214,12 +214,35 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     };
 
     const handleServerStatusUpdate = ({ userId, serverId, status }) => {
+      console.log('📡 MemberList received userStatusUpdate:', { userId, serverId, status });
+      
       if (serverId === server?._id || serverId === server?.id) {
+        console.log('✅ Server ID matches, updating member status');
+        
         // Update localStorage for this user's server status (custom status message)
         const statusKey = `server_status_${serverId}_${userId}`;
         localStorage.setItem(statusKey, status);
-        // Force re-render to show updated status
-        setMembers(prev => [...prev]);
+        
+        // Update member status in real-time (Discord-like)
+        setMembers(prev => {
+          const updated = prev.map(member => {
+            const memberId = member.id || member._id || member.user?.id || member.user?._id;
+            if (memberId === userId) {
+              console.log('🔄 Updating member:', memberId, 'with status:', status);
+              // Update member or member.user status
+              if (member.user) {
+                return { ...member, user: { ...member.user, status } };
+              } else {
+                return { ...member, status };
+              }
+            }
+            return member;
+          });
+          
+          return updated;
+        });
+      } else {
+        console.log('⚠️ Server ID mismatch - current:', server?._id || server?.id, 'event:', serverId);
       }
     };
 

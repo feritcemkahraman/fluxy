@@ -130,7 +130,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 </InteractiveHoverButton>
                 <InteractiveHoverButton
                   as="a"
-                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-1.0.15.exe"
+                  href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-1.0.16.exe"
                   download="Fluxy-Setup.exe"
                   target="_blank"
                   rel="noopener noreferrer"

@@ -378,18 +378,34 @@ class VoiceChatService {
       
       console.log('📡 Notifying server...');
       
-      // Notify server with error handling
-      if (websocketService.socket?.connected) {
-        websocketService.socket.emit('join-voice-channel', { 
-          channelId,
-          timestamp: Date.now(),
-          audioSettings: {
-            sampleRate: this.localStream?.getAudioTracks()[0]?.getSettings()?.sampleRate || 48000,
-            channelCount: 1
-          }
+      // Wait for socket authentication before joining
+      try {
+        if (!websocketService.isAuthenticated) {
+          console.log('⏳ Waiting for socket authentication...');
+          await websocketService.waitForAuthentication(5000); // 5 second timeout
+        }
+        
+        // Notify server with error handling
+        if (websocketService.socket?.connected && websocketService.isAuthenticated) {
+          websocketService.socket.emit('join-voice-channel', { 
+            channelId,
+            timestamp: Date.now(),
+            audioSettings: {
+              sampleRate: this.localStream?.getAudioTracks()[0]?.getSettings()?.sampleRate || 48000,
+              channelCount: 1
+            }
+          });
+          console.log('✅ Voice join request sent to server');
+        } else {
+          throw new Error('WebSocket not connected or authenticated');
+        }
+      } catch (socketError) {
+        console.error('❌ Socket not ready for voice join:', socketError);
+        // Continue anyway - voice will work in P2P mode without server relay
+        this.emit('warning', {
+          type: 'socket',
+          message: 'Sunucu bağlantısı kurulamadı. P2P modunda devam ediliyor.'
         });
-      } else {
-        throw new Error('WebSocket not connected');
       }
       
       console.log('🔊 Emitting connected event...');

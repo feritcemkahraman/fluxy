@@ -120,20 +120,46 @@ class WebSocketService {
         this.reconnectAttempts++;
         devLog.warn(`Socket connection error (attempt ${this.reconnectAttempts}):`, error.message);
         monitoringService.trackSocketConnection('error', { error: error.message, attempt: this.reconnectAttempts });
-        this.emitLocal('connection_error', error);
         
-        // Don't show error toast immediately, let it retry
-        if (this.reconnectAttempts >= 3) {
-          devLog.error('Multiple connection attempts failed. Backend may be down.');
-          devLog.error('Stopping reconnection attempts to prevent spam');
+        // Emit connection_error event with attempt count
+        this.emitLocal('connection_error', { 
+          error, 
+          attempt: this.reconnectAttempts,
+          maxAttempts: this.maxReconnectAttempts 
+        });
+        
+        // Check for specific error types
+        const errorMsg = error.message.toLowerCase();
+        const is522Error = errorMsg.includes('522') || errorMsg.includes('bad gateway');
+        const isTimeout = errorMsg.includes('timeout');
+        const isNetworkError = errorMsg.includes('xhr poll error') || errorMsg.includes('websocket error');
+        
+        if (is522Error) {
+          devLog.error('🔴 Server unavailable (522 Cloudflare error)');
+          devLog.error('Backend may be down or under maintenance');
+        } else if (isTimeout) {
+          devLog.warn('⏱️ Connection timeout - Backend might be slow');
+        } else if (isNetworkError) {
+          devLog.warn('🌐 Network error - Backend server might not be running');
+        }
+        
+        // Stop after max attempts
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          devLog.error('❌ Max reconnection attempts reached. Stopping.');
+          this.emitLocal('max_reconnect_failed', {
+            message: 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+            attempts: this.reconnectAttempts
+          });
           this.socket.disconnect();
           return;
         }
         
-        // Check if it's a server unavailable error
-        if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
-          devLog.warn('Backend server might not be running on:', socketUrl);
-          devLog.warn('Please make sure your backend server is started and accessible');
+        // Show user-friendly message after first failure
+        if (this.reconnectAttempts === 1) {
+          this.emitLocal('connection_warning', {
+            message: 'Sunucu bağlantısı kuruluyor...',
+            type: 'reconnecting'
+          });
         }
       });
 

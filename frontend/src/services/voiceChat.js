@@ -250,9 +250,27 @@ class VoiceChatService extends EventEmitter {
       // Setup WebRTC signaling listeners
       this.setupWebRTCSignaling();
       
-      // Notify server
-      if (websocketService.socket?.connected) {
-        websocketService.socket.emit('join-voice-channel', { channelId });
+      // Wait for socket authentication before joining
+      try {
+        if (!websocketService.isAuthenticated) {
+          logger.log('⏳ Waiting for socket authentication...');
+          await websocketService.waitForAuthentication(5000); // 5 second timeout
+        }
+        
+        // Notify server
+        if (websocketService.socket?.connected && websocketService.isAuthenticated) {
+          websocketService.socket.emit('join-voice-channel', { channelId });
+          logger.log('✅ Voice join request sent to server');
+        } else {
+          throw new Error('Socket not connected or authenticated');
+        }
+      } catch (socketError) {
+        logger.error('❌ Socket not ready for voice join:', socketError);
+        // Continue anyway - voice will work in P2P mode without server relay
+        this.emit('warning', {
+          type: 'socket',
+          message: 'Sunucu bağlantısı kurulamadı. P2P modunda devam ediliyor.'
+        });
       }
       
       this.emit('connected', { channelId });
@@ -407,10 +425,10 @@ class VoiceChatService extends EventEmitter {
 
   // Screen sharing functionality - ELECTRON-FIRST APPROACH
   async startScreenShare(options = {}) {
+    let constraints = null; // Define outside try block for error logging
+    
     try {
       logger.log('🖥️ Starting screen share (Electron-First)...');
-      
-      let constraints = null;
       
       // PRIMARY: Electron native implementation
       if (electronAPI.isElectron?.()) {
@@ -519,22 +537,35 @@ class VoiceChatService extends EventEmitter {
         // For Electron, use getUserMedia with desktop source
         try {
           this.screenStream = await navigator.mediaDevices.getUserMedia(constraints);
+          logger.log('✅ Screen stream acquired (with audio)');
         } catch (audioError) {
           // If audio fails, try video only
-          if (audioError.name === 'NotReadableError' && constraints.audio) {
+          if ((audioError.name === 'NotReadableError' || audioError.name === 'OverconstrainedError') && constraints.audio) {
             logger.warn('⚠️ Audio capture failed, retrying with video only:', audioError.message);
+            logger.warn('💡 This is normal for window capture (audio not supported)');
+            
             const videoOnlyConstraints = {
-              ...constraints,
+              video: constraints.video,
               audio: false
             };
+            
             this.screenStream = await navigator.mediaDevices.getUserMedia(videoOnlyConstraints);
+            logger.log('✅ Screen stream acquired (video only)');
+            
+            // Notify user
+            this.emit('info', {
+              type: 'screen-share-no-audio',
+              message: 'Ekran paylaşımı başlatıldı (sadece görüntü, ses yok)'
+            });
           } else {
+            logger.error('❌ Screen capture failed completely:', audioError);
             throw audioError;
           }
         }
       } else {
         // Use getDisplayMedia for browser
         this.screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+        logger.log('✅ Screen stream acquired (browser mode)');
       }
       
       const videoTrack = this.screenStream.getVideoTracks()[0];
