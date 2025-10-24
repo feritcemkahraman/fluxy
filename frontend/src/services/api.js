@@ -18,18 +18,19 @@ import { devLog } from '../utils/devLogger';
  * @returns {string} API base URL
  */
 const getApiBaseUrl = () => {
-  const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
+  // Dev mode: Always use localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
   
+  // Electron production
+  const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
   if (isElectron) {
     return 'https://api.fluxy.com.tr/api';
   }
   
-  const apiUrl = process.env.REACT_APP_API_URL;
-  if (apiUrl) return apiUrl + '/api';
-  
-  return window.location.hostname.includes('localhost') 
-    ? 'http://localhost:5000/api'
-    : 'https://api.fluxy.com.tr/api';
+  // Web production
+  return process.env.REACT_APP_API_URL || 'https://api.fluxy.com.tr/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

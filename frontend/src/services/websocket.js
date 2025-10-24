@@ -32,34 +32,27 @@ class WebSocketService {
       // Başlangıçta localStorage'dan URL'i al
       const savedSocketUrl = localStorage.getItem('socket_url');
       let socketUrl = savedSocketUrl;
-
       // If no saved URL, determine based on environment
       if (!socketUrl) {
         // Check if running in Electron
         const isElectron = window.electronAPI || window.isElectron || window.location.protocol === 'file:';
 
-        if (isElectron) {
-          // Electron: Use production backend (no local server needed)
+        // Dev mode: Always use localhost
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          socketUrl = 'http://localhost:5000';
+          devLog.log('🔧 Dev mode: Using localhost backend');
+        } else if (isElectron) {
+          // Electron production: Use production backend
           socketUrl = 'https://api.fluxy.com.tr';
-          devLog.log('🔌 Electron using production backend for WebSocket');
+          devLog.log('🔌 Electron: Using production backend');
         } else {
-          // Web builds use environment variable
-          socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL;
-          
-          if (!socketUrl) {
-            console.error('❌ REACT_APP_SOCKET_URL not set! Check Cloudflare environment variables.');
-            // Production fallback - should never happen if env vars are set correctly
-            socketUrl = window.location.hostname.includes('localhost')
-              ? 'http://localhost:5000'
-              : 'https://api.fluxy.com.tr';
-          }
-          
-          devLog.log('🌐 Using WebSocket URL:', socketUrl);
+          // Web production
+          socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://api.fluxy.com.tr';
+          devLog.log('🌐 Production: Using backend:', socketUrl);
         }
       }
 
       devLog.log('Socket URL:', socketUrl);
-
       this.socket = io(socketUrl, {
         auth: { token },
         transports: ['polling', 'websocket'],

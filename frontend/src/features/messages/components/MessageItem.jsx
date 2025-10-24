@@ -60,24 +60,22 @@ const MessageItem = ({
 
   const handleCopyMessage = useCallback(async () => {
     try {
-      // Check if Electron API is available
-      if (window.electronAPI?.clipboard) {
-        await window.electronAPI.clipboard.writeText(message.content);
-      } else if (navigator.clipboard && window.isSecureContext) {
+      // Electron API (preferred)
+      if (window.electronAPI?.writeClipboard) {
+        await window.electronAPI.writeClipboard(message.content);
+      } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message.content);
       } else {
-        // Fallback for non-secure contexts
+        // Fallback
         const tempInput = document.createElement('input');
         tempInput.value = message.content;
-        tempInput.style.position = 'absolute';
-        tempInput.style.left = '-9999px';
         document.body.appendChild(tempInput);
         tempInput.select();
         document.execCommand('copy');
         document.body.removeChild(tempInput);
       }
     } catch (error) {
-      console.error('Copy failed:', error);
+      // Silent fail
     }
     setShowActions(false);
   }, [message.content]);
