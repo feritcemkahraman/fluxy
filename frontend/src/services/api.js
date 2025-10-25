@@ -29,8 +29,9 @@ const getApiBaseUrl = () => {
     return 'https://api.fluxy.com.tr/api';
   }
   
-  // Web production
-  return process.env.REACT_APP_API_URL || 'https://api.fluxy.com.tr/api';
+  // Web production - add /api if not present
+  const baseUrl = process.env.REACT_APP_API_URL || 'https://api.fluxy.com.tr';
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();
