@@ -86,7 +86,9 @@ router.post('/register', [
         email: user.email,
         avatar: user.avatar,
         discriminator: user.discriminator,
-        fullUsername: user.fullUsername
+        fullUsername: user.fullUsername,
+        status: user.status,
+        customStatus: user.customStatus
       }
     });
 

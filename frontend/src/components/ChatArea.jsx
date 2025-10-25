@@ -92,22 +92,22 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Auto-scroll to bottom when new messages arrive or channel changes
+  // Auto-scroll to bottom - runs AFTER DOM is updated but BEFORE paint
   useLayoutEffect(() => {
-    if (messagesContainerRef.current) {
+    if (messagesContainerRef.current && messages.length > 0) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages, channel?._id]);
+  }, [messages]);
 
-  // Also scroll to bottom when loading finishes (initial channel load)
-  useEffect(() => {
-    if (!loading && messages.length > 0 && messagesContainerRef.current) {
-      // Use setTimeout to ensure DOM is fully rendered
-      setTimeout(() => {
+  // Force scroll on channel change after loading completes
+  useLayoutEffect(() => {
+    if (!loading && messagesContainerRef.current && channel?._id) {
+      // Small delay to ensure all DOM updates are complete
+      requestAnimationFrame(() => {
         if (messagesContainerRef.current) {
           messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
-      }, 100);
+      });
     }
   }, [loading, channel?._id]);
 

@@ -119,51 +119,76 @@ const UserPanel = ({ user, server, servers }) => {
 
   const handleCustomStatusSave = async () => {
     try {
+      // Trim whitespace
+      const trimmedText = customStatusText.trim();
+      const trimmedEmoji = customStatusEmoji.trim();
+      
+      // Don't save if both are empty
+      if (!trimmedText && !trimmedEmoji) {
+        setShowCustomStatusModal(false);
+        return;
+      }
+      
       const result = await updateCustomStatus({
-        text: customStatusText,
-        emoji: customStatusEmoji,
+        text: trimmedText,
+        emoji: trimmedEmoji,
         expiresAt: null
       });
       
-      // Always close modal - even if there's an error, user should see the result
-      setShowCustomStatusModal(false);
-      
       if (result.success) {
-        // Success - clear form
-        setCustomStatusText('');
-        setCustomStatusEmoji('');
+        setShowCustomStatusModal(false);
       } else {
         console.error('Error updating custom status:', result.error);
-        // TODO: Show error toast to user
       }
     } catch (error) {
       console.error('Error updating custom status:', error);
-      setShowCustomStatusModal(false); // Close modal even on error
     }
   };
 
   const handleClearCustomStatus = async () => {
     try {
-      await updateCustomStatus({ text: '', emoji: '', expiresAt: null });
-      setShowCustomStatusModal(false);
-      setCustomStatusText('');
-      setCustomStatusEmoji('');
+      const result = await updateCustomStatus({ text: '', emoji: '', expiresAt: null });
+      if (result.success) {
+        setCustomStatusText('');
+        setCustomStatusEmoji('');
+        setShowCustomStatusModal(false);
+      }
     } catch (error) {
       console.error('Error clearing custom status:', error);
     }
   };
-
-  // Load current custom status when modal opens
-  useEffect(() => {
-    if (showCustomStatusModal && user?.customStatus) {
-      if (typeof user.customStatus === 'string') {
-        setCustomStatusText(user.customStatus);
-      } else if (typeof user.customStatus === 'object') {
+  
+  const handleCancelCustomStatus = () => {
+    // Reset form to current user status
+    if (user?.customStatus) {
+      if (typeof user.customStatus === 'object') {
         setCustomStatusText(user.customStatus.text || '');
         setCustomStatusEmoji(user.customStatus.emoji || '');
       }
+    } else {
+      setCustomStatusText('');
+      setCustomStatusEmoji('');
     }
-  }, [showCustomStatusModal, user]);
+    setShowCustomStatusModal(false);
+  };
+
+  // Load current custom status when modal opens (only on first open)
+  useEffect(() => {
+    if (showCustomStatusModal) {
+      if (user?.customStatus) {
+        if (typeof user.customStatus === 'object') {
+          setCustomStatusText(user.customStatus.text || '');
+          setCustomStatusEmoji(user.customStatus.emoji || '');
+        } else {
+          setCustomStatusText('');
+          setCustomStatusEmoji('');
+        }
+      } else {
+        setCustomStatusText('');
+        setCustomStatusEmoji('');
+      }
+    }
+  }, [showCustomStatusModal]); // Only trigger when modal opens/closes
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -524,27 +549,26 @@ const UserPanel = ({ user, server, servers }) => {
                 </p>
               </div>
 
-              <div className="flex space-x-3 mt-6">
+              <div className="flex gap-2 mt-6">
                 <Button
                   onClick={handleCustomStatusSave}
-                  disabled={!customStatusText && !customStatusEmoji}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!customStatusText.trim() && !customStatusEmoji.trim()}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Kaydet
                 </Button>
-                {(user?.customStatus?.text || user?.customStatus?.emoji) && (
-                  <Button
-                    onClick={handleClearCustomStatus}
-                    variant="outline"
-                    className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    Temizle
-                  </Button>
-                )}
                 <Button
-                  onClick={() => setShowCustomStatusModal(false)}
+                  onClick={handleClearCustomStatus}
+                  disabled={!user?.customStatus || (!user?.customStatus?.text && !user?.customStatus?.emoji)}
+                  variant="outline"
+                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Temizle
+                </Button>
+                <Button
+                  onClick={handleCancelCustomStatus}
                   variant="ghost"
-                  className="flex-1 text-gray-300 hover:bg-gray-700"
+                  className="flex-1 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                 >
                   İptal
                 </Button>
