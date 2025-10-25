@@ -97,10 +97,7 @@ const FluxyApp = () => {
         // Play notification sound - it will check if conversation is active
         notificationSound.playMessageSound(msgConversationId);
         
-        // Increment badge count for DM (Electron only)
-        if (window.electronAPI?.ipc) {
-          window.electronAPI.ipc.send('increment-badge-count', 1);
-        }
+        // Badge count is handled by useBadgeCount hook
       }
     };
 

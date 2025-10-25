@@ -547,10 +547,7 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
           )
         );
         
-        // Decrement badge count (Electron only)
-        if (window.electronAPI?.ipc) {
-          window.electronAPI.ipc.send('decrement-badge-count', currentUnread);
-        }
+        // Badge count is cleared by useBadgeCount hook on window focus
       } catch (error) {
         console.error('Failed to mark conversation as read:', error);
       }

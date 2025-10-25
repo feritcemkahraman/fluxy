@@ -16,8 +16,8 @@ export const useBadgeCount = () => {
   const updateBadge = useCallback((count) => {
     unreadCountRef.current = count;
     
-    if (window.electronAPI?.setBadgeCount) {
-      window.electronAPI.setBadgeCount(count);
+    if (window.electronAPI?.ipc) {
+      window.electronAPI.ipc.send('set-badge-count', count);
     }
   }, []);
 
@@ -37,19 +37,25 @@ export const useBadgeCount = () => {
     if (!socket || !user) return;
 
     const handleNewDM = (data) => {
+      // Extract author ID from various possible structures
+      const authorId = data.message?.author?.id || data.message?.author?._id ||
+                       data.author?.id || data.author?._id || 
+                       data.sender?.id || data.sender?._id ||
+                       data.from;
+      
       // Only increment if message is not from current user
-      if (data.sender?._id !== user.id && data.sender?.id !== user.id) {
-        // Only increment if window is not focused
-        if (!isWindowFocused.current) {
-          incrementBadge(1);
-        }
+      const isFromOtherUser = authorId && (authorId !== user?.id && authorId !== user?._id);
+      
+      if (isFromOtherUser) {
+        // Always increment badge, will be cleared on window focus
+        incrementBadge(1);
       }
     };
 
-    socket.on('dmMessage', handleNewDM);
+    socket.on('newDirectMessage', handleNewDM);
     
     return () => {
-      socket.off('dmMessage', handleNewDM);
+      socket.off('newDirectMessage', handleNewDM);
     };
   }, [socket, user, incrementBadge]);
 
@@ -58,10 +64,8 @@ export const useBadgeCount = () => {
     if (!socket || !user) return;
 
     const handleMention = (data) => {
-      // Only increment if window is not focused
-      if (!isWindowFocused.current) {
-        incrementBadge(1);
-      }
+      // Always increment badge, will be cleared on window focus
+      incrementBadge(1);
     };
 
     socket.on('mention', handleMention);
