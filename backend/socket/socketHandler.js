@@ -48,8 +48,31 @@ const broadcastAdminStats = (io) => {
 
 // Helper: Parse mentions from message content (Discord-like)
 const parseMentions = async (content, serverMembers) => {
-  const mentionRegex = /@(\w+)/g;
   const mentions = [];
+  
+  // Check for @everyone mention
+  if (content.includes('@everyone')) {
+    // Mention everyone in the server
+    serverMembers.forEach(member => {
+      mentions.push(member.user._id);
+    });
+    return [...new Set(mentions)]; // Return early with all members
+  }
+  
+  // Check for @here mention (only online members)
+  if (content.includes('@here')) {
+    // Mention only online members
+    serverMembers.forEach(member => {
+      const userId = member.user._id.toString();
+      if (connectedUsers.has(userId)) {
+        mentions.push(member.user._id);
+      }
+    });
+    return [...new Set(mentions)]; // Return early with online members
+  }
+  
+  // Parse individual @username mentions
+  const mentionRegex = /@(\w+)/g;
   const matches = content.matchAll(mentionRegex);
   
   for (const match of matches) {

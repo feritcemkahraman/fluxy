@@ -139,6 +139,30 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
       }));
     };
 
+    const handleUserCustomStatusUpdate = ({ userId, username, customStatus }) => {
+      console.log('📝 MemberList received custom status update:', { userId, customStatus });
+      
+      setMembers(prev => prev.map(member => {
+        const memberUserId = String(member.user?._id || member.user?.id || member.id || member._id);
+        if (memberUserId === String(userId)) {
+          console.log('🔄 Updating member custom status:', memberUserId, customStatus);
+          // Update member.user.customStatus
+          if (member.user) {
+            return { 
+              ...member, 
+              user: { 
+                ...member.user, 
+                customStatus 
+              } 
+            };
+          } else {
+            return { ...member, customStatus };
+          }
+        }
+        return member;
+      }));
+    };
+
     const handleUserJoinedServer = ({ user, server: serverData }) => {
       if (serverData._id === server?._id || serverData.id === server?.id) {
         setMembers(prev => [...prev.filter(m => m.id !== user._id), {
@@ -247,6 +271,7 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     };
 
     on('userStatusUpdate', handleServerStatusUpdate);
+    on('userCustomStatusUpdate', handleUserCustomStatusUpdate);
     on('userJoinedServer', handleUserJoinedServer);
     on('userLeftServer', handleUserLeftServer);
     on('newMemberJoined', handleNewMemberJoined);
@@ -384,11 +409,26 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
                                 <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0 opacity-75" title={isServerOwner(member) ? "Server Owner" : "Admin"} />
                               )}
                             </div>
-                            {getMemberServerStatus(member) && (
-                              <p className="text-xs text-gray-400 truncate mt-0.5">
-                                {getMemberServerStatus(member)}
-                              </p>
-                            )}
+                            {/* Custom Status (Discord-like) */}
+                            {(() => {
+                              const customStatus = member.user?.customStatus || member.customStatus;
+                              if (!customStatus) return null;
+                              
+                              // Handle both string and object formats
+                              let statusText = '';
+                              if (typeof customStatus === 'string') {
+                                statusText = customStatus;
+                              } else if (typeof customStatus === 'object' && customStatus.text) {
+                                const emoji = customStatus.emoji ? `${customStatus.emoji} ` : '';
+                                statusText = `${emoji}${customStatus.text}`;
+                              }
+                              
+                              return statusText ? (
+                                <p className="text-xs text-gray-400 truncate mt-0.5">
+                                  {statusText}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       ))}

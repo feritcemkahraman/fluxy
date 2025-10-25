@@ -239,6 +239,10 @@ export const profileAPI = {
     method: 'PUT',
     body: JSON.stringify(statusData),
   }),
+  updateCustomStatus: (customStatusData) => apiFetch('/profile/custom-status', {
+    method: 'PUT',
+    body: JSON.stringify(customStatusData),
+  }),
 };
 
 // Upload API

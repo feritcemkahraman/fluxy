@@ -269,6 +269,78 @@ router.put('/activity', auth, async (req, res) => {
   }
 });
 
+// Update custom status
+router.put('/custom-status', auth, async (req, res) => {
+  try {
+    const { text, emoji, expiresAt } = req.body;
+    const userId = req.user._id;
+
+    // Validate text length
+    if (text && text.length > 128) {
+      return res.status(400).json({ error: 'Custom status text cannot exceed 128 characters' });
+    }
+
+    // Build custom status object
+    const customStatusData = {
+      text: text || '',
+      emoji: emoji || '',
+      expiresAt: expiresAt ? new Date(expiresAt) : null
+    };
+
+    // If text is empty, clear the custom status
+    if (!text && !emoji) {
+      customStatusData.text = '';
+      customStatusData.emoji = '';
+      customStatusData.expiresAt = null;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        customStatus: customStatusData,
+        lastSeen: new Date()
+        // DON'T UPDATE STATUS - keep user's current online/idle/dnd status
+      },
+      { new: true }
+    ).select('-password -email');
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Broadcast custom status update to all user's servers
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        const userServers = await Server.find({
+          'members.user': userId
+        });
+
+        userServers.forEach(server => {
+          io.to(`server_${server._id}`).emit('userCustomStatusUpdate', {
+            userId: String(userId),
+            username: updatedUser.username,
+            customStatus: customStatusData
+          });
+        });
+
+        console.log(`📝 Custom status update broadcasted to ${userServers.length} servers for user ${updatedUser.username}`);
+      } catch (socketError) {
+        console.error('❌ Custom status broadcast error:', socketError);
+      }
+    }
+
+    res.json({
+      message: 'Custom status updated successfully',
+      customStatus: customStatusData,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('❌ Update custom status error:', error);
+    res.status(500).json({ error: 'Failed to update custom status' });
+  }
+});
+
 // Clear user activity
 router.delete('/activity', auth, async (req, res) => {
   try {

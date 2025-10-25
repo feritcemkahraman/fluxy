@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { authAPI, profileAPI } from '../services/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Mic, MicOff, Headphones, Settings, LogOut, User, Palette, PhoneOff, Volume2, X } from 'lucide-react';
+import { Mic, MicOff, Headphones, Settings, LogOut, User, Palette, PhoneOff, Volume2, X, Smile } from 'lucide-react';
 import StatusIndicator from './StatusIndicator';
 import UserSettingsModal from './UserSettingsModal';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +16,10 @@ const UserPanel = ({ user, server, servers }) => {
   const [isDeafened, setIsDeafened] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const { logout, updateStatus: updateAuthStatus, updateUser } = useAuth();
+  const [showCustomStatusModal, setShowCustomStatusModal] = useState(false);
+  const [customStatusText, setCustomStatusText] = useState('');
+  const [customStatusEmoji, setCustomStatusEmoji] = useState('');
+  const { logout, updateStatus: updateAuthStatus, updateCustomStatus, updateUser } = useAuth();
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -112,6 +116,49 @@ const UserPanel = ({ user, server, servers }) => {
       console.error('Error updating status:', error);
     }
   };
+
+  const handleCustomStatusSave = async () => {
+    try {
+      const result = await updateCustomStatus({
+        text: customStatusText,
+        emoji: customStatusEmoji,
+        expiresAt: null // No expiry for now
+      });
+      
+      if (result.success) {
+        setShowCustomStatusModal(false);
+        setCustomStatusText('');
+        setCustomStatusEmoji('');
+      } else {
+        console.error('Error updating custom status:', result.error);
+      }
+    } catch (error) {
+      console.error('Error updating custom status:', error);
+    }
+  };
+
+  const handleClearCustomStatus = async () => {
+    try {
+      await updateCustomStatus({ text: '', emoji: '', expiresAt: null });
+      setShowCustomStatusModal(false);
+      setCustomStatusText('');
+      setCustomStatusEmoji('');
+    } catch (error) {
+      console.error('Error clearing custom status:', error);
+    }
+  };
+
+  // Load current custom status when modal opens
+  useEffect(() => {
+    if (showCustomStatusModal && user?.customStatus) {
+      if (typeof user.customStatus === 'string') {
+        setCustomStatusText(user.customStatus);
+      } else if (typeof user.customStatus === 'object') {
+        setCustomStatusText(user.customStatus.text || '');
+        setCustomStatusEmoji(user.customStatus.emoji || '');
+      }
+    }
+  }, [showCustomStatusModal, user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -296,6 +343,17 @@ const UserPanel = ({ user, server, servers }) => {
                     <div
                       className="flex items-center px-3 py-2 rounded cursor-pointer hover:bg-gray-700/50 text-gray-300 hover:text-white"
                       onClick={() => {
+                        setShowCustomStatusModal(true);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <Smile size={16} className="mr-3" />
+                      <span className="text-sm">Durum Ekle</span>
+                    </div>
+
+                    <div
+                      className="flex items-center px-3 py-2 rounded cursor-pointer hover:bg-gray-700/50 text-gray-300 hover:text-white"
+                      onClick={() => {
                         setShowSettings(true);
                         setShowDropdown(false);
                       }}
@@ -415,6 +473,80 @@ const UserPanel = ({ user, server, servers }) => {
           user={user}
           onUserUpdate={handleUserUpdate}
         />
+      )}
+
+      {/* Custom Status Modal */}
+      {showCustomStatusModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg w-full max-w-md p-6 border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">Durum Ekle</h2>
+              <button
+                onClick={() => setShowCustomStatusModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Emoji (isteğe bağlı)
+                </label>
+                <Input
+                  value={customStatusEmoji}
+                  onChange={(e) => setCustomStatusEmoji(e.target.value)}
+                  placeholder="😀"
+                  maxLength={2}
+                  className="bg-gray-900 border-gray-700 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Durum Yazısı
+                </label>
+                <Input
+                  value={customStatusText}
+                  onChange={(e) => setCustomStatusText(e.target.value)}
+                  placeholder="Kodlama yapıyorum..."
+                  maxLength={128}
+                  className="bg-gray-900 border-gray-700 text-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {customStatusText.length}/128
+                </p>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <Button
+                  onClick={handleCustomStatusSave}
+                  disabled={!customStatusText && !customStatusEmoji}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Kaydet
+                </Button>
+                {(user?.customStatus?.text || user?.customStatus?.emoji) && (
+                  <Button
+                    onClick={handleClearCustomStatus}
+                    variant="outline"
+                    className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    Temizle
+                  </Button>
+                )}
+                <Button
+                  onClick={() => setShowCustomStatusModal(false)}
+                  variant="ghost"
+                  className="flex-1 text-gray-300 hover:bg-gray-700"
+                >
+                  İptal
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -297,6 +297,12 @@ const MessageItem = ({
                     }
                     
                     const mentionedUsername = mentionMatch[1];
+                    
+                    // Check for special mentions: @everyone and @here
+                    const isEveryoneMention = mentionedUsername.toLowerCase() === 'everyone';
+                    const isHereMention = mentionedUsername.toLowerCase() === 'here';
+                    const isSpecialMention = isEveryoneMention || isHereMention;
+                    
                     const isCurrentUserMentioned = 
                       currentUser?.username?.toLowerCase() === mentionedUsername.toLowerCase();
                     
@@ -304,7 +310,9 @@ const MessageItem = ({
                       <span
                         key={`${keyPrefix}-mention-${mentionMatch.index}`}
                         className={`font-semibold px-1 rounded ${
-                          isCurrentUserMentioned
+                          isSpecialMention
+                            ? 'bg-yellow-600/30 text-yellow-200 hover:bg-yellow-600/40 border border-yellow-500/50'
+                            : isCurrentUserMentioned
                             ? 'bg-blue-600/30 text-blue-300 hover:bg-blue-600/40'
                             : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                         } transition-colors cursor-pointer`}

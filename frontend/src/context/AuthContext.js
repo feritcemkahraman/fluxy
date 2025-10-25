@@ -421,6 +421,28 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const updateCustomStatus = async (customStatusData) => {
+    try {
+      const response = await profileAPI.updateCustomStatus(customStatusData);
+      const updatedUser = response.user;
+      
+      // Update local storage
+      const currentUser = JSON.parse(electronStorage.getItem('user') || '{}');
+      const updatedUserData = { ...currentUser, customStatus: customStatusData };
+      electronStorage.setItem('user', JSON.stringify(updatedUserData));
+      
+      dispatch({
+        type: 'UPDATE_USER',
+        payload: updatedUser,
+      });
+      
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Custom status update failed';
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const clearError = () => {
     dispatch({ type: 'SET_ERROR', payload: null });
   };
@@ -431,6 +453,7 @@ export function AuthProvider({ children }) {
     register,
     logout,
     updateStatus,
+    updateCustomStatus,
     updateUser,
     clearError,
   };
