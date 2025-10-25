@@ -135,26 +135,34 @@ const UserPanel = ({ user, server, servers }) => {
         expiresAt: null
       });
       
-      if (result.success) {
-        setShowCustomStatusModal(false);
-      } else {
+      // Always close modal, success or fail
+      setShowCustomStatusModal(false);
+      
+      if (!result.success) {
         console.error('Error updating custom status:', result.error);
+        // TODO: Show error toast to user
       }
     } catch (error) {
       console.error('Error updating custom status:', error);
+      setShowCustomStatusModal(false); // Close even on exception
     }
   };
 
   const handleClearCustomStatus = async () => {
     try {
       const result = await updateCustomStatus({ text: '', emoji: '', expiresAt: null });
-      if (result.success) {
-        setCustomStatusText('');
-        setCustomStatusEmoji('');
-        setShowCustomStatusModal(false);
+      
+      // Clear form and close modal regardless of result
+      setCustomStatusText('');
+      setCustomStatusEmoji('');
+      setShowCustomStatusModal(false);
+      
+      if (!result.success) {
+        console.error('Error clearing custom status:', result.error);
       }
     } catch (error) {
       console.error('Error clearing custom status:', error);
+      setShowCustomStatusModal(false);
     }
   };
   
@@ -567,8 +575,8 @@ const UserPanel = ({ user, server, servers }) => {
                 </Button>
                 <Button
                   onClick={handleCancelCustomStatus}
-                  variant="ghost"
-                  className="flex-1 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                  variant="outline"
+                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                 >
                   İptal
                 </Button>

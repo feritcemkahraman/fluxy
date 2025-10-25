@@ -396,9 +396,15 @@ export function AuthProvider({ children }) {
       // Save status to storage (Electron-compatible)
       electronStorage.setItem('userStatus', updatedUser.status);
       
+      // Update full user object in storage to persist customStatus
+      const currentUser = JSON.parse(electronStorage.getItem('user') || '{}');
+      const mergedUser = { ...currentUser, ...updatedUser };
+      electronStorage.setItem('user', JSON.stringify(mergedUser));
+      localStorage.setItem('user', JSON.stringify(mergedUser));
+      
       dispatch({
         type: 'UPDATE_USER',
-        payload: updatedUser,
+        payload: mergedUser,
       });
       
       return { success: true };
@@ -424,12 +430,17 @@ export function AuthProvider({ children }) {
   const updateCustomStatus = async (customStatusData) => {
     try {
       const response = await profileAPI.updateCustomStatus(customStatusData);
+      
+      // Backend returns { message, customStatus, user }
+      if (!response || !response.user) {
+        throw new Error('Invalid response from server');
+      }
+      
       const updatedUser = response.user;
       
-      // Update local storage
-      const currentUser = JSON.parse(electronStorage.getItem('user') || '{}');
-      const updatedUserData = { ...currentUser, customStatus: customStatusData };
-      electronStorage.setItem('user', JSON.stringify(updatedUserData));
+      // Update local storage with full user object including customStatus
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      electronStorage.setItem('user', JSON.stringify(updatedUser));
       
       dispatch({
         type: 'UPDATE_USER',
@@ -438,7 +449,8 @@ export function AuthProvider({ children }) {
       
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Custom status update failed';
+      console.error('Custom status update error:', error);
+      const errorMessage = error.message || 'Custom status update failed';
       return { success: false, error: errorMessage };
     }
   };

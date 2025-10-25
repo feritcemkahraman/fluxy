@@ -106,7 +106,7 @@ export default function RegistrationSuccess({ email }) {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <InteractiveHoverButton
               as="a"
-              href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-1.0.28.exe"
+              href="https://github.com/feritcemkahraman/fluxy/releases/latest/download/Fluxy-Setup-1.0.29.exe"
               download="Fluxy-Setup.exe"
               target="_blank"
               rel="noopener noreferrer"

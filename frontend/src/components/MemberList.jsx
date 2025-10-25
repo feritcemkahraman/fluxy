@@ -247,17 +247,30 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
         const statusKey = `server_status_${serverId}_${userId}`;
         localStorage.setItem(statusKey, status);
         
-        // Update member status in real-time (Discord-like)
+        // Update member status in real-time (Discord-like) - preserve customStatus
         setMembers(prev => {
           const updated = prev.map(member => {
             const memberId = member.id || member._id || member.user?.id || member.user?._id;
             if (memberId === userId) {
               console.log('🔄 Updating member:', memberId, 'with status:', status);
-              // Update member or member.user status
+              // Update member or member.user status, preserve other fields including customStatus
               if (member.user) {
-                return { ...member, user: { ...member.user, status } };
+                return { 
+                  ...member, 
+                  user: { 
+                    ...member.user, 
+                    status,
+                    // Explicitly preserve customStatus
+                    customStatus: member.user.customStatus 
+                  } 
+                };
               } else {
-                return { ...member, status };
+                return { 
+                  ...member, 
+                  status,
+                  // Explicitly preserve customStatus
+                  customStatus: member.customStatus 
+                };
               }
             }
             return member;
