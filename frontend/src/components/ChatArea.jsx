@@ -99,6 +99,18 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     }
   }, [messages, channel?._id]);
 
+  // Also scroll to bottom when loading finishes (initial channel load)
+  useEffect(() => {
+    if (!loading && messages.length > 0 && messagesContainerRef.current) {
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [loading, channel?._id]);
+
   // Helper functions for Discord-like message grouping
   const shouldGroupMessage = useCallback((currentMsg, prevMsg) => {
     if (!prevMsg) return false;

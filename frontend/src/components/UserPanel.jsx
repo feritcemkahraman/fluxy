@@ -122,18 +122,23 @@ const UserPanel = ({ user, server, servers }) => {
       const result = await updateCustomStatus({
         text: customStatusText,
         emoji: customStatusEmoji,
-        expiresAt: null // No expiry for now
+        expiresAt: null
       });
       
+      // Always close modal - even if there's an error, user should see the result
+      setShowCustomStatusModal(false);
+      
       if (result.success) {
-        setShowCustomStatusModal(false);
+        // Success - clear form
         setCustomStatusText('');
         setCustomStatusEmoji('');
       } else {
         console.error('Error updating custom status:', result.error);
+        // TODO: Show error toast to user
       }
     } catch (error) {
       console.error('Error updating custom status:', error);
+      setShowCustomStatusModal(false); // Close modal even on error
     }
   };
 
@@ -499,7 +504,7 @@ const UserPanel = ({ user, server, servers }) => {
                   onChange={(e) => setCustomStatusEmoji(e.target.value)}
                   placeholder="😀"
                   maxLength={2}
-                  className="bg-gray-900 border-gray-700 text-white"
+                  className="bg-gray-900 border-gray-700 text-white placeholder:opacity-40"
                 />
               </div>
 
