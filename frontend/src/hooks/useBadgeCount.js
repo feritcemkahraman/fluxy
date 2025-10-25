@@ -15,9 +15,13 @@ export const useBadgeCount = () => {
   // Update badge count in Electron
   const updateBadge = useCallback((count) => {
     unreadCountRef.current = count;
+    console.log(`🔵 Hook updating badge: ${count}`);
     
-    if (window.electronAPI?.ipc) {
-      window.electronAPI.ipc.send('set-badge-count', count);
+    if (window.electronAPI?.setBadgeCount) {
+      window.electronAPI.setBadgeCount(count);
+      console.log(`✅ Badge IPC sent: ${count}`);
+    } else {
+      console.warn('⚠️ electronAPI.setBadgeCount not available');
     }
   }, []);
 
@@ -37,6 +41,7 @@ export const useBadgeCount = () => {
     if (!socket || !user) return;
 
     const handleNewDM = (data) => {
+      console.log('🔵 DM received:', data);
       // Extract author ID from various possible structures
       const authorId = data.message?.author?.id || data.message?.author?._id ||
                        data.author?.id || data.author?._id || 
@@ -47,8 +52,11 @@ export const useBadgeCount = () => {
       const isFromOtherUser = authorId && (authorId !== user?.id && authorId !== user?._id);
       
       if (isFromOtherUser) {
+        console.log('✅ DM from other user - incrementing badge');
         // Always increment badge, will be cleared on window focus
         incrementBadge(1);
+      } else {
+        console.log('⏭️ DM from self - skipping badge');
       }
     };
 
@@ -64,6 +72,7 @@ export const useBadgeCount = () => {
     if (!socket || !user) return;
 
     const handleMention = (data) => {
+      console.log('🔵 Mention received:', data);
       // Always increment badge, will be cleared on window focus
       incrementBadge(1);
     };

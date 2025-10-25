@@ -91,15 +91,23 @@ function createRedBadge(count) {
 // Update badge count on taskbar/dock (Discord-like)
 function updateBadgeCount(count) {
   unreadCount = count;
+  console.log(`🔔 Badge count updated: ${count}`);
   
   if (process.platform === 'darwin') {
     // macOS: Show red badge on dock icon
     app.dock.setBadge(count > 0 ? count.toString() : '');
   } else if (process.platform === 'win32') {
-    // Windows: Kırmızı badge overlay icon
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      const badge = createRedBadge(count);
-      mainWindow.setOverlayIcon(badge, count > 0 ? `${count} okunmamış mesaj` : '');
+    // Windows: Both overlay icon AND badge count
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const badge = createRedBadge(count);
+        mainWindow.setOverlayIcon(badge, count > 0 ? `${count} okunmamış mesaj` : '');
+        console.log(`✅ Overlay icon set: ${count > 0 ? 'visible' : 'hidden'}`);
+      }
+      app.setBadgeCount(count);
+      console.log(`✅ Badge count set: ${count}`);
+    } catch (error) {
+      console.error('❌ Badge update error:', error);
     }
   } else if (process.platform === 'linux') {
     // Linux: Unity badge

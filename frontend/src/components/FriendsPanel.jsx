@@ -30,6 +30,7 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sendingRequest, setSendingRequest] = useState({}); // Track loading state per user
 
   useEffect(() => {
     loadFriendsData();
@@ -155,6 +156,7 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
   };
 
   const handleSendFriendRequest = async (username) => {
+    setSendingRequest(prev => ({ ...prev, [username]: true }));
     try {
       await friendsAPI.sendFriendRequest(username);
       setAddFriendQuery('');
@@ -162,6 +164,8 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
       setError('');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to send friend request');
+    } finally {
+      setSendingRequest(prev => ({ ...prev, [username]: false }));
     }
   };
 
@@ -432,11 +436,15 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
           />
           <button
             onClick={() => handleSendFriendRequest(addFriendQuery)}
-            disabled={!addFriendQuery.trim()}
+            disabled={!addFriendQuery.trim() || sendingRequest[addFriendQuery]}
             className="px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg text-white transition-all shadow-lg disabled:shadow-none"
-            title="Arkadaş Ekle"
+            title={sendingRequest[addFriendQuery] ? "Gönderiliyor..." : "Arkadaş Ekle"}
           >
-            <UserPlus size={20} />
+            {sendingRequest[addFriendQuery] ? (
+              <Clock size={20} className="animate-spin" />
+            ) : (
+              <UserPlus size={20} />
+            )}
           </button>
         </div>
       </div>
@@ -472,10 +480,16 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
                 </div>
                 <div className="text-sm">
                   {user.relationshipStatus === 'friend' && (
-                    <span className="text-green-400">Arkadaş</span>
+                    <span className="text-green-400 flex items-center gap-1">
+                      <UserCheck className="w-4 h-4" />
+                      Arkadaş
+                    </span>
                   )}
                   {user.relationshipStatus === 'request_sent' && (
-                    <span className="text-yellow-400">İstek Gönderildi</span>
+                    <span className="text-yellow-400 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      Beklemede
+                    </span>
                   )}
                   {user.relationshipStatus === 'request_received' && (
                     <span className="text-blue-400">İstek Alındı</span>
@@ -486,9 +500,20 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
                   {user.relationshipStatus === 'none' && (
                     <button
                       onClick={() => handleSendFriendRequest(user.username)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white"
+                      disabled={sendingRequest[user.username]}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white flex items-center gap-1"
                     >
-                      Arkadaş Ekle
+                      {sendingRequest[user.username] ? (
+                        <>
+                          <Clock className="w-4 h-4 animate-spin" />
+                          Gönderiliyor...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4" />
+                          Arkadaş Ekle
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

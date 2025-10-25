@@ -165,13 +165,15 @@ const FluxyApp = () => {
     loadServerMembers();
     // Voice channel users are now handled by useVoiceChat hook
   }, [activeServer?._id, activeServer?.id]);
-
   // Load user's servers on component mount - only when authenticated
   useEffect(() => {
     let isMounted = true;
-    const startTime = Date.now();
 
-    const loadServersOnce = async () => {
+    const loadServers = async (retryCount = 0) => {
+      const startTime = Date.now();
+      const maxRetries = 3;
+      const retryDelay = 2000; // 2 seconds
+      
       if (!user || !isMounted) return;
 
       try {
@@ -192,37 +194,64 @@ const FluxyApp = () => {
             setActiveChannel(firstTextChannel);
           }
         }
+        
+        // Success - set loading to false
+        const elapsedTime = Date.now() - startTime;
+        const minimumLoadingTime = 3000;
+        const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
+        
+        setTimeout(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        }, remainingTime);
+        
       } catch (error) {
         if (!isMounted) return;
 
+        // Retry on network errors or 522 (server down)
+        const shouldRetry = (
+          error.message === 'Network Error' || 
+          error.response?.status === 522 ||
+          error.message?.includes('Unexpected token')
+        ) && retryCount < maxRetries;
+
+        if (shouldRetry) {
+          console.log(`Retrying server load... (${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            if (isMounted) {
+              loadServers(retryCount + 1);
+            }
+          }, retryDelay * (retryCount + 1)); // Exponential backoff
+          return;
+        }
+
+        // Final failure - handle error and set loading to false
         if (error.response?.status === 401) {
           console.error('Authentication expired');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/';
-        } else if (error.message === 'Network Error') {
-          console.error('Cannot connect to server');
         } else {
           console.error('Failed to load servers:', error);
         }
 
         setServers([]);
-      } finally {
-        if (isMounted) {
-          const elapsedTime = Date.now() - startTime;
-          const minimumLoadingTime = 3000;
-          const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
-          
-          setTimeout(() => {
-            if (isMounted) {
-              setLoading(false);
-            }
-          }, remainingTime);
-        }
+        
+        // Set loading to false after final failure
+        const elapsedTime = Date.now() - startTime;
+        const minimumLoadingTime = 3000;
+        const remainingTime = Math.max(0, minimumLoadingTime - elapsedTime);
+        
+        setTimeout(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        }, remainingTime);
       }
     };
 
-    loadServersOnce();
+    loadServers();
 
     return () => {
       isMounted = false;

@@ -153,6 +153,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkRTXVoice: () => ipcRenderer.invoke('check-rtx-voice'),
   processAudioWithRTX: (streamData) => ipcRenderer.invoke('process-audio-rtx', streamData),
   platform: () => process.platform,
+  
+  // General IPC access (for compatibility)
+  ipc: {
+    send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+    invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+  }
 });
 
 // Override user agent to help with detection
