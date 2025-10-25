@@ -20,6 +20,32 @@ const updateOnlineUsersCount = () => {
   global.onlineUsersCount = connectedUsers.size;
 };
 
+// Update global voice channel stats
+const updateVoiceChannelStats = () => {
+  const allChannels = VoiceChannelManager.getAllChannels();
+  let totalVoiceUsers = 0;
+  let activeCalls = 0;
+  
+  for (const [channelId, users] of Object.entries(allChannels)) {
+    if (users.length > 0) {
+      totalVoiceUsers += users.length;
+      activeCalls++;
+    }
+  }
+  
+  global.voiceChannelUsersCount = totalVoiceUsers;
+  global.activeVoiceCallsCount = activeCalls;
+};
+
+// Broadcast stats to admin dashboard
+const broadcastAdminStats = (io) => {
+  io.to('admin-dashboard').emit('statsUpdate', {
+    onlineUsers: global.onlineUsersCount,
+    voiceChannelUsers: global.voiceChannelUsersCount,
+    activeCalls: global.activeVoiceCallsCount
+  });
+};
+
 // Helper: Parse mentions from message content (Discord-like)
 const parseMentions = async (content, serverMembers) => {
   const mentionRegex = /@(\w+)/g;
@@ -96,8 +122,21 @@ const socketAuth = async (socket, next) => {
   }
 };
 
+// Start periodic stats broadcast (only once)
+let statsIntervalStarted = false;
+
 const handleConnection = (io) => {
   console.log('🔌 Socket.IO handler initialized');
+  
+  // Broadcast stats to admin dashboard every 5 seconds (only initialize once)
+  if (!statsIntervalStarted) {
+    setInterval(() => {
+      updateVoiceChannelStats();
+      broadcastAdminStats(io);
+    }, 5000);
+    statsIntervalStarted = true;
+    console.log('📊 Admin stats broadcast started (every 5 seconds)');
+  }
   
   io.use(socketAuth);
 
@@ -270,6 +309,10 @@ const handleConnection = (io) => {
         
         console.log(`✅ User ${socket.user?.username} joined voice channel: ${channelId}`);
         
+        // Update global voice stats
+        updateVoiceChannelStats();
+        broadcastAdminStats(io);
+        
       } catch (error) {
         console.error('Voice join error:', error);
         socket.emit('error', { message: 'Failed to join voice channel' });
@@ -336,6 +379,10 @@ const handleConnection = (io) => {
         socket.emit('voiceChannelUpdate', updatePayload);
         
         console.log(`✅ User ${socket.user?.username} left voice channel: ${channelId}`);
+        
+        // Update global voice stats
+        updateVoiceChannelStats();
+        broadcastAdminStats(io);
         
       } catch (error) {
         console.error('Voice leave error:', error);
@@ -1119,13 +1166,10 @@ const handleConnection = (io) => {
       
       // Update global stats
       updateOnlineUsersCount();
+      updateVoiceChannelStats();
       
       // Broadcast updated stats to admin dashboard
-      io.to('admin-dashboard').emit('statsUpdate', {
-        onlineUsers: global.onlineUsersCount,
-        voiceChannelUsers: global.voiceChannelUsersCount,
-        activeCalls: global.activeVoiceCallsCount
-      });
+      broadcastAdminStats(io);
 
       // Clean up voice channels on disconnect
       const allChannels = VoiceChannelManager.getAllChannels();
