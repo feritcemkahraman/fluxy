@@ -85,7 +85,7 @@ router.post('/', auth, [
 
     // Populate server data for response
     const populatedServer = await Server.findById(server._id)
-      .populate('members.user', 'username avatar discriminator status')
+      .populate('members.user', 'username avatar discriminator status customStatus')
       .populate('channels')
       .lean();
 
@@ -122,7 +122,7 @@ router.get('/', auth, async (req, res) => {
       'members.user': req.user._id
     })
     .select('name description icon owner memberCount members channels inviteCode isPublic createdAt')
-    .populate('members.user', 'username avatar discriminator status')
+    .populate('members.user', 'username avatar discriminator status customStatus')
     .populate('channels', 'name type')
     .sort({ createdAt: -1 })
     .lean();
@@ -400,7 +400,7 @@ router.post('/:id/join', auth, [
 
     // Populate server data for socket event
     const populatedServerForEvent = await Server.findById(server._id)
-      .populate('members.user', 'username avatar discriminator status')
+      .populate('members.user', 'username avatar discriminator status customStatus')
       .populate('channels');
 
     // Emit server joined event to the user for real-time UI update
@@ -530,7 +530,7 @@ router.post('/join-by-invite', auth, [
 
     // Populate server data for socket event
     const populatedServerForEvent = await Server.findById(server._id)
-      .populate('members.user', 'username avatar discriminator status')
+      .populate('members.user', 'username avatar discriminator status customStatus')
       .populate('channels');
 
     // Broadcast new member joined to all server members
@@ -750,8 +750,8 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
   try {
     const server = await Server.findById(req.params.id)
       .select('members owner')
-      .populate('members.user', 'username displayName avatar status discriminator')
-      .populate('owner', 'username displayName avatar status discriminator')
+      .populate('members.user', 'username displayName avatar status discriminator customStatus')
+      .populate('owner', 'username displayName avatar status discriminator customStatus')
       .lean();
     // Format members data
     const members = server.members.map(member => ({
@@ -760,6 +760,7 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
       displayName: member.user.displayName,
       avatar: member.user.avatar,
       status: member.user.status || 'offline',
+      customStatus: member.user.customStatus || null,
       role: member.user._id.toString() === server.owner.toString() ? 'Yönetici' : 'Üye',
       roleColor: member.user._id.toString() === server.owner.toString() ? '#f04747' : '#99AAB5',
       roles: member.roles || [],
@@ -775,6 +776,7 @@ router.get('/:id/members', auth, requireMember, async (req, res) => {
         displayName: server.owner.displayName,
         avatar: server.owner.avatar,
         status: server.owner.status || 'offline',
+        customStatus: server.owner.customStatus || null,
         role: 'Yönetici',
         roleColor: '#F04747',
         roles: [],

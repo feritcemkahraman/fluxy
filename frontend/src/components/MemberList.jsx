@@ -140,27 +140,32 @@ const MemberList = ({ server, activeChannel, onDirectMessageNavigation }) => {
     };
 
     const handleUserCustomStatusUpdate = ({ userId, username, customStatus }) => {
-      console.log('📝 MemberList received custom status update:', { userId, customStatus });
-      
-      setMembers(prev => prev.map(member => {
-        const memberUserId = String(member.user?._id || member.user?.id || member.id || member._id);
-        if (memberUserId === String(userId)) {
-          console.log('🔄 Updating member custom status:', memberUserId, customStatus);
-          // Update member.user.customStatus
-          if (member.user) {
+      // Only update if this member exists in current server
+      setMembers(prev => {
+        const memberExists = prev.some(member => {
+          const memberUserId = String(member.id || member._id || member.user?._id || member.user?.id);
+          return memberUserId === String(userId);
+        });
+        
+        if (!memberExists) {
+          // This event is for a different server, ignore it
+          return prev;
+        }
+        
+        console.log('📝 MemberList updating custom status for:', userId, customStatus);
+        
+        return prev.map(member => {
+          const memberUserId = String(member.id || member._id || member.user?._id || member.user?.id);
+          if (memberUserId === String(userId)) {
+            // Update customStatus directly on member object (flat structure from API)
             return { 
               ...member, 
-              user: { 
-                ...member.user, 
-                customStatus 
-              } 
+              customStatus 
             };
-          } else {
-            return { ...member, customStatus };
           }
-        }
-        return member;
-      }));
+          return member;
+        });
+      });
     };
 
     const handleUserJoinedServer = ({ user, server: serverData }) => {
