@@ -24,9 +24,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
   const [friendshipStatus, setFriendshipStatus] = useState('none');
   const [mutualFriends, setMutualFriends] = useState([]);
   const [userRoles, setUserRoles] = useState([]);
-  const [serverStatus, setServerStatus] = useState('');
-  const [isEditingStatus, setIsEditingStatus] = useState(false);
-  const [tempStatus, setTempStatus] = useState('');
 
   useEffect(() => {
     if (user && open) {
@@ -39,7 +36,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
   useEffect(() => {
     if (!open) {
       setFriendshipStatus('none');
-      setIsEditingStatus(false);
     }
   }, [open]);
 
@@ -49,17 +45,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
 
     const io = socketService.getSocket();
     if (!io) return;
-
-    const handleStatusUpdate = ({ userId, serverId, status }) => {
-      // Check if this update is for the currently viewed user in this server
-      if ((userId === user.id || userId === user._id) && 
-          (serverId === server._id || serverId === server.id)) {
-        setServerStatus(status);
-        // Also update localStorage
-        const statusKey = `server_status_${serverId}_${userId}`;
-        localStorage.setItem(statusKey, status);
-      }
-    };
 
     const handleRoleAssignment = ({ userId, serverId, roleId, action }) => {
       // Check if this update is for the currently viewed user in this server
@@ -115,11 +100,9 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
       }
     };
 
-    io.on('userStatusUpdate', handleStatusUpdate);
     io.on('roleAssignment', handleRoleAssignment);
 
     return () => {
-      io.off('userStatusUpdate', handleStatusUpdate);
       io.off('roleAssignment', handleRoleAssignment);
     };
   }, [open, server, user, roles]);
@@ -153,20 +136,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
       
       // Check friendship status
       await checkFriendshipStatus();
-      
-      // Load server status (from localStorage for now)
-      // In production, this should be stored in backend per server
-      if (server && user.id === currentUser?.id) {
-        const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
-        const savedStatus = localStorage.getItem(statusKey) || '';
-        setServerStatus(savedStatus);
-        setTempStatus(savedStatus);
-      } else if (server) {
-        // Load other user's status
-        const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
-        const savedStatus = localStorage.getItem(statusKey) || '';
-        setServerStatus(savedStatus);
-      }
     } catch (error) {
       console.error('Error loading user data:', error);
     }
@@ -268,25 +237,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
     }
   };
 
-  const handleSaveStatus = () => {
-    if (server) {
-      const statusKey = `server_status_${server._id || server.id}_${user.id || user._id}`;
-      localStorage.setItem(statusKey, tempStatus);
-      setServerStatus(tempStatus);
-      setIsEditingStatus(false);
-      
-      // Broadcast status change to other users via socket
-      const io = socketService.getSocket();
-      if (io) {
-        io.emit('userStatusUpdate', {
-          userId: user.id || user._id,
-          serverId: server._id || server.id,
-          status: tempStatus
-        });
-      }
-    }
-  };
-
   if (!displayUser) return null;
 
   const isOwner = server && (displayUser.id === server.owner || displayUser._id === server.owner);
@@ -325,73 +275,6 @@ export function UserProfileModal({ user, open, onOpenChange, currentUser, server
               </div>
             )}
           </div>
-
-          {/* Server Status - Only show for current user or if other user has status */}
-          {server && isOwnProfile && (
-            <div className="mb-3">
-              {isEditingStatus ? (
-                <div className="space-y-2">
-                  <Input
-                    value={tempStatus}
-                    onChange={(e) => setTempStatus(e.target.value)}
-                    placeholder="Sunucudaki durumunu belirle..."
-                    className="bg-[#1e1f22] border-white/10 text-white text-sm h-9"
-                    maxLength={128}
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={handleSaveStatus}
-                      className="flex-1 bg-[#5865F2] hover:bg-[#4752C4] h-7 text-xs"
-                    >
-                      <Check className="w-3 h-3 mr-1" />
-                      Kaydet
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setTempStatus(serverStatus);
-                        setIsEditingStatus(false);
-                      }}
-                      className="flex-1 bg-[#2b2d31] border-white/10 hover:bg-[#35373c] h-7 text-xs"
-                    >
-                      İptal
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  onClick={() => setIsEditingStatus(true)}
-                  className="bg-[#2b2d31] rounded-lg p-3 border border-white/5 cursor-pointer hover:bg-[#35373c] transition-colors"
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-lg">💬</span>
-                    <div className="flex-1">
-                      <p className="text-sm text-white font-medium">
-                        {serverStatus || 'Durum yazısı ekle...'}
-                      </p>
-                    </div>
-                    <Edit3 className="w-3 h-3 text-gray-400" />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Other user's status - view only */}
-          {server && !isOwnProfile && serverStatus && (
-            <div className="mb-3">
-              <div className="bg-[#2b2d31] rounded-lg p-3 border border-white/5">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">💬</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-white font-medium">{serverStatus}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Username */}
           <div className="mb-3">

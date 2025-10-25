@@ -92,12 +92,12 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or channel changes
   useLayoutEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, channel?._id]);
 
   // Helper functions for Discord-like message grouping
   const shouldGroupMessage = useCallback((currentMsg, prevMsg) => {
