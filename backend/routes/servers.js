@@ -384,13 +384,10 @@ router.post('/:id/join', auth, [
       return res.status(400).json({ message: 'You are already a member of this server' });
     }
 
-    // Get default @everyone role
-    const defaultRole = await Role.findOne({ server: server._id, isDefault: true });
-    
-    // Add user to server
+    // Add user to server without any roles (they will appear in "Üyeler" section)
     server.members.push({
       user: req.user._id,
-      roles: defaultRole ? [defaultRole._id] : [],
+      roles: [], // No default role assignment
       joinedAt: new Date()
     });
 
