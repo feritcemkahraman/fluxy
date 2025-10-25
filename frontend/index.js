@@ -71,16 +71,36 @@ let unreadCount = 0;
 let unreadMentions = 0;
 let unreadDMs = 0;
 
+// Create red badge overlay icon for Windows
+function createRedBadge(count) {
+  const { nativeImage } = require('electron');
+  
+  if (count === 0) return null;
+  
+  const text = count > 99 ? '99+' : count.toString();
+  const svg = `
+    <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="8" fill="#f04747"/>
+      <text x="8" y="11" font-family="Arial" font-size="10" font-weight="bold" fill="white" text-anchor="middle">${text}</text>
+    </svg>
+  `;
+  
+  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
+}
+
 // Update badge count on taskbar/dock (Discord-like)
 function updateBadgeCount(count) {
   unreadCount = count;
   
   if (process.platform === 'darwin') {
-    // macOS: Show number on dock icon
+    // macOS: Show red badge on dock icon
     app.dock.setBadge(count > 0 ? count.toString() : '');
   } else if (process.platform === 'win32') {
-    // Windows: Show number on taskbar
-    app.setBadgeCount(count);
+    // Windows: Kırmızı badge overlay icon
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const badge = createRedBadge(count);
+      mainWindow.setOverlayIcon(badge, count > 0 ? `${count} okunmamış mesaj` : '');
+    }
   } else if (process.platform === 'linux') {
     // Linux: Unity badge
     app.setBadgeCount(count);

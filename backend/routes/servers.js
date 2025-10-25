@@ -164,9 +164,12 @@ router.get('/discover', async (req, res) => {
         const token = authHeader.substring(7);
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         currentUserId = decoded.userId;
+        console.log('🔍 Discover: User authenticated, userId:', currentUserId);
       } catch (err) {
-        // Invalid token, continue without user
+        console.log('⚠️ Discover: Token verification failed:', err.message);
       }
+    } else {
+      console.log('📝 Discover: No auth token provided');
     }
 
     const servers = await Server.find({
@@ -177,13 +180,18 @@ router.get('/discover', async (req, res) => {
     .sort({ memberCount: -1 })  // Sort by member count descending
     .select('name description icon memberCount createdAt tags isPublic inviteCode members');
 
+    console.log(`📊 Discover: Found ${servers.length} public servers`);
+
     const discoveryServers = servers
       .filter(server => {
         // Discord-like: Hide servers user is already a member of
         if (currentUserId) {
           const isMember = server.members.some(member => 
-            member.user._id.toString() === currentUserId.toString()
+            member.user && member.user._id && member.user._id.toString() === currentUserId.toString()
           );
+          if (isMember) {
+            console.log(`✅ Discover: Filtering out "${server.name}" - user is member`);
+          }
           return !isMember; // Only show servers user is NOT a member of
         }
         return true; // Show all if not logged in

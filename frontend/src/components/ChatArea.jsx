@@ -7,13 +7,11 @@ import ContextMenu from "./ContextMenu";
 import FileUploadArea from "./FileUploadArea";
 import { UserProfileModal } from "./UserProfileModal";
 import { EmojiGifPicker } from "./EmojiGifPicker";
-import MessageItem from "../features/messages/components/MessageItem";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { useChannelMessages } from "../hooks/useChannelMessages";
 import socketService from "../services/socket";
 import { messageAPI, roleAPI } from "../services/api";
-import { toast } from "sonner";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();
@@ -264,7 +262,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
       }
     } catch (error) {
       console.error('Reaction error:', error);
-      toast.error('Tepki eklenemedi');
     }
   }, [channel?._id]);
 
@@ -280,7 +277,6 @@ const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceCh
 
   const handleFileUpload = useCallback((files) => {
     // TODO: Implement file upload with new hook
-    toast.info('Dosya yükleme özelliği yakında eklenecek');
   }, []);
 
   const handleReply = useCallback((messageToReply) => {

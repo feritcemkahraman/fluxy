@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from "
 import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import { Avatar, AvatarFallback } from "../../../components/ui/avatar";
-import { toast } from "sonner";
 import { 
   Phone, 
   PhoneOff,
@@ -230,14 +229,11 @@ const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, 
     try {
       const result = await sendDirectMessage(content, otherUser.id || otherUser._id);
       
-      if (!result.success) {
-        toast.error(result.error || 'Mesaj gönderilemedi');
-      }
+      // Message send result handled silently
 
       return result;
     } catch (error) {
       console.error('Send message error:', error);
-      toast.error('Mesaj gönderilemedi');
       return { success: false, error: error.message };
     }
   };
@@ -606,7 +602,6 @@ const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, 
                 if (isScreenSharing) {
                   // Stop screen share
                   voiceCallService.stopScreenShare();
-                  toast.success('Ekran paylaşımı durduruldu');
                 } else {
                   // Open screen share picker
                   setShowScreenSharePicker(true);
@@ -645,15 +640,9 @@ const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, 
             <button
               onClick={() => {
                 if (!endCall) {
-                  toast.error('Arama özelliği yükleniyor...');
                   return;
                 }
-                const result = endCall();
-                if (result.success) {
-                  toast.success('Arama sonlandırıldı');
-                } else {
-                  toast.error(result.error || 'Arama sonlandırılamadı');
-                }
+                endCall();
               }}
               className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all duration-200 shadow-lg"
               title="Aramayı Sonlandır"
@@ -783,14 +772,10 @@ const DirectMessageChat = memo(({ conversation, initiateVoiceCall, currentCall, 
             try {
               const result = await voiceCallService.startScreenShare(options);
               if (result.success) {
-                toast.success('Ekran paylaşımı başlatıldı');
                 setShowScreenSharePicker(false);
-              } else {
-                toast.error(result.error || 'Ekran paylaşımı başlatılamadı');
               }
             } catch (error) {
               console.error('Screen share error:', error);
-              toast.error('Ekran paylaşımı hatası');
             }
           }}
         />

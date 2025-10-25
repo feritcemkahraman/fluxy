@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { toast } from 'sonner';
+// toast removed
 import { Eye, EyeOff, Mail, Lock, User, Loader2, ArrowLeft } from 'lucide-react';
 import { InteractiveHoverButton } from '@/registry/magicui/interactive-hover-button';
 import { GridBeams } from '@/registry/magicui/grid-beams';
@@ -45,17 +45,15 @@ export default function RegisterForm({ onToggleMode, onBack, onSuccess }) {
     if (result.success) {
       // For web (not Electron), trigger success callback instead of auto-login
       if (!isElectron && onSuccess) {
-        toast.success(AUTH_SUCCESS_MESSAGES.REGISTER);
         onSuccess(data.email);
         return result;
       }
       
-      // For Electron, just show success toast and proceed with normal login
-      toast.success(AUTH_SUCCESS_MESSAGES.REGISTER);
+      // For Electron, proceed with normal login
       return result;
     } else {
       const errorMessage = result.error || AUTH_ERRORS.SERVER_ERROR;
-      toast.error(errorMessage);
+      console.error('Register error:', errorMessage);
       return result;
     }
   };

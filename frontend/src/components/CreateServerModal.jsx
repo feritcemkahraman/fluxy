@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { X, Upload, Hash, Sparkles, Users, Star, Search, Palette, Zap, Shield, Globe, Crown } from 'lucide-react';
 import { serverAPI, templatesAPI } from '../services/api';
-import { toast } from 'sonner';
 import { devLog } from '../utils/devLogger';
 
 const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
@@ -74,7 +72,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       setLoading(false);
     } catch (error) {
       // console.error('Template yükleme hatası:', error);
-      toast.error('Şablonlar yüklenemedi');
+      console.error('Template load error');
       setLoading(false);
     }
   };  const loadCategories = async () => {
@@ -159,7 +157,6 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast.error('Sunucu adı gerekli');
       return;
     }
 
@@ -186,7 +183,6 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
         });
       }
 
-      toast.success('Sunucu başarıyla oluşturuldu!');
       // onServerCreated(response.server); // Removed - WebSocket will handle this
       handleClose();
     } catch (error) {
@@ -199,7 +195,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                           error.message || 
                           'Sunucu oluşturulamadı';
       
-      toast.error(errorMessage);
+      console.error('Server creation error:', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -207,7 +203,6 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
 
   const handleJoinServer = async () => {
     if (!inviteCode.trim()) {
-      toast.error('Lütfen davet kodunu girin');
       return;
     }
 
@@ -217,7 +212,6 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
       // Şimdilik inviteCode'dan serverId bulamayız, bu yüzden ayrı endpoint gerekli
       const response = await serverAPI.joinServerByInvite(inviteCode.trim().toUpperCase());
       
-      toast.success('Sunucuya başarıyla katıldınız!');
       // onServerCreated will be handled by WebSocket
       handleClose();
     } catch (error) {
@@ -228,7 +222,7 @@ const CreateServerModal = ({ isOpen, onClose, onServerCreated }) => {
                           error.message || 
                           'Sunucuya katılınamadı';
       
-      toast.error(errorMessage);
+      console.error('Join server error:', errorMessage);
     } finally {
       setJoinLoading(false);
     }

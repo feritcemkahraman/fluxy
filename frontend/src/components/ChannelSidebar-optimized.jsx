@@ -4,13 +4,11 @@ import { ChevronDown, ChevronRight, Hash, Volume2, Plus, Settings, UserPlus, Edi
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Badge } from "./ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import ServerSettingsModal from "./ServerSettingsModal";
 import CreateChannelModal from "./CreateChannelModal";
 import { UserProfileModal } from "./UserProfileModal";
 import { channelAPI } from '../services/api';
-import { toast } from "sonner";
 import { useAudio } from "../hooks/useAudio";
 
 // ============================================================================
@@ -448,7 +446,6 @@ const ChannelSidebar = ({
     try {
       setLoading(true);
       await channelAPI.updateChannel(editingChannel._id || editingChannel.id, { name: editChannelName.trim() });
-      toast.success(`"${editingChannel.name}" kanalı "${editChannelName.trim()}" olarak güncellendi!`);
 
       // Refresh server data
       if (onServerUpdate) {
@@ -461,7 +458,6 @@ const ChannelSidebar = ({
       }
     } catch (error) {
       console.error('Update channel error:', error);
-      toast.error(`Kanal güncellenirken bir hata oluştu: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
       setEditingChannel(null);
@@ -480,7 +476,6 @@ const ChannelSidebar = ({
     try {
       setLoading(true);
       await channelAPI.deleteChannel(channelToDelete._id || channelToDelete.id);
-      toast.success(`"${channelToDelete.name}" kanalı başarıyla silindi!`);
 
       // Refresh server data
       if (onServerUpdate) {
@@ -489,7 +484,6 @@ const ChannelSidebar = ({
       }
     } catch (error) {
       console.error('Delete channel error:', error);
-      toast.error(`Kanal silinirken bir hata oluştu: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
       setDeleteDialogOpen(false);

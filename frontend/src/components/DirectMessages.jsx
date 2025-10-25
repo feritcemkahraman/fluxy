@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../hooks/useSocket";
 import { dmAPI, serverAPI, friendsAPI } from "../services/api";
 import { messageService } from "../features/messages/services/messageService";
-import { toast } from "sonner";
+// toast removed
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -65,12 +65,10 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
         setConversations(response.data.conversations || []);
       } else {
         setConversations([]);
-        toast.error('Sohbetler yüklenirken hata oluştu');
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
       setConversations([]);
-      toast.error('Sohbetler yüklenirken hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -398,7 +396,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
     } catch (error) {
       console.error('Failed to load discover servers:', error);
       console.error('Error details:', error.response?.data || error.message);
-      toast.error('Sunucular yüklenirken hata oluştu');
     } finally {
       setDiscoverLoading(false);
     }
@@ -440,9 +437,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
       // Gerçek join server API call
       await serverAPI.joinServer(serverId);
       
-      // Başarılı katılım sonrası kullanıcıyı bilgilendir
-      toast.success("Sunucuya başarıyla katıldınız!");
-      
       // Local state'i güncelle - bu sunucuda artık member'ız
       setDiscoverServers(prevServers => 
         prevServers.map(server => 
@@ -468,11 +462,9 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
               : server
           )
         );
-        toast.info("Bu sunucuya zaten üyesiniz!");
-      } else if (error.response?.status === 404) {
-        toast.error("Sunucu bulunamadı!");
+        // User is already a member
       } else {
-        toast.error("Sunucuya katılırken bir hata oluştu.");
+        console.error('Join server error:', error);
       }
     }
   };
@@ -541,7 +533,8 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
     setSelectedConversation(conversation);
     
     // Mark conversation as read when opened
-    if (conversation.id && (conversation.unreadCount > 0 || conversation.unread > 0)) {
+    const currentUnread = conversation.unreadCount || conversation.unread || 0;
+    if (conversation.id && currentUnread > 0) {
       try {
         await dmAPI.markAsRead(conversation.id);
         
@@ -553,6 +546,11 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
               : conv
           )
         );
+        
+        // Decrement badge count (Electron only)
+        if (window.electronAPI?.ipc) {
+          window.electronAPI.ipc.send('decrement-badge-count', currentUnread);
+        }
       } catch (error) {
         console.error('Failed to mark conversation as read:', error);
       }
@@ -743,7 +741,6 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
 
                     if (existingConv) {
                       setSelectedConversation(existingConv);
-                      toast.success("Sohbet açıldı");
                       return;
                     }
 
@@ -790,17 +787,11 @@ const DirectMessages = ({ onChannelSelect, targetUserId, clearSelection, initiat
                       };
                       setSelectedConversation(formattedConversation);
                       await loadConversations();
-                      toast.success("Sohbet açıldı");
                     } else {
                       console.error("❌ No conversation data received");
-                      toast.error("Sohbet oluşturulamadı");
                     }
                   } catch (error) {
                     console.error("❌ Error starting conversation:", error);
-                    toast.error(
-                      "Sohbet başlatılamadı: " +
-                        (error.message || "Bilinmeyen hata")
-                    );
                   }
                 }}
               />

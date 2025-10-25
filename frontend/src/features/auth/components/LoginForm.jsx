@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { toast } from 'sonner';
+// toast removed
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Loader2 } from 'lucide-react';
 
 import { GridBeams } from '@/registry/magicui/grid-beams';
@@ -37,11 +37,9 @@ export default function LoginForm({ onToggleMode, onBack }) {
     const result = await login(data);
     
     if (result.success) {
-      toast.success(AUTH_SUCCESS_MESSAGES.LOGIN, { duration: 3000 });
       return result;
     } else {
       const errorMessage = result.error || AUTH_ERRORS.INVALID_CREDENTIALS;
-      toast.error(errorMessage, { duration: 5000 });
       console.error('Login error:', errorMessage);
       return result;
     }
