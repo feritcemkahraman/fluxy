@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { X, Hash, Volume2 } from 'lucide-react';
 import { channelAPI } from '../services/api';
-import { toast } from 'sonner';
+// toast removed
 
 const CreateChannelModal = ({ isOpen, onClose, serverId, onChannelCreated }) => {
   const [formData, setFormData] = useState({
@@ -25,13 +25,7 @@ const CreateChannelModal = ({ isOpen, onClose, serverId, onChannelCreated }) => 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
-      toast.error('Kanal adı gereklidir');
-      return;
-    }
-
-    if (!serverId) {
-      toast.error('Sunucu ID gereklidir');
+    if (!formData.name.trim() || !serverId) {
       return;
     }
 
@@ -46,12 +40,10 @@ const CreateChannelModal = ({ isOpen, onClose, serverId, onChannelCreated }) => 
         isPrivate: formData.isPrivate
       });
 
-      toast.success('Kanal başarıyla oluşturuldu!');
       onChannelCreated(response.channel);
       handleClose();
     } catch (error) {
       console.error('Failed to create channel:', error);
-      toast.error(error.response?.data?.message || 'Kanal oluşturma başarısız');
     } finally {
       setIsLoading(false);
     }

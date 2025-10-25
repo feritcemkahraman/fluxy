@@ -16,7 +16,7 @@ import voiceCallService from "../services/voiceCallService";
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { useVoiceCall } from "../hooks/useVoiceCall";
 import { serverAPI, channelAPI } from "../services/api";
-import { toast } from "sonner";
+// toast removed
 import { devLog } from "../utils/devLogger";
 import websocketService from "../services/websocket";
 import electronAPI from "../utils/electronAPI";
@@ -199,14 +199,14 @@ const FluxyApp = () => {
         if (!isMounted) return;
 
         if (error.response?.status === 401) {
-          toast.error('Authentication expired. Please login again.');
+          console.error('Authentication expired');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/';
         } else if (error.message === 'Network Error') {
-          toast.error('Cannot connect to server. Backend may not be running.');
+          console.error('Cannot connect to server');
         } else {
-          toast.error(`Failed to load servers: ${error.response?.data?.message || error.message}`);
+          console.error('Failed to load servers:', error);
         }
 
         setServers([]);
@@ -924,7 +924,7 @@ const FluxyApp = () => {
           await joinVoiceChannel(channelId);
           setShowVoiceScreen(true); // Show panel on connection
         } catch (error) {
-          toast.error(`Ses kanalına bağlanılamadı: ${error.message}`);
+          console.error('Voice channel join error:', error);
         }
       }
     } else {
@@ -1258,7 +1258,7 @@ const FluxyApp = () => {
               setActiveChannel(null);
               setTargetUserId(incomingCall.userId);
             } else {
-              toast.error(result.error || 'Arama kabul edilemedi');
+              console.error('Call accept error:', result.error);
             }
           }}
           onReject={() => {

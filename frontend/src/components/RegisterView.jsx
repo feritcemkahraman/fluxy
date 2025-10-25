@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { toast } from "sonner";
+// toast removed
 import {
   Eye,
   EyeOff,
@@ -37,28 +37,15 @@ export default function RegisterView({ onToggleMode, onBack }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.username) {
-      toast.error("Kullanıcı adı gereklidir");
-      return;
-    }
-
-    if (!formData.displayName) {
-      toast.error("Görünen ad gereklidir");
-      return;
-    }
-
-    if (!formData.email) {
-      toast.error("E-posta gereklidir");
+    if (!formData.username || !formData.displayName || !formData.email) {
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Şifreler eşleşmiyor");
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error("Şifre en az 6 karakter olmalıdır");
       return;
     }
 
@@ -71,10 +58,8 @@ export default function RegisterView({ onToggleMode, onBack }) {
       password: formData.password,
     });
 
-    if (result.success) {
-      toast.success("Hesap başarıyla oluşturuldu!");
-    } else {
-      toast.error(result.error || "Kayıt oluşturulamadı");
+    if (!result.success) {
+      console.error('Registration error:', result.error);
     }
 
     setIsLoading(false);

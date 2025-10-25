@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Copy, Check, Users, Calendar, Hash, CheckCircle } from 'lucide-react';
 import { serverAPI } from '../services/api';
-import { toast } from 'sonner';
+// toast removed
 
 const ServerInviteModal = ({ isOpen, onClose, server }) => {
   const [inviteCode, setInviteCode] = useState('');
@@ -32,7 +32,6 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
       setInviteCode(response.inviteCode);
     } catch (error) {
       console.error('Failed to load invite code:', error);
-      toast.error('Davet kodu yüklenemedi');
     } finally {
       setLoading(false);
     }
@@ -44,7 +43,6 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
       if (window.electronAPI?.clipboard) {
         await window.electronAPI.clipboard.writeText(inviteCode);
         setCopied(true);
-        toast.success('Davet kodu kopyalandı!');
         setTimeout(() => setCopied(false), 2000);
         return;
       }
@@ -53,7 +51,6 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(inviteCode);
         setCopied(true);
-        toast.success('Davet kodu kopyalandı!');
         setTimeout(() => setCopied(false), 2000);
         return;
       }
@@ -79,14 +76,12 @@ const ServerInviteModal = ({ isOpen, onClose, server }) => {
         
         if (successful) {
           setCopied(true);
-          toast.success('Davet kodu kopyalandı!');
           setTimeout(() => setCopied(false), 2000);
         } else {
           throw new Error('execCommand failed');
         }
       } catch (fallbackError) {
         console.error('Fallback copy failed:', fallbackError);
-        toast.error('Kopyalama başarısız oldu. Kodu manuel olarak seçip kopyalayın.');
       }
     }
   };

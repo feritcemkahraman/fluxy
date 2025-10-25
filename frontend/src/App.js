@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { AuthWrapper } from './features/auth';
@@ -23,7 +22,6 @@ function App() {
         <Router>
           <div className="App">
             <AuthWrapper />
-            <Toaster position="top-right" richColors />
           </div>
         </Router>
       </SocketProvider>

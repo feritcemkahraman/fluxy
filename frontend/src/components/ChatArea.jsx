@@ -12,6 +12,7 @@ import { useSocket } from "../hooks/useSocket";
 import { useChannelMessages } from "../hooks/useChannelMessages";
 import socketService from "../services/socket";
 import { messageAPI, roleAPI } from "../services/api";
+import MessageItem from "../features/messages/components/MessageItem";
 
 const ChatArea = ({ channel, server, showMemberList, onToggleMemberList, voiceChannelClicks }) => {
   const { user } = useAuth();

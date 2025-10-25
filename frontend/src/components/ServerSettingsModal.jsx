@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { roleAPI, serverAPI, channelAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'sonner';
+// toast removed
 import RoleManagement from './RoleManagement';
 
 const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
@@ -462,10 +462,8 @@ const ServerSettingsModal = ({ isOpen, onClose, server, onServerUpdate }) => {
         onServerUpdate({ type: 'leave', serverId });
       }
       
-      toast.success('Sunucudan başarıyla ayrıldınız');
     } catch (error) {
       console.error('Failed to leave server:', error);
-      toast.error('Sunucudan ayrılırken bir hata oluştu');
     } finally {
       setDeleteLoading(false);
     }

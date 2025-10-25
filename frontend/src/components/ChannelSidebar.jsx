@@ -11,7 +11,7 @@ import ServerInviteModal from "./ServerInviteModal";
 import CreateChannelModal from "./CreateChannelModal";
 import VoiceParticipantList from "./VoiceParticipantList";
 import { channelAPI, serverAPI } from '../services/api';
-import { toast } from "sonner";
+// toast removed
 import { useAudio } from "../hooks/useAudio";
 
 const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onChannelSelect, onChannelCreated, onServerUpdate, onVoiceChannelJoin, currentVoiceChannel, isVoiceConnected, isMuted, isDeafened, user, onServerLeft }) => {
@@ -114,7 +114,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
     try {
       setLoading(true);
       await channelAPI.updateChannel(editingChannel._id || editingChannel.id, { name: editChannelName.trim() });
-      toast.success(`"${editingChannel.name}" kanalı "${editChannelName.trim()}" olarak güncellendi!`);
 
       // Refresh server data
       if (onServerUpdate) {
@@ -127,7 +126,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
       }
     } catch (error) {
       console.error('Update channel error:', error);
-      toast.error(`Kanal güncellenirken bir hata oluştu: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
       setEditingChannel(null);
@@ -146,7 +144,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
     try {
       setLoading(true);
       await channelAPI.deleteChannel(channelToDelete._id || channelToDelete.id);
-      toast.success(`"${channelToDelete.name}" kanalı başarıyla silindi!`);
 
       // Refresh server data
       if (onServerUpdate) {
@@ -155,7 +152,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
       }
     } catch (error) {
       console.error('Delete channel error:', error);
-      toast.error(`Kanal silinirken bir hata oluştu: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
       setDeleteDialogOpen(false);
@@ -169,7 +165,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
     try {
       setLoading(true);
       await serverAPI.leaveServer(serverId);
-      toast.success(`${server.name} sunucusundan ayrıldınız`);
       
       // Notify parent component
       if (onServerLeft) {
@@ -177,7 +172,6 @@ const ChannelSidebar = ({ server, activeChannel, voiceChannelParticipants, onCha
       }
     } catch (error) {
       console.error('Leave server error:', error);
-      toast.error(error.response?.data?.message || 'Sunucudan ayrılırken bir hata oluştu');
     } finally {
       setLoading(false);
       setLeaveDialogOpen(false);
