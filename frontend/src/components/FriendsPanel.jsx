@@ -102,11 +102,26 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
       }
     };
 
+    // Friend request sent successfully
+    const handleFriendRequestSent = (data) => {
+      console.log('📤 Friend request sent:', data);
+      
+      if (data.request) {
+        setSentRequests(prev => {
+          const exists = prev.some(r => 
+            (r.id === data.request.id || r._id === data.request._id)
+          );
+          return exists ? prev : [data.request, ...prev];
+        });
+      }
+    };
+
     const unsubscribeStatus = on('userStatusUpdate', handleStatusUpdate);
     const unsubscribeAccepted = on('friendRequestAccepted', handleFriendRequestAccepted);
     const unsubscribeDeclined = on('friendRequestDeclined', handleFriendRequestDeclined);
-    const unsubscribeNew = on('newFriendRequest', handleNewFriendRequest);
+    const unsubscribeNew = on('friendRequestReceived', handleNewFriendRequest);
     const unsubscribeFriendAdded = on('friendAdded', handleFriendAdded);
+    const unsubscribeSent = on('friendRequestSent', handleFriendRequestSent);
 
     return () => {
       if (unsubscribeStatus) unsubscribeStatus();
@@ -114,6 +129,7 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
       if (unsubscribeDeclined) unsubscribeDeclined();
       if (unsubscribeNew) unsubscribeNew();
       if (unsubscribeFriendAdded) unsubscribeFriendAdded();
+      if (unsubscribeSent) unsubscribeSent();
     };
   }, [on]);
 
@@ -158,9 +174,26 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
   const handleSendFriendRequest = async (username) => {
     setSendingRequest(prev => ({ ...prev, [username]: true }));
     try {
-      await friendsAPI.sendFriendRequest(username);
+      const response = await friendsAPI.sendFriendRequest(username);
       setAddFriendQuery('');
-      await loadFriendsData();
+      
+      // Update search results to show pending status immediately
+      setSearchResults(prev => prev.map(user => 
+        user.username === username 
+          ? { ...user, relationshipStatus: 'request_sent' }
+          : user
+      ));
+      
+      // Add to sent requests immediately
+      if (response.request) {
+        setSentRequests(prev => {
+          const exists = prev.some(r => 
+            (r.id === response.request.id || r._id === response.request._id)
+          );
+          return exists ? prev : [response.request, ...prev];
+        });
+      }
+      
       setError('');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to send friend request');
@@ -432,7 +465,11 @@ const FriendsPanel = ({ onBack, onStartConversation }) => {
             onChange={(e) => setAddFriendQuery(e.target.value)}
             placeholder="Kullanıcı adı girin"
             className="flex-1 bg-gray-800/50 text-white px-4 py-3 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-            onKeyPress={(e) => e.key === 'Enter' && handleSendFriendRequest(addFriendQuery)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && addFriendQuery.trim() && !sendingRequest[addFriendQuery]) {
+                handleSendFriendRequest(addFriendQuery);
+              }
+            }}
           />
           <button
             onClick={() => handleSendFriendRequest(addFriendQuery)}

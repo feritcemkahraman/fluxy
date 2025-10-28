@@ -96,6 +96,11 @@ router.post('/request', [
         request: populatedRequest
       });
       console.log(`📬 Friend request notification sent to user: ${targetUser.username}`);
+      
+      // Also notify the sender that request was sent successfully
+      io.to(`user_${req.user._id}`).emit('friendRequestSent', {
+        request: populatedRequest
+      });
     }
 
     res.status(201).json({ 
